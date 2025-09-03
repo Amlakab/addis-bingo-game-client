@@ -83,7 +83,7 @@ export default function HistoryPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-6 rounded-lg shadow-md pb-24 pt-16"
+      className="bg-white p-6 rounded-lg shadow-md "
     >
       <h2 className="text-xl font-bold mb-4 flex items-center">
         <Clock className="mr-2 h-5 w-5 text-blue-600" />

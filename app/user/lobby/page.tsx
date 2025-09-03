@@ -98,8 +98,8 @@ export default function LobbyPage() {
 
   if (gameStarted) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <main className="p-4 px-0">
+      <div className="min-h-screen bg-gray-50 pb-5">
+        <main className="p-2 px-0">
           <GameInterface
             players={players}
             bet={bet}
@@ -110,8 +110,7 @@ export default function LobbyPage() {
             setLanguage={setLanguage}
           />
         </main>
-
-        <MobileNavigation />
+        {/* <MobileNavigation /> */}
       </div>
     );
   }

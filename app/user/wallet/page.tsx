@@ -102,7 +102,7 @@ export default function WalletPage() {
   if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
 
   const WalletOverview = () => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md pb-24 pt-16">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">Wallet Balance</h2>
         <Wallet className="h-6 w-6 text-blue-600" />
