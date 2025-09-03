@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom styles for Bingo platform */
+.bingo-card {
+  @apply grid grid-cols-5 gap-1 p-2 border-2 border-blue-500 rounded-lg bg-white text-black;
+}
+
+.bingo-cell {
+  @apply w-10 h-10 flex items-center justify-center border border-gray-300 rounded-md font-bold;
+}
+
+.bingo-cell.marked {
+  @apply bg-green-500 text-white;
+}
+
+.bingo-cell.free {
+  @apply bg-red-500 text-white;
+}
+
+.number-grid {
+  @apply grid grid-cols-10 gap-2 p-4 bg-gray-100 rounded-lg;
+}
+
+.number-cell {
+  @apply w-12 h-12 flex items-center justify-center border border-gray-300 rounded-full font-bold text-lg;
+}
+
+.number-cell.called {
+  @apply bg-yellow-400 animate-pulse;
+}
+
+/* Ensure Tailwind utilities are available */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
