@@ -8,7 +8,7 @@ import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { Play, Trophy, TrendingUp, Clock, Users, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/axiosInstance';
+import api from '@/app/utils/api';
 
 // ✅ Define Game type
 type Game = {
@@ -110,7 +110,7 @@ export default function UserDashboard() {
       const parsedUser = JSON.parse(storedUser);
       if (!parsedUser?._id) return;
 
-      const response = await api.get(`api/user/${parsedUser._id}`);
+      const response = await api.get(`/user/${parsedUser._id}`);
       const userData: UserType = response.data.data || response.data;
       setUser(userData);
     } catch (err) {
@@ -129,7 +129,7 @@ export default function UserDashboard() {
     const fetchGames = async () => {
       try {
         setLoadingGames(true);
-        const response = await api.get('/api/games');
+        const response = await api.get('/games');
         const gamesData: Game[] = response.data.data || [];
         setGames(gamesData);
       } catch (error) {
@@ -183,11 +183,11 @@ export default function UserDashboard() {
         setLoadingActivities(true);
         
         // Fetch transactions
-        const transactionsResponse = await api.get(`/api/transactions/user/${user._id}?limit=10&page=1`);
+        const transactionsResponse = await api.get(`/transactions/user/${user._id}?limit=10&page=1`);
         const transactions: TransactionType[] = transactionsResponse.data.data || [];
         
         // Fetch game history
-        const gameHistoryResponse = await api.get(`/api/game/history/user/${user._id}`);
+        const gameHistoryResponse = await api.get(`/game/history/user/${user._id}`);
         const gameHistory: GameHistoryType[] = gameHistoryResponse.data || [];
         
         // Combine and sort by date (newest first)

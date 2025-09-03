@@ -7,7 +7,7 @@ import MobileHeader from '@/components/Layout/MobileHeader';
 import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { ArrowDown, ArrowUp, History, Wallet, CreditCard, DollarSign } from 'lucide-react';
-import axios from '@/lib/axiosInstance';
+import api from '@/app/utils/api';
 
 type UserType = {
   _id: string;
@@ -65,7 +65,7 @@ export default function WalletPage() {
         const parsedUser = JSON.parse(storedUser);
         if (!parsedUser?._id) return;
 
-        const res = await axios.get(`/api/user/${parsedUser._id}`);
+        const res = await api.get(`/user/${parsedUser._id}`);
         setUser(res.data.data);
       } catch (error) {
         console.error('Failed to fetch user:', error);
@@ -83,7 +83,7 @@ export default function WalletPage() {
       
       try {
         setIsLoadingTransactions(true);
-        const res = await axios.get(`/api/transactions/user/${user._id}?limit=20&page=1`);
+        const res = await api.get(`/transactions/user/${user._id}?limit=20&page=1`);
         setTransactions(res.data.data);
         setPagination(res.data.pagination);
       } catch (error) {
@@ -146,7 +146,7 @@ export default function WalletPage() {
 
       setLoading(true);
       try {
-        const res = await axios.post('/api/wallet/deposit', { amount: parseFloat(amount), currency: 'ETB', method: paymentMethod });
+        const res = await api.post('/wallet/deposit', { amount: parseFloat(amount), currency: 'ETB', method: paymentMethod });
         const { checkout_url } = res.data.data;
 
         if (checkout_url) {
@@ -219,7 +219,7 @@ export default function WalletPage() {
 
       setLoading(true);
       try {
-        await axios.post('/api/wallet/withdraw', {
+        await api.post('/wallet/withdraw', {
           amount: parseFloat(amount),
           accountNumber,
           method: withdrawalMethod
