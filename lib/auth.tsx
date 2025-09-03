@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, AuthContextType } from '@/types';
-import api from '@/lib/axiosInstance';
+import api from '@/app/utils/api';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUserProfile = async () => {
     try {
-      const response = await api.get('/api/auth/profile');
+      const response = await api.get('/auth/profile');
       
       if (response.status === 200) {
         const responseData = response.data;
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (phone: string, password: string): Promise<User> => {
     try {
-      const response = await api.post('/api/auth/login', {
+      const response = await api.post('/auth/login', {
         phone,
         password
       });
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithOtp = async (phone: string, otp: string): Promise<User> => {
     try {
-      const response = await api.post('/api/auth/login-otp', {
+      const response = await api.post('/auth/login-otp', {
         phone,
         otp
       });
@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (phone: string, password: string): Promise<User> => {
     try {
-      const response = await api.post('/api/auth/register', {
+      const response = await api.post('/auth/register', {
         phone,
         password
       });
