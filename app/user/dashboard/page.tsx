@@ -250,12 +250,12 @@ export default function UserDashboard() {
 
   if (!user) return null;
 
-  if (loading) {
+if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
+      <div className="min-h-screen bg-gray-50 w-full">
         <MobileHeader title="Dashboard" />
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
         <MobileNavigation />
       </div>
@@ -277,109 +277,128 @@ export default function UserDashboard() {
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 w-full">
       <MobileHeader title="Dashboard" />
 
-      <div className="p-4 space-y-6">
+      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
         {/* Welcome Section */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="text-center w-full mb-6 pt-4"
+        >
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h2>
           <p className="text-gray-600">Ready to play some Bingo?</p>
         </motion.div>
 
         {/* Wallet Overview */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.1 }}
+          className="w-full mb-6"
+        >
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
             <h3 className="text-white text-xl font-bold mb-4">Your Wallet</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <div className="w-full">
                 <p className="text-blue-100 text-sm">Balance</p>
-                <p className="text-2xl font-bold">{formatCurrency(user.wallet || 0)}</p>
+                <p className="text-2xl font-bold truncate">{formatCurrency(user.wallet || 0)}</p>
               </div>
-              <div>
+              <div className="w-full">
                 <p className="text-blue-100 text-sm">Total Earnings</p>
-                <p className="text-2xl font-bold">{formatCurrency(user.totalEarnings || 0)}</p>
+                <p className="text-2xl font-bold truncate">{formatCurrency(user.totalEarnings || 0)}</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div>
+            <div className="grid grid-cols-2 gap-4 mt-4 w-full">
+              <div className="w-full">
                 <p className="text-blue-100 text-sm">Daily</p>
-                <p className="text-lg font-semibold">{formatCurrency(user.dailyEarnings || 0)}</p>
+                <p className="text-lg font-semibold truncate">{formatCurrency(user.dailyEarnings || 0)}</p>
               </div>
-              <div>
+              <div className="w-full">
                 <p className="text-blue-100 text-sm">Weekly</p>
-                <p className="text-lg font-semibold">{formatCurrency(user.weeklyEarnings || 0)}</p>
+                <p className="text-lg font-semibold truncate">{formatCurrency(user.weeklyEarnings || 0)}</p>
               </div>
             </div>
             <button
-              className="w-full mt-4 bg-white text-blue-600 hover:bg-gray-100 py-2 rounded-md font-medium"
+              className="w-full mt-4 bg-white text-blue-600 hover:bg-gray-100 py-2 rounded-md font-medium flex items-center justify-center"
               onClick={() => router.push('/user/wallet')}
             >
-              <Plus className="mr-2 h-4 w-4 inline" /> Add Funds
+              <Plus className="h-4 w-4 mr-1" /> Add Funds
             </button>
           </div>
         </motion.div>
 
         {/* Quick Stats */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="grid grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm">
-            <Trophy className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{wins}</p>
-            <p className="text-sm text-gray-600">Wins</p>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.2 }} 
+          className="grid grid-cols-3 gap-4 w-full mb-6"
+        >
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Trophy className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{wins}</p>
+            <p className="text-xs text-gray-600">Wins</p>
           </div>
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm">
-            <Play className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{totalGames}</p>
-            <p className="text-sm text-gray-600">Games</p>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Play className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{totalGames}</p>
+            <p className="text-xs text-gray-600">Games</p>
           </div>
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm">
-            <TrendingUp className="h-8 w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-2xl font-bold text-gray-900">{winRate}%</p>
-            <p className="text-sm text-gray-600">Win Rate</p>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <TrendingUp className="h-6 w-6 text-green-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{winRate}%</p>
+            <p className="text-xs text-gray-600">Win Rate</p>
           </div>
         </motion.div>
 
         {/* Available Games - Single Card */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <div className="flex items-center justify-between mb-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.3 }}
+          className="w-full mb-6"
+        >
+          <div className="flex items-center justify-between mb-4 w-full">
             <h3 className="text-lg font-semibold text-gray-900">Available Games</h3>
-            <span className="text-sm text-gray-600">
+            <span className="text-xs text-gray-600">
               Total: {games.length} • Active: {activeGames.length} • Playing: {inProgressGames.length}
             </span>
           </div>
 
           {loadingGames ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading games...</p>
             </div>
           ) : games.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
-              <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+              <Clock className="h-10 w-10 text-gray-400 mx-auto mb-4" />
               <h4 className="text-lg font-medium text-gray-900 mb-2">No Games Available</h4>
-              <p className="text-gray-600 mb-4">New games will be available soon. Check back later!</p>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700" onClick={() => window.location.reload()}>
+              <p className="text-gray-600 mb-4 text-sm">New games will be available soon. Check back later!</p>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm" onClick={() => window.location.reload()}>
                 Refresh
               </button>
             </div>
           ) : (
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="mb-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+              <div className="mb-4 w-full">
                 <h4 className="font-semibold text-gray-900 mb-3">Active Games ({activeGames.length})</h4>
                 {activeGames.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     {activeGames.map((game) => {
                       const status = getGameStatus(game.betAmount);
                       return (
-                        <div key={game._id} className="flex items-center justify-between p-2 bg-blue-50 rounded">
-                          <div className="flex-1">
-                            <p className="font-medium">{formatCurrency(game.betAmount)} Bet</p>
+                        <div key={game._id} className="flex items-center justify-between p-2 bg-blue-50 rounded w-full">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{formatCurrency(game.betAmount)} Bet</p>
                             <div className="flex items-center text-xs text-gray-600 mt-1">
-                              <Users className="h-3 w-3 mr-1" />
-                              {status.playerCount} players • Prize: {formatCurrency(status.prizePool)}
+                              <Users className="h-3 w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{status.playerCount} players • Prize: {formatCurrency(status.prizePool)}</span>
                             </div>
                           </div>
-                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Active</span>
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full flex-shrink-0 ml-2">Active</span>
                         </div>
                       );
                     })}
@@ -389,22 +408,22 @@ export default function UserDashboard() {
                 )}
               </div>
 
-              <div className="mb-4">
+              <div className="mb-4 w-full">
                 <h4 className="font-semibold text-gray-900 mb-3">In Progress ({inProgressGames.length})</h4>
                 {inProgressGames.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     {inProgressGames.map((game) => {
                       const status = getGameStatus(game.betAmount);
                       return (
-                        <div key={game._id} className="flex items-center justify-between p-2 bg-yellow-50 rounded">
-                          <div className="flex-1">
-                            <p className="font-medium">{formatCurrency(game.betAmount)} Bet</p>
+                        <div key={game._id} className="flex items-center justify-between p-2 bg-yellow-50 rounded w-full">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{formatCurrency(game.betAmount)} Bet</p>
                             <div className="flex items-center text-xs text-gray-600 mt-1">
-                              <Users className="h-3 w-3 mr-1" />
-                              {status.playerCount} players • Prize: {formatCurrency(status.prizePool)}
+                              <Users className="h-3 w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">{status.playerCount} players • Prize: {formatCurrency(status.prizePool)}</span>
                             </div>
                           </div>
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Playing</span>
+                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full flex-shrink-0 ml-2">Playing</span>
                         </div>
                       );
                     })}
@@ -414,10 +433,10 @@ export default function UserDashboard() {
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 text-center">
+              <div className="mt-4 pt-4 border-t border-gray-200 text-center w-full">
                 <p className="text-sm text-green-600 mb-3">Win 80% of the prize pool!</p>
                 <button 
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium" 
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium w-full" 
                   onClick={() => router.push('/user/lobby')}
                 >
                   Join Game
@@ -428,34 +447,39 @@ export default function UserDashboard() {
         </motion.div>
 
         {/* Recent Activity */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.4 }}
+          className="w-full mb-6"
+        >
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
           
           {loadingActivities ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading activities...</p>
             </div>
           ) : recentActivities.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center">
-              <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+              <Clock className="h-10 w-10 text-gray-400 mx-auto mb-4" />
               <h4 className="text-lg font-medium text-gray-900 mb-2">No Recent Activity</h4>
-              <p className="text-gray-600">Start playing games to see your activity here</p>
+              <p className="text-gray-600 text-sm">Start playing games to see your activity here</p>
             </div>
           ) : (
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="space-y-3">
+            <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+              <div className="space-y-3 w-full">
                 {recentActivities.map((activity) => (
-                  <div key={activity.type + activity.data._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+                  <div key={activity.type + activity.data._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 w-full">
                     {activity.type === 'transaction' ? (
                       <>
-                        <div className="flex-1">
-                          <p className="font-medium capitalize">{(activity.data as TransactionType).type.replace('_', ' ')}</p>
-                          <p className="text-sm text-gray-600">{(activity.data as TransactionType).description}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium capitalize truncate">{(activity.data as TransactionType).type.replace('_', ' ')}</p>
+                          <p className="text-sm text-gray-600 truncate">{(activity.data as TransactionType).description}</p>
                           <p className="text-xs text-gray-400">{new Date(activity.date).toLocaleDateString()}</p>
                         </div>
-                        <div className={`text-right ${(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
-                          <p className="font-semibold">{(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? '+' : '-'}{formatCurrency((activity.data as TransactionType).amount)}</p>
+                        <div className={`text-right flex-shrink-0 ml-2 ${(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
+                          <p className="font-semibold truncate">{(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? '+' : '-'}{formatCurrency((activity.data as TransactionType).amount)}</p>
                           <p className={`text-xs capitalize ${(activity.data as TransactionType).status === 'completed' ? 'text-green-500' : (activity.data as TransactionType).status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
                             {(activity.data as TransactionType).status}
                           </p>
@@ -463,13 +487,13 @@ export default function UserDashboard() {
                       </>
                     ) : (
                       <>
-                        <div className="flex-1">
-                          <p className="font-medium">Game Win!</p>
-                          <p className="text-sm text-gray-600">Card #{((activity.data as GameHistoryType).winnerCard)} • {((activity.data as GameHistoryType).numberOfPlayers)} players</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">Game Win!</p>
+                          <p className="text-sm text-gray-600 truncate">Card #{((activity.data as GameHistoryType).winnerCard)} • {((activity.data as GameHistoryType).numberOfPlayers)} players</p>
                           <p className="text-xs text-gray-400">{new Date(activity.date).toLocaleDateString()}</p>
                         </div>
-                        <div className="text-right text-green-600">
-                          <p className="font-semibold">+{formatCurrency((activity.data as GameHistoryType).prizePool)}</p>
+                        <div className="text-right text-green-600 flex-shrink-0 ml-2">
+                          <p className="font-semibold truncate">+{formatCurrency((activity.data as GameHistoryType).prizePool)}</p>
                           <p className="text-xs text-green-500">Won</p>
                         </div>
                       </>
@@ -480,7 +504,7 @@ export default function UserDashboard() {
             </div>
           )}
         </motion.div>
-      </div>
+      </main>
 
       <MobileNavigation />
     </div>

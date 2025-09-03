@@ -5,7 +5,7 @@ export default function UserLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="container mx-auto px-4 pt-16 pb-20"> {/* Added pt-16 for header and pb-20 for navigation */}
+    <div className="w-full min-h-screen bg-gray-50">
       {children}
     </div>
   );

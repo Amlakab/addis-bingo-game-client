@@ -87,7 +87,7 @@ export default function LobbyPage() {
   if (gameStarted) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <MobileHeader title="Bingo Game" showWallet={true} />
+        {/* <MobileHeader title="Bingo Game" showWallet={true} /> */}
         
         <main className="p-4">
           <GameInterface
@@ -109,7 +109,7 @@ export default function LobbyPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="Game Lobby" showWallet={true} />
       
-      <main className="p-4">
+      <main className="p-4 pb-24 pt-16">
         {currentPage === 'bet-selection' ? (
           <BetSelectionPage 
             onPlay={handlePlay}

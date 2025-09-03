@@ -274,19 +274,6 @@ const PlayerLobby = ({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Timer Display */}
-      <Box sx={{
-        p: 2,
-        background: 'linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%)',
-        color: 'white',
-        textAlign: 'center',
-        mb: 2
-      }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-          {language === 'am' ? 'ጨዋታ ይጀምራል በ' : 'Game starts in'} {remainingTime}s
-        </Typography>
-      </Box>
-
       {/* Bet Amount and Stats Row */}
       <Box sx={{
         display: 'flex',
@@ -371,44 +358,6 @@ const PlayerLobby = ({
           </Card>
         </Box>
       </Box>
-
-      {/* User Info and Wallet */}
-      {user && (
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 2,
-          background: 'rgba(255,255,255,0.8)',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-          mb: 2,
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 0 }
-        }}>
-          <Typography variant="h6">
-            {language === 'am' ? 'ተጠቃሚ' : 'User'}: {user.phone}
-          </Typography>
-          <Card sx={{
-            minWidth: 100,
-            height: 60,
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(145deg, #2196F3, #21CBF3)',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 1 }}>
-              <Typography variant="body2" color="white">
-                {language === 'am' ? "የተቀማጭ ሂሳብ" : "Wallet"}
-              </Typography>
-              <Typography variant="h6" color="white" sx={{ fontWeight: 'bold' }}>
-                {wallet.toFixed(2)} ብር
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      )}
 
       {/* Main Game Lobby Content */}
       <Box sx={{ 
