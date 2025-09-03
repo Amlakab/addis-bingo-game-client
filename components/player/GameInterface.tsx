@@ -6,7 +6,7 @@ import {
   Button, Box, Typography, Card, CardContent, 
   useTheme, useMediaQuery, Alert, Snackbar, TextField,
   IconButton, CircularProgress, Modal, Switch,
-  FormControlLabel
+  FormControlLabel,Select, MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { checkWin } from '@/app/utils/gameLogic';
@@ -393,7 +393,7 @@ const startGame = () => {
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-4);
+      const recent = calledNumbers.slice(-3);
       setRecentNumbers(recent);
     }
   }, [calledNumbers]);
@@ -853,7 +853,7 @@ const startGame = () => {
         flexDirection: { xs: 'row' },
         flex: 1,
         gap: 1,
-        minHeight: '35vh',
+        minHeight: '25vh',
         overflow: 'hidden'
       }}>
         {/* Left Side - Number Grid */}
@@ -866,7 +866,7 @@ const startGame = () => {
           borderRadius: 2,
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           overflow: 'auto',
-          minHeight: 0,
+          minHeight: '25vh',
           minWidth: 0
         }}>
           {/* BINGO Header */}
@@ -926,7 +926,7 @@ const startGame = () => {
                           sx={{
                             width: '100%',
                             height: '100%',
-                            minHeight: 34,
+                            minHeight: 30,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -983,9 +983,9 @@ const startGame = () => {
                       color: 'white',
                       borderRadius: 2,
                       fontWeight: 'bold',
-                      fontSize: '0.8rem',
-                      minWidth: 20,
-                      minHeight: 10,
+                      fontSize: '0.7rem',
+                      minWidth: 15,
+                      minHeight: 5,
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                   >
@@ -1003,8 +1003,7 @@ const startGame = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
-          minHeight: 0,
-          minWidth: 0
+          minHeight: '25vh',
         }}>
           {/* Controls */}
           <Box sx={{ 
@@ -1034,41 +1033,36 @@ const startGame = () => {
             />
             
             {/* Language Selection */}
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
                 {language === 'am' ? 'ቋንቋ' : 'Language'}:
               </Typography>
-              <Button 
-                variant={language === 'en' ? 'contained' : 'outlined'} 
-                onClick={() => setLanguage && setLanguage('en')}
+              <Select
+                value={language}
+                onChange={(e) => setLanguage && setLanguage(e.target.value)}
                 size="small"
-                sx={{ minWidth: 60, fontSize: '0.7rem' }}
+                sx={{ minWidth: 40, fontSize: '0.7rem' }}
               >
-                EN
-              </Button>
-              <Button 
-                variant={language === 'am' ? 'contained' : 'outlined'} 
-                onClick={() => setLanguage && setLanguage('am')}
-                size="small"
-                sx={{ minWidth: 60, fontSize: '0.7rem' }}
-              >
-                AM
-              </Button>
+                <MenuItem value="en">EN</MenuItem>
+                <MenuItem value="am">AM</MenuItem>
+              </Select>
             </Box>
+
           </Box>
 
           {/* User Cards */}
           <Box sx={{ 
             flex: 1,
             overflow: 'auto',
-            p: 1,
+            p: 0.5,
             background: 'rgba(255,255,255,0.5)',
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             display: 'flex',
             flexDirection: 'column',
             gap: 1,
-            minHeight: 0
+            minHeight: '25vh'
           }}>
             <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
               {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}

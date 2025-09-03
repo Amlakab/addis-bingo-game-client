@@ -5,6 +5,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import Navbar from '@/components/ui/Navbar';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
@@ -32,6 +35,16 @@ export default function LoginPage() {
       
       // Check if user object exists and has a role
       if (user && user.role) {
+        // Show success toast
+        toast.success('Login successful! Redirecting...', {
+          position: "top-right",
+          autoClose: 2000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+        
         // Redirect based on user role
         if (user.role === 'admin') {
           router.push('/admin');
@@ -42,9 +55,12 @@ export default function LoginPage() {
         }
       } else {
         setMessage('Login failed: User data is missing');
+        toast.error('Login failed: User data is missing');
       }
     } catch (error: any) {
-      setMessage(error.message || 'Login failed');
+      const errorMsg = error.message || 'Login failed';
+      setMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +69,7 @@ export default function LoginPage() {
   const handleSendOtp = async () => {
     if (!phone) {
       setMessage('Please enter your phone number');
+      toast.error('Please enter your phone number');
       return;
     }
     
@@ -70,123 +87,132 @@ export default function LoginPage() {
       
       if (response.ok) {
         setMessage('OTP sent to your phone');
+        toast.success('OTP sent to your phone');
         setIsOtpLogin(true);
       } else {
         const error = await response.json();
-        setMessage(error.message || 'Failed to send OTP');
+        const errorMsg = error.message || 'Failed to send OTP';
+        setMessage(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
-      setMessage('Failed to send OTP');
+      const errorMsg = 'Failed to send OTP';
+      setMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
-          </h2>
-        </div>
-        
-        {message && (
-          <div className={`p-3 rounded ${message.includes('sent') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-            {message}
-          </div>
-        )}
-        
-        <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <Navbar />
+      
+      <div className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-lg shadow-md">
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-              Phone Number
-            </label>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              required
-              className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-              placeholder="0912345678"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Sign in to your account
+            </h2>
           </div>
-
-          {!isOtpLogin ? (
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          ) : (
-            <div>
-              <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
-                OTP Code
-              </label>
-              <input
-                id="otp"
-                name="otp"
-                type="text"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-              />
+          
+          {message && (
+            <div className={`p-3 rounded ${message.includes('sent') || message.includes('success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message}
             </div>
           )}
+          
+          <form className="mt-8 space-y-6" onSubmit={handleLogin}>
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                Phone Number
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                required
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="0912345678"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
-            >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
+            {!isOtpLogin ? (
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
+                  OTP Code
+                </label>
+                <input
+                  id="otp"
+                  name="otp"
+                  type="text"
+                  required
+                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Enter OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                />
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+              >
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
+
+            <div className="text-center">
+              {!isOtpLogin ? (
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={isLoading}
+                  className="text-blue-600 hover:text-blue-500 text-sm"
+                >
+                  Login with OTP instead
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsOtpLogin(false)}
+                  className="text-blue-600 hover:text-blue-500 text-sm"
+                >
+                  Use password instead
+                </button>
+              )}
+            </div>
+          </form>
 
           <div className="text-center">
-            {!isOtpLogin ? (
-              <button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={isLoading}
-                className="text-blue-600 hover:text-blue-500 text-sm"
-              >
-                Login with OTP instead
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsOtpLogin(false)}
-                className="text-blue-600 hover:text-blue-500 text-sm"
-              >
-                Use password instead
-              </button>
-            )}
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
+                Sign up
+              </Link>
+            </p>
           </div>
-        </form>
-
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign up
-            </Link>
-          </p>
         </div>
       </div>
     </div>

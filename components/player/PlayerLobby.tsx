@@ -330,8 +330,8 @@ const PlayerLobby = ({
           width: { xs: '100%', sm: 'auto' }
         }}>
           <Card sx={{
-            minWidth: 80,
-            height: 80,
+            minWidth: 60,
+            height: 60,
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -350,8 +350,8 @@ const PlayerLobby = ({
           </Card>
           
           <Card sx={{
-            minWidth: 80,
-            height: 80,
+            minWidth: 60,
+            height: 60,
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -373,7 +373,7 @@ const PlayerLobby = ({
 
       {/* Main Game Lobby Content */}
       <Box sx={{ 
-        p: { xs: 1, sm: 2 }, 
+        p: { xs: 1, sm: 1 }, 
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         minHeight: '40vh',
@@ -391,12 +391,12 @@ const PlayerLobby = ({
             gridAutoRows: `${buttonSize}px`,
             gap: 1,
             justifyContent: 'center',
-            p: 2,
+            p: 1,
             background: 'rgba(255,255,255,0.7)',
             borderRadius: 2,
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
             overflow: 'auto',
-            mb: 2,
+            mb: 1,
             mx: 'auto',
             width: 'fit-content',
             maxWidth: '100%',
@@ -428,7 +428,7 @@ const PlayerLobby = ({
                     width: '100%',
                     height: '100%',
                     borderRadius: '50%',
-                    fontSize: buttonSize > 40 ? '1.2rem' : buttonSize > 30 ? '1rem' : '0.8rem',
+                    fontSize: buttonSize > 40 ? '1.2rem' : buttonSize > 30 ? '1rem' : '0.6rem',
                     fontWeight: 'bold',
                     display: 'flex',
                     alignItems: 'center',
@@ -458,7 +458,7 @@ const PlayerLobby = ({
                   }}
                 >
                   {isLoading && isSelectedByUser ? (
-                    <CircularProgress size={buttonSize > 40 ? 24 : 20} />
+                    <CircularProgress size={buttonSize > 40 ? 24 : 18} />
                   ) : (
                     id
                   )}
@@ -473,7 +473,7 @@ const PlayerLobby = ({
           width: '100%', 
           maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
           mx: 'auto',
-          px: 2
+          px: 1
         }}>
           <Button
             variant="contained"
@@ -481,7 +481,7 @@ const PlayerLobby = ({
             onClick={selectedPlayers.length > 0 ? handleDirectToGame : onBackToLobby}
             sx={{
               width: '100%',
-              py: 1.5,
+              py: 1,
               fontSize: '1.1rem',
               fontWeight: 'bold',
               borderRadius: 2,

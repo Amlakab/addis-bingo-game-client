@@ -83,7 +83,7 @@ export default function HistoryPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="bg-white p-6 rounded-lg shadow-md pb-24 pt-16"
     >
       <h2 className="text-xl font-bold mb-4 flex items-center">
         <Clock className="mr-2 h-5 w-5 text-blue-600" />
@@ -274,7 +274,7 @@ export default function HistoryPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="History" />
       
-      <div className="p-4 space-y-6">
+      <div className="p-4 space-y-6 pb-24 pt-16">
         <StatsOverview />
         
         {/* Tab Navigation */}
