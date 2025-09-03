@@ -35,6 +35,7 @@ interface GameSession {
   cardNumber: number;
   betAmount: number;
   status: string;
+  createdAt: string;
 }
 
 interface GameHistory {
@@ -54,6 +55,7 @@ interface GameInterfaceProps {
   players: PlayerSelection[]; 
   bet: number; 
   onGameEnd: () => void;
+  onBackToPlayerLobby: () => void; // 
   language: 'en' | 'am';
   earningsPercentage?: number;
   setLanguage?: (lang: 'en' | 'am') => void;
@@ -63,13 +65,14 @@ const GameInterface = ({
   players, 
   bet, 
   onGameEnd,
+  onBackToPlayerLobby,
   language = 'en',
   earningsPercentage = 20,
   setLanguage
 }: GameInterfaceProps) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
-  const [isCalling, setIsCalling] = useState(true);
+  const [isCalling, setIsCalling] = useState(false); // Start with false until game starts
   const [soundOn, setSoundOn] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
@@ -98,6 +101,12 @@ const GameInterface = ({
   const [isClient, setIsClient] = useState(false);
   const [voiceService, setVoiceService] = useState<any>(null);
   const [webSocketService, setWebSocketService] = useState<any>(null);
+  
+  // New state for countdown timer
+  const [countdown, setCountdown] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize component on client side only
   useEffect(() => {
@@ -120,6 +129,24 @@ const GameInterface = ({
     
     loadBrowserModules();
   }, []);
+
+  // Setup WebSocket listeners when service is available
+  useEffect(() => {
+    if (!isClient || !webSocketService) return;
+
+    webSocketService.on('connected', handleWebSocketConnected);
+    webSocketService.on('sessions-updated', handleSessionsUpdate);
+    webSocketService.on('game-ended', handleGameEnded);
+    
+    // Request initial session data
+    webSocketService.send('get-sessions', { betAmount: bet });
+    
+    return () => {
+      webSocketService.off('connected', handleWebSocketConnected);
+      webSocketService.off('sessions-updated', handleSessionsUpdate);
+      webSocketService.off('game-ended', handleGameEnded);
+    };
+  }, [isClient, webSocketService, bet]);
 
   // Initialize and shuffle numbers on component mount
   useEffect(() => {
@@ -154,7 +181,6 @@ const GameInterface = ({
     };
 
     shuffleNumbers();
-    setIsCalling(true);
 
     const handleResize = () => {
       setWindowSize({
@@ -173,23 +199,109 @@ const GameInterface = ({
     };
   }, [isClient]);
 
-  // Setup WebSocket listeners when service is available
+  // Fetch game sessions and setup countdown timer
   useEffect(() => {
-    if (!isClient || !webSocketService) return;
+  if (!isClient || !bet) return;
 
-    webSocketService.on('connected', handleWebSocketConnected);
+  // Function to handle sessions update from WebSocket
+  const handleSessionsUpdate = (sessions: GameSession[]) => {
+    if (sessions.length > 0) {
+      // Filter sessions for the current bet amount
+      const betSessions = sessions.filter(session => session.betAmount === bet);
+      
+      if (betSessions.length > 0) {
+        // Get the earliest createdAt from all sessions
+        const earliestSession = betSessions.reduce((earliest, session) => {
+          const sessionDate = new Date(session.createdAt);
+          return sessionDate < earliest ? sessionDate : earliest;
+        }, new Date(betSessions[0].createdAt));
+        
+        setSessionCreatedAt(earliestSession);
+        
+        // Calculate time difference
+        const currentDate = new Date();
+        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
+        
+        // Calculate remaining time (52 seconds - time difference)
+        const remainingTime = Math.max(0, 50 - timeDifference);
+        setCountdown(remainingTime);
+        
+        // Start countdown if there's time left
+        if (remainingTime > 0) {
+          startCountdown(remainingTime);
+        } else {
+          // If time is already up, start the game immediately
+          startGame();
+        }
+      }
+    }
+  };
+
+  // Set up WebSocket listener
+  if (webSocketService) {
     webSocketService.on('sessions-updated', handleSessionsUpdate);
-    webSocketService.on('game-ended', handleGameEnded);
     
-    // Request initial session data
-    webSocketService.send('get-sessions', { betAmount: bet });
+    // Request sessions for the current bet amount
+    webSocketService.send('get-sessions', {
+      betAmount: bet
+    });
+  }
+
+  return () => {
+    // Clean up interval and WebSocket listener
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
     
-    return () => {
-      webSocketService.off('connected', handleWebSocketConnected);
+    if (webSocketService) {
       webSocketService.off('sessions-updated', handleSessionsUpdate);
-      webSocketService.off('game-ended', handleGameEnded);
-    };
-  }, [isClient, webSocketService, bet]);
+    }
+  };
+}, [isClient, bet, webSocketService]);
+
+  const startCountdown = (initialTime: number) => {
+    setCountdown(initialTime);
+    setGameStarted(false);
+    
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+    
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          // Time's up, start the game
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
+          startGame();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+const startGame = () => {
+  setGameStarted(true);
+  setIsCalling(true);
+  
+  // Update game sessions status to playing via WebSocket
+  if (webSocketService) {
+    // First update all sessions with this bet amount to 'playing' status
+    webSocketService.send('update-session-status-by-bet', {
+      betAmount: bet,
+      status: 'playing'
+    });
+    
+    // Then fetch the updated sessions for this bet amount
+    webSocketService.send('get-sessions', {
+      betAmount: bet
+    });
+  } else {
+    console.error('WebSocket service not available');
+  }
+};
 
   const handleWebSocketConnected = () => {
     setIsWebSocketConnected(true);
@@ -201,8 +313,13 @@ const GameInterface = ({
     const betSessions = sessions.filter(session => session.betAmount === bet);
     
     // Calculate prize pool and player count
-    const activePlayers = betSessions.filter(session => session.status === 'playing').length;
+    const activePlayers = betSessions.filter(session =>
+      ['playing', 'blocked', 'active'].includes(session.status)
+    ).length;
+
     setNumberOfPlayers(activePlayers);
+
+
     
     // Calculate prize pool as 80% of total bets
     const pool = activePlayers * bet * 0.8;
@@ -267,11 +384,11 @@ const GameInterface = ({
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isCalling && isClient) {
+    if (isCalling && isClient && gameStarted) {
       interval = setInterval(callNumber, 3000);
     }
     return () => clearInterval(interval);
-  }, [isCalling, calledNumbers, remainingNumbers, language, isClient]);
+  }, [isCalling, calledNumbers, remainingNumbers, language, isClient, gameStarted]);
 
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
@@ -663,7 +780,7 @@ const GameInterface = ({
       p: 1, 
       textAlign: 'center',
       background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-      minHeight: '100vh',
+      minHeight: '40vh',
       display: 'flex',
       flexDirection: 'column'
     }}>
@@ -678,25 +795,40 @@ const GameInterface = ({
         mb: 1,
         flexWrap: 'wrap'
       }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 80 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-            {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
-            {currentNumber || "-"}
-          </Typography>
-        </Box>
+        {!gameStarted ? (
+          // Show countdown timer before game starts
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
+              {countdown}s
+            </Typography>
+          </Box>
+        ) : (
+          // Show current number and called numbers after game starts
+          <>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
+                {currentNumber || "-"}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {calledNumbers.length}
+              </Typography>
+            </Box>
+          </>
+        )}
         
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 80 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-            {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
-            {calledNumbers.length}
-          </Typography>
-        </Box>
-        
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 80 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
             {language === 'am' ? 'ተጫዋቾች' : 'Players'}
           </Typography>
@@ -705,7 +837,7 @@ const GameInterface = ({
           </Typography>
         </Box>
         
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 80 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
             {language === 'am' ? 'ደራሽ' : 'Derash'}
           </Typography>
@@ -721,7 +853,7 @@ const GameInterface = ({
         flexDirection: { xs: 'row' },
         flex: 1,
         gap: 1,
-        minHeight: 0,
+        minHeight: '35vh',
         overflow: 'hidden'
       }}>
         {/* Left Side - Number Grid */}
@@ -822,43 +954,47 @@ const GameInterface = ({
           </Box>
           
           {/* Recent Numbers */}
-           <Box sx={{ 
-            p: 1,
-            background: 'rgba(255,255,255,0.9)',
-            borderRadius: 2,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            mt: 1
-          }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
-              {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
-            </Typography>
+          {gameStarted && (
             <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center',
-              gap: 1,
-              flexWrap: 'wrap'
+              p: 1,
+              background: 'rgba(255,255,255,0.9)',
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              mt: 1,
+              minHeight: '10vh'
             }}>
-              {recentNumbers.map((num, index) => (
-                <Box 
-                  key={index}
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    backgroundColor: 'orange',
-                    color: 'white',
-                    borderRadius: 2,
-                    fontWeight: 'bold',
-                    fontSize: '0.8rem',
-                    minWidth: 45,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                  }}
-                >
-                  {num}
-                </Box>
-              ))}
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
+                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap'
+              }}>
+                {recentNumbers.map((num, index) => (
+                  <Box 
+                    key={index}
+                    sx={{
+                      px: 1,
+                      py: 1,
+                      backgroundColor: 'orange',
+                      color: 'white',
+                      borderRadius: 2,
+                      fontWeight: 'bold',
+                      fontSize: '0.8rem',
+                      minWidth: 20,
+                      minHeight: 10,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    {num}
+                  </Box>
+                ))}
+              </Box>
             </Box>
-          </Box>
+          )}
         </Box>
 
         {/* Right Side - Controls and Cards */}
@@ -1034,7 +1170,7 @@ const GameInterface = ({
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked}
+                      disabled={isBlocked || !gameStarted}
                       fullWidth
                       size="small"
                       sx={{ fontSize: '0.9rem' }}
@@ -1044,6 +1180,21 @@ const GameInterface = ({
                   </Card>
                 );
               })
+            )}
+            
+            {/* Clear Button (only shown before game starts) */}
+            {!gameStarted && (
+              // In the GameInterface component, find the Back to Lobby button and update it:
+            <Button 
+              variant="outlined" 
+              color="secondary"
+              onClick={onBackToPlayerLobby} // Use the new prop
+              fullWidth
+              size="small"
+              sx={{ fontSize: '0.9rem', mt: 1 }}
+            >
+              {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
+            </Button>
             )}
           </Box>
         </Box>

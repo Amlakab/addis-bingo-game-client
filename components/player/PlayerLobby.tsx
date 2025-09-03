@@ -22,6 +22,7 @@ interface PlayerLobbyProps {
   language?: 'en' | 'am';
   setLanguage?: (lang: 'en' | 'am') => void;
   onBackToLobby?: () => void;
+  onDirectToGame?: (players: PlayerSelection[], bet: number) => void;
 }
 
 interface GameSession {
@@ -44,7 +45,8 @@ const PlayerLobby = ({
   createdAt,
   language = 'en',
   setLanguage,
-  onBackToLobby
+  onBackToLobby,
+  onDirectToGame
 }: PlayerLobbyProps) => {
   const [selectedPlayers, setSelectedPlayers] = useState<PlayerSelection[]>([]);
   const [betAmount, setBetAmount] = useState(initialBet);
@@ -61,13 +63,34 @@ const PlayerLobby = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [buttonSize, setButtonSize] = useState(50);
+  const [buttonSize, setButtonSize] = useState(40);
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Calculate responsive button size based on screen width
+  useEffect(() => {
+    const calculateButtonSize = () => {
+      if (!gridContainerRef.current) return;
+      
+      const containerWidth = gridContainerRef.current.offsetWidth;
+      // Calculate size based on container width (10 columns with gaps)
+      const calculatedSize = Math.max(30, Math.min(50, (containerWidth - 18) / 10));
+      setButtonSize(calculatedSize);
+    };
+    
+    calculateButtonSize();
+    window.addEventListener('resize', calculateButtonSize);
+    
+    return () => {
+      window.removeEventListener('resize', calculateButtonSize);
+    };
+  }, []);
 
   // Set client-side flag and load WebSocket service
   useEffect(() => {
     setIsClient(true);
     
-    // Dynamically import WebSocket service only on client side
     const loadWebSocketService = async () => {
       try {
         const wsModule = await import('@/app/utils/websocket');
@@ -113,38 +136,34 @@ const PlayerLobby = ({
       return () => clearInterval(timer);
     } else {
       // Auto-start game when timer reaches 0 if there are players
+      // This will trigger the onStartGame which should update session status
       if (selectedPlayers.length > 0) {
         onStartGame(selectedPlayers, betAmount);
       } else if (playerCount === 0 && onBackToLobby) {
-        // If no players and callback provided, go back to bet selection
         onBackToLobby();
       }
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby]);
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Filter sessions for the current bet amount
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
     
-    // Create a mapping of card numbers to user IDs
     const cardUserMap: {[key: number]: string} = {};
     betSessions.forEach(session => {
-      cardUserMap[session.cardNumber] = session.userId._id; // Use session.userId._id
+      cardUserMap[session.cardNumber] = session.userId._id;
     });
     setOccupiedCardsByUser(cardUserMap);
     
-    // Update selected players - only include cards selected by the current user
     if (user) {
       const userSelectedCards = betSessions
-        .filter(session => session.userId._id === user._id) // Compare with session.userId._id
+        .filter(session => session.userId._id === user._id)
         .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
       
       setSelectedPlayers(userSelectedCards);
     }
     
-    // Calculate prize pool and player count
     const activePlayers = betSessions.filter(session => session.status === 'active').length;
     const pool = activePlayers * betAmount * 0.8;
     setPrizePool(pool);
@@ -153,20 +172,16 @@ const PlayerLobby = ({
 
   const handleSessionCreated = (session: GameSession) => {
     if (session.betAmount === betAmount) {
-      // Update occupied cards
       setOccupiedCards(prev => [...prev, session.cardNumber]);
       
-      // Update card-user mapping
       setOccupiedCardsByUser(prev => ({
         ...prev,
-        [session.cardNumber]: session.userId._id // Use session.userId._id
+        [session.cardNumber]: session.userId._id
       }));
       
-      // Update player count and prize pool
       setPlayerCount(prev => prev + 1);
       setPrizePool(prev => prev + betAmount * 0.8);
       
-      // If this session belongs to the current user, add to selected players
       if (user && session.userId._id === user._id) {
         setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
       }
@@ -186,20 +201,16 @@ const PlayerLobby = ({
       return;
     }
 
-    // Check if this card is already selected by the current user
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     
     if (isSelectedByUser) {
-      // Deselect the card - delete session and refund
       setIsLoading(true);
       try {
-        // Delete game session via WebSocket
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
         });
         
-        // Remove from selected players
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
         
       } catch (error: any) {
@@ -213,14 +224,12 @@ const PlayerLobby = ({
       return;
     }
 
-    // If card is occupied by someone else, show error
     if (occupiedCards.includes(id) && occupiedCardsByUser[id] !== user._id) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
       setWalletError(true);
       return;
     }
 
-    // Select a new card
     if (selectedPlayers.length < 2) {
       if (wallet < betAmount) {
         setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
@@ -230,7 +239,6 @@ const PlayerLobby = ({
 
       setIsLoading(true);
       try {
-        // Create game session via WebSocket
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
@@ -238,7 +246,6 @@ const PlayerLobby = ({
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
         
-        // Add to selected players
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
         
       } catch (error: any) {
@@ -252,6 +259,13 @@ const PlayerLobby = ({
     } else {
       setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
       setWalletError(true);
+    }
+  };
+
+  // Handle direct navigation to game (without updating session status)
+  const handleDirectToGame = () => {
+    if (selectedPlayers.length > 0 && onDirectToGame) {
+      onDirectToGame(selectedPlayers, betAmount);
     }
   };
 
@@ -315,7 +329,6 @@ const PlayerLobby = ({
           flexDirection: { xs: 'column', sm: 'row' },
           width: { xs: '100%', sm: 'auto' }
         }}>
-          {/* Selected Players Card */}
           <Card sx={{
             minWidth: 80,
             height: 80,
@@ -336,7 +349,6 @@ const PlayerLobby = ({
             </CardContent>
           </Card>
           
-          {/* Prize Pool Card */}
           <Card sx={{
             minWidth: 80,
             height: 80,
@@ -364,7 +376,7 @@ const PlayerLobby = ({
         p: { xs: 1, sm: 2 }, 
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        minHeight: '60vh',
+        minHeight: '40vh',
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
@@ -386,7 +398,7 @@ const PlayerLobby = ({
             overflow: 'auto',
             mb: 2,
             mx: 'auto',
-            width: '100%',
+            width: 'fit-content',
             maxWidth: '100%',
             boxSizing: 'border-box'
           }}
@@ -454,6 +466,33 @@ const PlayerLobby = ({
               </motion.div>
             );
           })}
+        </Box>
+
+        {/* Action Button - Full width matching the grid */}
+        <Box sx={{ 
+          width: '100%', 
+          maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+          mx: 'auto',
+          px: 2
+        }}>
+          <Button
+            variant="contained"
+            color={selectedPlayers.length > 0 ? "success" : "primary"}
+            onClick={selectedPlayers.length > 0 ? handleDirectToGame : onBackToLobby}
+            sx={{
+              width: '100%',
+              py: 1.5,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            }}
+          >
+            {selectedPlayers.length > 0 
+              ? (language === 'am' ? 'ጨዋታ ጀምር' : 'Play') 
+              : (language === 'am' ? 'ተመለስ' : 'Back')
+            }
+          </Button>
         </Box>
 
         <Snackbar

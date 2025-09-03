@@ -32,11 +32,10 @@ export default function LobbyPage() {
   const [gameStarted, setGameStarted] = useState(false);
   const [currentPage, setCurrentPage] = useState<'bet-selection' | 'player-lobby'>('bet-selection');
   const [remainingTime, setRemainingTime] = useState(45);
-  const [createdAt, setCreatedAt] = useState<Date>(new Date()); // Add createdAt state
+  const [createdAt, setCreatedAt] = useState<Date>(new Date());
   const { user } = useAuth();
 
   useEffect(() => {
-    // Check if user is logged in
     if (!user) {
       router.push('/auth/login');
     }
@@ -45,7 +44,7 @@ export default function LobbyPage() {
   const handlePlay = (betAmount: number, timeRemaining: number, playerCount: number, createdAt: Date) => {
     setBet(betAmount);
     setRemainingTime(timeRemaining);
-    setCreatedAt(createdAt); // Store the createdAt time
+    setCreatedAt(createdAt);
     setCurrentPage('player-lobby');
   };
 
@@ -53,7 +52,7 @@ export default function LobbyPage() {
     setPlayers(selectedPlayers);
     setBet(betAmount);
     
-    // Update game sessions status to playing
+    // Update game sessions status to playing (only when timer reaches 0)
     try {
       for (const player of selectedPlayers) {
         const response = await api.get(`/game/sessions/card/${player.id}`);
@@ -72,6 +71,13 @@ export default function LobbyPage() {
     }
   };
 
+  // Handle direct navigation to game (without updating session status)
+  const handleDirectToGame = (selectedPlayers: PlayerSelection[], betAmount: number) => {
+    setPlayers(selectedPlayers);
+    setBet(betAmount);
+    setGameStarted(true); // Directly go to game without updating status
+  };
+
   const handleBackToLobby = () => {
     setCurrentPage('bet-selection');
   };
@@ -84,16 +90,21 @@ export default function LobbyPage() {
     setRemainingTime(45);
   };
 
+  const handleBackToPlayerLobby = () => {
+    setGameStarted(false);
+    // Keep players and bet intact, just go back to player lobby
+    setCurrentPage('player-lobby');
+  };
+
   if (gameStarted) {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        {/* <MobileHeader title="Bingo Game" showWallet={true} /> */}
-        
-        <main className="p-4">
+        <main className="p-4 px-0">
           <GameInterface
             players={players}
             bet={bet}
             onGameEnd={handleGameEnd}
+            onBackToPlayerLobby={handleBackToPlayerLobby}
             language={language}
             earningsPercentage={earningsPercentage}
             setLanguage={setLanguage}
@@ -109,7 +120,7 @@ export default function LobbyPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="Game Lobby" showWallet={true} />
       
-      <main className="p-4 pb-24 pt-16">
+      <main className="p-4 px-0 pb-24 pt-16">
         {currentPage === 'bet-selection' ? (
           <BetSelectionPage 
             onPlay={handlePlay}
@@ -118,12 +129,13 @@ export default function LobbyPage() {
         ) : (
           <PlayerLobby 
             onStartGame={handleStartGame}
+            onDirectToGame={handleDirectToGame}
             initialBet={bet}
             initialTime={remainingTime}
-            createdAt={createdAt} // Pass createdAt to PlayerLobby
+            createdAt={createdAt}
             language={language}
             setLanguage={setLanguage}
-            onBackToLobby={handleBackToLobby} // Add back to lobby handler
+            onBackToLobby={handleBackToLobby}
           />
         )}
       </main>

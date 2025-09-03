@@ -377,7 +377,7 @@ const BetSelectionPage = ({
       transition={{ duration: 0.5 }}
     >
       <Box sx={{ 
-        minHeight: '100vh',
+        minHeight: '40vh',
         background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
         p: { xs: 1.5, sm: 2.5 },
         display: 'flex',
