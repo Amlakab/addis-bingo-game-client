@@ -424,7 +424,7 @@ const PlayerLobby = ({
                   onClick={() => togglePlayer(id)}
                   disabled={(isSelectedByOthers) || isLoading || remainingTime <= 0}
                   sx={{ 
-                    minWidth: 2,
+                    minWidth: 1,
                     width: '100%',
                     height: '100%',
                     borderRadius: '50%',
@@ -458,7 +458,7 @@ const PlayerLobby = ({
                   }}
                 >
                   {isLoading && isSelectedByUser ? (
-                    <CircularProgress size={buttonSize > 39 ? 23 : 15} />
+                    <CircularProgress size={buttonSize > 34 ? 20 : 10} />
                   ) : (
                     id
                   )}

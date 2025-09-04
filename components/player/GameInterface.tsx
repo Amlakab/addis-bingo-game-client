@@ -1017,8 +1017,10 @@ const GameInterface = ({
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
-            {/* Sound Toggle */}
-            <FormControlLabel
+         
+            {/* Language Selection */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FormControlLabel
               control={
                 <Switch
                   checked={soundOn}
@@ -1029,16 +1031,12 @@ const GameInterface = ({
               }
               label={
                 <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
-                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound On') : (language === 'am' ? 'ድምፅ ተጠፍቷል' : 'Sound Off')}
+                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'On') : (language === 'am' ? 'ድምፅ' : 'Off')}
                 </Typography>
+                
               }
+              
             />
-            
-            {/* Language Selection */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
-                {language === 'am' ? 'ቋንቋ' : 'Language'}:
-              </Typography>
               <Select
                 value={language}
                 onChange={(e) => setLanguage && setLanguage(e.target.value)}
@@ -1049,7 +1047,6 @@ const GameInterface = ({
                 <MenuItem value="am">AM</MenuItem>
               </Select>
             </Box>
-
           </Box>
 
           {/* User Cards */}
