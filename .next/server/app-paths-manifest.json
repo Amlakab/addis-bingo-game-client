@@ -1,7 +1,1 @@
-{
-  "/user/dashboard/page": "app/user/dashboard/page.js",
-  "/user/history/page": "app/user/history/page.js",
-  "/user/profile/page": "app/user/profile/page.js",
-  "/auth/login/page": "app/auth/login/page.js",
-  "/user/wallet/page": "app/user/wallet/page.js"
-}
+{}

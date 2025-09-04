@@ -194,66 +194,68 @@ const BetSelectionPage = ({
     };
   }, [isClient, webSocketService, betOptions]);
 
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Group sessions by bet amount
-    const sessionsByBet: {[key: number]: GameSession[]} = {};
+const handleSessionsUpdate = (sessions: GameSession[]) => {
+  // Group sessions by bet amount
+  const sessionsByBet: {[key: number]: GameSession[]} = {};
+  
+  sessions.forEach(session => {
+    if (!sessionsByBet[session.betAmount]) {
+      sessionsByBet[session.betAmount] = [];
+    }
+    sessionsByBet[session.betAmount].push(session);
+  });
+  
+  // Update bet statuses for each bet amount
+  setBetStatuses(prev => {
+    const updatedStatuses = { ...prev };
     
-    sessions.forEach(session => {
-      if (!sessionsByBet[session.betAmount]) {
-        sessionsByBet[session.betAmount] = [];
-      }
-      sessionsByBet[session.betAmount].push(session);
-    });
-    
-    // Update bet statuses for each bet amount
-    setBetStatuses(prev => {
-      const updatedStatuses = { ...prev };
+    Object.keys(sessionsByBet).forEach(betAmountStr => {
+      const betAmount = parseInt(betAmountStr);
+      const sessions = sessionsByBet[betAmount];
       
-      Object.keys(sessionsByBet).forEach(betAmountStr => {
-        const betAmount = parseInt(betAmountStr);
-        const sessions = sessionsByBet[betAmount];
+      if (updatedStatuses[betAmount]) {
+        const activePlayers = sessions.filter(session => session.status === 'active').length;
+        const gameInProgress = sessions.some(session => session.status === 'playing');
+        const prizePool = activePlayers * betAmount * 0.8;
         
-        if (updatedStatuses[betAmount]) {
-          const activePlayers = sessions.filter(session => session.status === 'active').length;
-          const gameInProgress = sessions.some(session => session.status === 'playing');
-          const prizePool = activePlayers * betAmount * 0.8;
+        // If there are active sessions, calculate the correct timer based on createdAt
+        let timer = updatedStatuses[betAmount].timer;
+        let createdAt = updatedStatuses[betAmount].createdAt;
+        
+        if (activePlayers > 0 && sessions.length > 0) {
+          // Find the earliest createdAt time among active sessions
+          const earliestSession = sessions
+            .filter(session => session.status === 'active')
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
           
-          // If there are active sessions, calculate the correct timer based on createdAt
-          let timer = updatedStatuses[betAmount].timer;
-          let createdAt = updatedStatuses[betAmount].createdAt;
-          
-          if (activePlayers > 0 && sessions.length > 0) {
-            // Find the earliest createdAt time among active sessions
-            const earliestSession = sessions
-              .filter(session => session.status === 'active')
-              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+          if (earliestSession) {
+            const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+            // Get current time in UTC to match server time format
+            const currentTime = new Date().toISOString();
+            const currentTimeUTC = new Date(currentTime).getTime();
+            const elapsedSeconds = Math.floor((currentTimeUTC - sessionStartTime) / 1000);
+            const remainingTime = Math.max(0, 45 - elapsedSeconds);
             
-            if (earliestSession) {
-              const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-              const currentTime = new Date().getTime();
-              const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
-              const remainingTime = Math.max(0, 45 - elapsedSeconds);
-              
-              timer = remainingTime;
-              createdAt = new Date(earliestSession.createdAt);
-            }
+            timer = remainingTime;
+            createdAt = new Date(earliestSession.createdAt);
           }
-          
-          // Update player count, prize pool, and status
-          updatedStatuses[betAmount] = {
-            ...updatedStatuses[betAmount],
-            timer,
-            createdAt,
-            playerCount: activePlayers,
-            prizePool: prizePool,
-            status: gameInProgress ? 'in-progress' : (activePlayers > 0 ? 'active' : updatedStatuses[betAmount].status)
-          };
         }
-      });
-      
-      return updatedStatuses;
+        
+        // Update player count, prize pool, and status
+        updatedStatuses[betAmount] = {
+          ...updatedStatuses[betAmount],
+          timer,
+          createdAt,
+          playerCount: activePlayers,
+          prizePool: prizePool,
+          status: gameInProgress ? 'in-progress' : (activePlayers > 0 ? 'active' : updatedStatuses[betAmount].status)
+        };
+      }
     });
-  };
+    
+    return updatedStatuses;
+  });
+};
 
   const fetchGames = async () => {
     try {

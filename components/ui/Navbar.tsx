@@ -17,11 +17,11 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="bg-blue-600 text-white shadow-lg">
+    <nav className="bg-blue-600 text-white shadow-lg fixed w-full z-10 m-0">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           <Link href="/" className="text-2xl font-bold">
-            Bingo Platform
+            Feta Bingo
           </Link>
           
           {/* Desktop Menu */}
@@ -45,10 +45,10 @@ const Navbar: React.FC = () => {
                 <Link href="/game/lobby" className="hover:underline px-3">
                   Games
                 </Link>
-                <Link href="/how-to-play" className="hover:underline px-3">
+                <Link href="/howtoplay" className="hover:underline px-3">
                   How to Play
                 </Link>
-                <Link href="/about-us" className="hover:underline px-3">
+                <Link href="/about" className="hover:underline px-3">
                   About Us
                 </Link>
                 <button
@@ -60,10 +60,10 @@ const Navbar: React.FC = () => {
               </>
             ) : (
               <>
-                <Link href="/how-to-play" className="hover:underline px-3">
+                <Link href="/howtoplay" className="hover:underline px-3">
                   How to Play
                 </Link>
-                <Link href="/about-us" className="hover:underline px-3">
+                <Link href="/about" className="hover:underline px-3">
                   About Us
                 </Link>
                 <Link href="/auth/login" className="hover:underline px-3">
@@ -121,10 +121,10 @@ const Navbar: React.FC = () => {
                   <Link href="/game/lobby" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     Games
                   </Link>
-                  <Link href="/how-to-play" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                  <Link href="/howtoplay" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     How to Play
                   </Link>
-                  <Link href="/about-us" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                  <Link href="/about" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     About Us
                   </Link>
                   <button
@@ -139,10 +139,10 @@ const Navbar: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link href="/how-to-play" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                  <Link href="/howtoplay" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     How to Play
                   </Link>
-                  <Link href="/about-us" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                  <Link href="/about" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     About Us
                   </Link>
                   <Link href="/auth/login" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>

@@ -1,4 +1,4 @@
-'use client';
+
 export class VoiceService {
   private synth = window.speechSynthesis;
   private voices: SpeechSynthesisVoice[] = [];
