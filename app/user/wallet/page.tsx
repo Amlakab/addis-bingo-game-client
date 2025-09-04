@@ -327,7 +327,7 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="Wallet" showWallet={true}/>
-      <div className="p-4 space-y-6 pb-24 pt-16">
+      <div className="p-4 px-0 space-y-6 pb-24 pt-16">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <WalletOverview key="overview" />}
           {activeTab === 'deposit' && <DepositForm key="deposit" />}

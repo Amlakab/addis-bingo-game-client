@@ -18,7 +18,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="Profile" showWallet={false} />
       
-      <div className="p-4 space-y-6 pb-24 pt-16">
+      <div className="p-4 px-0 space-y-6 pb-24 pt-16">
         {/* Profile Card */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold mb-4">Profile Information</h2>

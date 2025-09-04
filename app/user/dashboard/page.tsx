@@ -280,7 +280,7 @@ if (loading) {
     <div className="min-h-screen bg-gray-50 w-full">
       <MobileHeader title="Dashboard" />
 
-      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
+      <main className="px-4 px-0 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
         {/* Welcome Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 

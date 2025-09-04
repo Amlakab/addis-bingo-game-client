@@ -12,7 +12,7 @@ export default function AdminHeader({ onMenuClick }) {
 
   const handleLogout = () => {
     logout();
-    router.push('http://localhost:3000/');
+    router.push('/');
   };
 
   return (

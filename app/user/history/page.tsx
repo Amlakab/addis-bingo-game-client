@@ -274,7 +274,7 @@ export default function HistoryPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <MobileHeader title="History" />
       
-      <div className="p-4 space-y-6 pb-24 pt-16">
+      <div className="p-4 px-0 space-y-6 pb-24 pt-16">
         <StatsOverview />
         
         {/* Tab Navigation */}
