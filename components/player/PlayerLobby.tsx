@@ -382,91 +382,99 @@ const PlayerLobby = ({
         flex: 1,
         overflow: 'hidden'
       }}>
-        <Box 
-          ref={gridContainerRef}
-          sx={{ 
-            flex: 1,
-            display: 'grid',
-            gridTemplateColumns: `repeat(10, ${buttonSize}px)`,
-            gridAutoRows: `${buttonSize}px`,
-            gap: 0.3,
+        <Box
+  ref={gridContainerRef}
+  sx={{
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`, // responsive like above
+    gridAutoRows: 'minmax(30px, auto)',
+    gap: 0.5,
+    justifyContent: 'center',
+    p: 0.5,
+    background: 'rgba(255,255,255,0.7)',
+    borderRadius: 2,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    overflow: 'auto',
+    mb: 0.5,
+    mx: 'auto',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+  }}
+>
+  {Array.from({ length: 100 }, (_, i) => i + 1).map((id) => {
+    const isOccupied = occupiedCards.includes(id);
+    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+    const isSelectedByOthers = isOccupied && !isSelectedByUser;
+
+    return (
+      <motion.div
+        key={id}
+        whileHover={{ scale: isSelectedByOthers ? 1 : 1.05 }}
+        whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
+      >
+        <Box
+          onClick={() => togglePlayer(id)}
+          sx={{
+            width: '100%',
+            height: '100%',
+            minHeight: 30,
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            p: 0.3,
-            background: 'rgba(255,255,255,0.7)',
-            borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            overflow: 'auto',
-            mb: 0.3,
-            mx: 'auto',
-            width: 'fit-content',
-            maxWidth: '100%',
-            boxSizing: 'border-box'
+            borderRadius: '50%',
+            fontWeight: 'bold',
+            fontSize: '0.8rem',
+            cursor: (isSelectedByOthers || isLoading || remainingTime <= 0)
+              ? 'not-allowed'
+              : 'pointer',
+            transition: 'all 0.2s ease',
+
+            background: isSelectedByUser
+              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+              : isSelectedByOthers
+              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
+              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+
+            color: isSelectedByUser
+              ? 'white'
+              : isSelectedByOthers
+              ? '#d32f2f'
+              : 'text.primary',
+
+            border: isSelectedByUser
+              ? '2px solid #2E7D32'
+              : isSelectedByOthers
+              ? '2px solid #d32f2f'
+              : '1px solid #e0e0e0',
+
+            boxShadow: isSelectedByUser
+              ? '0 4px 8px rgba(76,175,80,0.3)'
+              : isSelectedByOthers
+              ? '0 2px 4px rgba(244,67,54,0.2)'
+              : '0 2px 4px rgba(33,150,243,0.2)',
+
+            '&:hover': {
+              background: isSelectedByUser
+                ? 'linear-gradient(145deg, #388E3C, #689F38)'
+                : isSelectedByOthers
+                ? 'linear-gradient(145deg, #ef9a9a, #e57373)'
+                : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
+            },
           }}
         >
-          {Array.from({ length: 100 }, (_, i) => i + 1).map((id) => {
-            const isOccupied = occupiedCards.includes(id);
-            const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-            const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            
-            return (
-              <motion.div
-                key={id}
-                whileHover={{ scale: isSelectedByOthers ? 1 : 1.1 }}
-                whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
-                style={{ width: buttonSize, height: buttonSize }}
-              >
-                <Button
-                  variant={isSelectedByUser ? "contained" : isSelectedByOthers ? "outlined" : "outlined"}
-                  color={
-                    isSelectedByUser ? "success" : 
-                    isSelectedByOthers ? "error" : "primary"
-                  }
-                  onClick={() => togglePlayer(id)}
-                  disabled={(isSelectedByOthers) || isLoading || remainingTime <= 0}
-                  sx={{ 
-                    minWidth: 1,
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    fontSize: buttonSize > 40 ? '0.8rem' : buttonSize > 30 ? '0.6rem' : '0.4rem',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: isSelectedByUser 
-                      ? '0 4px 8px rgba(76,175,80,0.3)'
-                      : isSelectedByOthers 
-                        ? '0 2px 4px rgba(244,67,54,0.2)'
-                        : '0 2px 4px rgba(33,150,243,0.2)',
-                    background: isSelectedByUser 
-                      ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
-                      : isSelectedByOthers 
-                        ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
-                        : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
-                    border: isSelectedByUser 
-                      ? '2px solid #2E7D32'
-                      : isSelectedByOthers 
-                        ? '2px solid #d32f2f'
-                        : '2px solid #e0e0e0',
-                    '&:hover': {
-                      background: isSelectedByUser 
-                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                        : isSelectedByOthers 
-                          ? 'linear-gradient(145deg, #ef9a9a, #e57373)'
-                          : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)'
-                    }
-                  }}
-                >
-                  {isLoading && isSelectedByUser ? (
-                    <CircularProgress size={buttonSize > 34 ? 20 : 10} />
-                  ) : (
-                    id
-                  )}
-                </Button>
-              </motion.div>
-            );
-          })}
+          {isLoading && isSelectedByUser ? (
+            <CircularProgress size={20} />
+          ) : (
+            id
+          )}
         </Box>
+      </motion.div>
+    );
+  })}
+</Box>
+
 
         {/* Action Button - Full width matching the grid */}
         <Box sx={{ 

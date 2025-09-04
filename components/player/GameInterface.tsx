@@ -1007,17 +1007,7 @@ const GameInterface = ({
           minHeight: '25vh',
         }}>
           {/* Controls */}
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            gap: 1,
-            p: 1,
-            minHeight: '10vh',
-            background: 'rgba(255,255,255,0.7)',
-            borderRadius: 2,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-         
+          
             {/* Language Selection */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FormControlLabel
@@ -1047,7 +1037,6 @@ const GameInterface = ({
                 <MenuItem value="am">AM</MenuItem>
               </Select>
             </Box>
-          </Box>
 
           {/* User Cards */}
           <Box sx={{ 
