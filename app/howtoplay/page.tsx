@@ -1,145 +1,105 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
+import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
+// Page Access Instructions with images
+const AccessSteps = [
+  { step: 1, title: "Home Page Access", text: "Start by accessing the Feta Bingo home page where you can explore the game options and features.", file: "/Step1.png", alt: "Home Page" },
+  { step: 2, title: "Login & Registration", text: "Register using your phone number and a secure password if you're new to Feta Bingo. If you have an existing account, simply login with your credentials.", file: "/Step2.png", alt: "Login/Register" },
+  { step: 3, title: "Dashboard Navigation", text: "After logging in, you'll access your dashboard where you can navigate using the mobile navbar.", file: "/Step3.png", alt: "Dashboard" },
+  { step: 4, title: "Wallet Management", text: "Access your wallet from the navbar to view your balance, make deposits, request withdrawals, and check your transaction history.", file: "/Step4.png", alt: "Wallet" },
+  { step: 5, title: "Game History", text: "Check your game history from the navbar to review your wins and past games.", file: "/Step7.png", alt: "Game History" },
+];
 
-// Your actual images in public folder
-const GameFlowImages = [
-  { id: 1, file: "Step1.png", alt: "Home Page", description: "Click Get Started if you are new  Clicl Login if you have account " },
-  { id: 2, file: "Step2.png", alt: "Bingo Card", description: "register by your phone number and your secret password. And if you have account login by your phone number and your password.Y" },
-  { id: 3, file: "Step3.png", alt: "Game in Progress", description: "Numbers being called in real-time" },
-  { id: 4, file: "Step4.png", alt: "Bingo Win", description: "Celebrate your winning pattern!" },
-  { id: 5, file: "Step5.png", alt: "Betting Screen", description: "Choose your stake and start playing" },
-  { id: 6, file: "Step6.png", alt: "Betting Screen", description: "Choose your stake and start playing" },
+// How to Play steps with images
+const HowToPlaySteps = [
+  { step: 1, title: "Deposit Funds", text: "First, deposit funds into your wallet through the wallet section of the navbar.", file: "/Step8.png", alt: "Deposit" },
+  { step: 2, title: "Select a Game", text: 'Click "Play" from the navbar to see available game lists and select one that matches your preferred bet amount.', file: "/Step5.png", alt: "Select a Game" },
+  { step: 3, title: "Select Your Cards", text: "For the selected game, choose your bingo cards. You can select up to 2 cards and change your selection until the timer reaches 0 seconds or the game starts.", note: "Note: You can clear selected cards before the game starts for a refund. After the game starts, you cannot clear your selected cards.", file: "/Step10.png", alt: "Select Your Cards" },
+  { step: 4, title: "Game Play", text: "When the game starts (after the timer reaches 0), numbers will be called automatically. Mark the called numbers on your card as they appear.", file: "/Step9.png", alt: "Game Play" },
+  { step: 5, title: "Winning", text: 'If you complete a winning pattern, click the "Bingo" button. The system will verify your win and display your winning status if confirmed.', note: "Important: Never click the Bingo button if you haven't actually won, as the system will block your cards for false claims.", file: "/Stepp11.png", alt: "Winning" },
 ];
 
 export default function HowToPlayPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 pb-20">
+      {/* Navbar */}
       <Navbar />
-      
-      <div className="container mx-auto px-4 py-8 pb-24 pt-20">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">
-            How to Play Feta Bingo
-          </h1>
-          
-          {/* Game Basics */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-blue-700 mb-4">Game Basics</h2>
-            <p className="text-gray-700 mb-4">
-              Feta Bingo is a multiplayer online bingo game where you can play with friends and players from around the world in real-time.
-            </p>
-            
-            <div className="grid md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="text-xl font-semibold text-blue-600 mb-2">1. Get Your Bingo Card</h3>
-                <p className="text-gray-700">
-                  Each player receives a digital bingo card with random numbers when joining a game.
-                </p>
+
+      {/* Page Title */}
+      <div className="container mx-auto px-4 py-8 max-w-4xl py-8 pt-24">
+        <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">
+          How to Play Feta Bingo
+        </h1>
+      </div>
+
+      {/* Game Basics */}
+      {/* <div className="container mx-auto px-4 py-4 max-w-4xl mb-8">
+        <h2 className="text-2xl font-semibold text-blue-700 mb-4">Game Basics</h2>
+        <p className="text-gray-700 mb-4">
+          Feta Bingo is a multiplayer online bingo game where you can play with friends and players from around the world in real-time.
+        </p>
+      </div> */}
+
+      {/* Page Access Instructions Card */}
+      <div className="container mx-auto px-4 max-w-4xl mb-8">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-semibold text-blue-700 mb-4">Accessing Feta Bingo</h2>
+          <p className="text-gray-700 mb-4">
+          Feta Bingo is a multiplayer online bingo game where you can play with friends and players from around the world in real-time.
+        </p>
+          <div className="space-y-4">
+            {AccessSteps.map(item => (
+              <div key={item.step} className="bg-blue-50 rounded-lg shadow-md p-4 flex flex-col">
+                <h3 className="text-lg font-semibold text-blue-800 flex items-center gap-2 mb-2">
+                  <span className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    {item.step}
+                  </span>
+                  {item.title}
+                </h3>
+                <p className="text-gray-700 mb-2">{item.text}</p>
+                <Image src={item.file} alt={item.alt} width={300} height={180} className="rounded-lg" />
               </div>
-              
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="text-xl font-semibold text-green-600 mb-2">2. Listen for Numbers</h3>
-                <p className="text-gray-700">
-                  Numbers are called automatically by the system. Mark them on your card as they're called.
-                </p>
-              </div>
-              
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <h3 className="text-xl font-semibold text-yellow-600 mb-2">3. Complete Patterns</h3>
-                <p className="text-gray-700">
-                  Complete the required pattern (line, full house, etc.) before other players.
-                </p>
-              </div>
-              
-              <div className="bg-red-50 p-4 rounded-lg">
-                <h3 className="text-xl font-semibold text-red-600 mb-2">4. Call Bingo!</h3>
-                <p className="text-gray-700">
-                  Click the Bingo button when you complete a pattern. The system will verify your win.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
-          
-          {/* Game Flow */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-blue-700 mb-4">Game Flow</h2>
-            
-            <div className="grid md:grid-cols-2 gap-6">
-              {GameFlowImages.map((image) => (
-                <div key={image.id} className="text-center">
-                  <Image 
-                    src={`/${image.file}`} 
-                    alt={image.alt}
-                    width={400}
-                    height={250}
-                    className="rounded-lg shadow-md mx-auto"
-                  />
-                  <p className="text-sm text-gray-600 mt-2">{image.description}</p>
-                </div>
-              ))}
-            </div>
+        </div>
+      </div>
+
+      {/* How to Play Card */}
+      <div className="container mx-auto px-4 max-w-4xl mb-8">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <h2 className="text-2xl font-semibold text-blue-700 mb-4">How to Play</h2>
+          <div className="space-y-4">
+            {HowToPlaySteps.map(item => (
+              <div key={item.step} className="bg-green-50 rounded-lg shadow-md p-4 flex flex-col">
+                <h3 className="text-lg font-semibold text-green-800 flex items-center gap-2 mb-2">
+                  <span className="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                    {item.step}
+                  </span>
+                  {item.title}
+                </h3>
+                <p className="text-gray-700 mb-2">{item.text}</p>
+                {item.note && <p className="text-sm text-blue-600 mb-2">{item.note}</p>}
+                <Image src={item.file} alt={item.alt} width={300} height={180} className="rounded-lg" />
+              </div>
+            ))}
           </div>
-          
-          {/* Betting Interface */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 className="text-2xl font-semibold text-blue-700 mb-4">Betting Interface</h2>
-            
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-3">
-                  1
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Choose Your Stake</h3>
-                  <p className="text-gray-700">
-                    Select your bet amount before joining a game. Higher stakes offer bigger rewards!
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-3">
-                  2
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Auto-Mark Feature</h3>
-                  <p className="text-gray-700">
-                    Enable auto-mark to automatically daub numbers on your card as they're called.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-3">
-                  3
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Quick Buttons</h3>
-                  <p className="text-gray-700">
-                    Use the quick buttons to mark multiple cards or call bingo with a single tap.
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-3">
-                  4
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Win Distribution</h3>
-                  <p className="text-gray-700">
-                    Winnings are automatically distributed to your account after verification.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Play Now Button */}
+        </div>
+      </div>
+
+      {/* Important Notes */}
+      <div className="bg-yellow-50 rounded-lg shadow-lg p-6 mb-8 border-l-4 border-yellow-400 container mx-auto max-w-4xl px-4">
+        <h2 className="text-2xl font-semibold text-yellow-700 mb-4">Important Notes</h2>
+        <ul className="list-disc pl-5 space-y-2 text-gray-700">
+          <li>You can clear selected cards before the game starts and receive a refund</li>
+          <li>After the game starts, you cannot clear your selected cards</li>
+          <li>Never click the Bingo button unless you have a valid winning pattern</li>
+          <li>False Bingo claims will result in your cards being blocked for that game</li>
+          <li>Winnings are automatically credited to your wallet after verification</li>
+        </ul>
+      </div>
+        {/* Play Now Button */}
           <div className="text-center">
             <Link 
               href="/auth/register"
@@ -148,8 +108,6 @@ export default function HowToPlayPage() {
               Play Now
             </Link>
           </div>
-        </div>
-      </div>
     </div>
   );
 }

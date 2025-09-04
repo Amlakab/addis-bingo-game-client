@@ -68,41 +68,57 @@ export default function Home() {
       </section>
 
       <section className="bg-blue-50 p-8 rounded-lg">
-        <h2 className="text-2xl font-bold mb-4 text-center">How to Play</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-xl font-bold">1</span>
-            </div>
-            <h3 className="font-bold">Register</h3>
-            <p className="text-sm">Create your account with your phone number</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-xl font-bold">2</span>
-            </div>
-            <h3 className="font-bold">Deposit</h3>
-            <p className="text-sm">Add funds to your wallet securely</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-xl font-bold">3</span>
-            </div>
-            <h3 className="font-bold">Play</h3>
-            <p className="text-sm">Choose a game and buy your Bingo cards</p>
-          </div>
-          
-          <div className="text-center">
-            <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-xl font-bold">4</span>
-            </div>
-            <h3 className="font-bold">Win</h3>
-            <p className="text-sm">Complete patterns and claim your prizes</p>
-          </div>
-        </div>
-      </section>
+  <h2 className="text-2xl font-bold mb-4 text-center">How to Play</h2>
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    {/* Step 1 */}
+    <div className="text-center">
+      <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+        <span className="text-xl font-bold">1</span>
+      </div>
+      <h3 className="font-bold">Register</h3>
+      <p className="text-sm">Create your account with your phone number</p>
+    </div>
+
+    {/* Step 2 */}
+    <div className="text-center">
+      <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+        <span className="text-xl font-bold">2</span>
+      </div>
+      <h3 className="font-bold">Deposit</h3>
+      <p className="text-sm">Add funds to your wallet securely</p>
+    </div>
+
+    {/* Step 3 */}
+    <div className="text-center">
+      <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+        <span className="text-xl font-bold">3</span>
+      </div>
+      <h3 className="font-bold">Play</h3>
+      <p className="text-sm">Choose a game and buy your Bingo cards</p>
+    </div>
+
+    {/* Step 4 */}
+    <div className="text-center">
+      <div className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+        <span className="text-xl font-bold">4</span>
+      </div>
+      <h3 className="font-bold">Win</h3>
+      <p className="text-sm">Complete patterns and claim your prizes</p>
+    </div>
+  </div>
+
+  {/* See More Button */}
+  <div className="mt-6 text-center">
+    <Link
+      href="/howtoplay"
+      className="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-lg font-semibold transition"
+    >
+      See More
+      <span className="ml-2">→</span>
+    </Link>
+  </div>
+</section>
+
     </div>
   );
 }

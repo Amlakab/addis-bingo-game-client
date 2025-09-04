@@ -412,7 +412,7 @@ useEffect(() => {
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-4);
+      const recent = calledNumbers.slice(-3);
       setRecentNumbers(recent);
     }
   }, [calledNumbers]);
