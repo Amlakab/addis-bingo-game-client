@@ -298,11 +298,11 @@ export default function RegisterPage() {
           <div className="mt-12 text-center">
             <p className="text-xs text-gray-500">
               By creating an account, you agree to our{' '}
-              <Link href="/terms" className="text-purple-600 hover:underline">
+              <Link href="/termsofservice" className="text-purple-600 hover:underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-purple-600 hover:underline">
+              <Link href="/privacypolicy" className="text-purple-600 hover:underline">
                 Privacy Policy
               </Link>
             </p>

@@ -116,30 +116,30 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <MobileHeader title="Game Lobby" showWallet={true} />
-      
-      <main className="p-4 px-0 pb-24 pt-16">
-        {currentPage === 'bet-selection' ? (
-          <BetSelectionPage 
-            onPlay={handlePlay}
-            language={language}
-          />
-        ) : (
-          <PlayerLobby 
-            onStartGame={handleStartGame}
-            onDirectToGame={handleDirectToGame}
-            initialBet={bet}
-            initialTime={remainingTime}
-            createdAt={createdAt}
-            language={language}
-            setLanguage={setLanguage}
-            onBackToLobby={handleBackToLobby}
-          />
-        )}
-      </main>
+  <div className="min-h-screen bg-gray-50 pb-20">
+    <MobileHeader title="Game Lobby" showWallet={true} />
+    
+    <main className="p-4 px-0 pb-24 pt-16">
+      {currentPage === 'bet-selection' ? (
+        <BetSelectionPage 
+          onPlay={handlePlay}
+          language={language}
+        />
+      ) : (
+        <PlayerLobby 
+          onStartGame={handleStartGame}
+          onDirectToGame={handleDirectToGame}
+          initialBet={bet}
+          initialTime={remainingTime}
+          createdAt={createdAt}
+          language={language}
+          setLanguage={setLanguage}
+          onBackToLobby={handleBackToLobby}
+        />
+      )}
+    </main>
 
-      <MobileNavigation />
-    </div>
-  );
+    {currentPage === 'bet-selection' && <MobileNavigation />}
+  </div>
+);
 }

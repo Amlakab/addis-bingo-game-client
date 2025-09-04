@@ -145,7 +145,44 @@ const PlayerLobby = ({
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby]);
 
+  const calculateRemainingTime = (sessions: GameSession[]) => {
+    // Filter sessions for current bet amount and active status
+    const activeSessions = sessions.filter(
+      session => session.betAmount === betAmount && session.status === 'active'
+    );
+    
+    if (activeSessions.length === 0) {
+      // No active sessions, use the initial time from props
+      return initialTime;
+    }
+    
+    // Find the earliest createdAt time among active sessions
+    const earliestSession = activeSessions.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )[0];
+    
+    if (!earliestSession || !earliestSession.createdAt) {
+      return initialTime;
+    }
+    
+    try {
+      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+      const currentTime = new Date().getTime();
+      const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
+      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
+      
+      return calculatedRemainingTime;
+    } catch (error) {
+      console.error('Error calculating remaining time:', error);
+      return initialTime;
+    }
+  };
+
   const handleSessionsUpdate = (sessions: GameSession[]) => {
+    // Calculate remaining time based on session data
+    const calculatedRemainingTime = calculateRemainingTime(sessions);
+    setRemainingTime(calculatedRemainingTime);
+    
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
@@ -289,192 +326,237 @@ const PlayerLobby = ({
       transition={{ duration: 0.5 }}
     >
       {/* Bet Amount and Stats Row */}
-      <Box sx={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        p: 2,
-        background: 'rgba(255,255,255,0.8)', 
-        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-        mb: 2,
-        flexDirection: { xs: 'column', sm: 'row' },
-        gap: { xs: 2, sm: 0 }
-      }}>
-        <TextField
-          label={language === 'am' ? "የተጫዋቾች በቢር" : "Bet (Birr)"}
-          type="number"
-          size="small"
-          value={betAmount}
-          onChange={(e) => setBetAmount(Number(e.target.value))}
-          sx={{ 
-            width: { xs: '100%', sm: 150 },
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 1,
-              background: 'white',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }
-          }}
-          InputProps={{
-            inputProps: { min: 0 }
-          }}
-        />
+ <Box
+  sx={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    p: 1,
+    background: "rgba(255,255,255,0.8)",
+    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+    mb: 2,
+    flexDirection: "row", // always row
+    gap: { xs: 1, sm: 2 }, // smaller gap on mobile
+    flexWrap: "nowrap", // prevent wrapping to new line
+  }}
+>
+  {/* Bet Input */}
+  <TextField
+    label={language === "am" ? "የተጫዋቾች በቢር" : "Bet (Birr)"}
+    type="number"
+    size="small"
+    value={betAmount}
+    disabled
+    onChange={(e) => setBetAmount(Number(e.target.value))}
+    sx={{
+      width: { xs: 100, sm: 150 }, // smaller on mobile
+      "& .MuiOutlinedInput-root": {
+        borderRadius: 1,
+        background: "white",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+      },
+      "& .MuiInputBase-input": {
+        fontSize: { xs: "0.75rem", sm: "0.9rem" }, // font smaller on mobile
+        p: { xs: 0.5, sm: 1 },
+      },
+    }}
+    InputProps={{
+      inputProps: { min: 0 },
+    }}
+  />
 
-        <Typography variant="h6">
-          {remainingTime}s {language === 'am' ? 'ይቀራል' : 'left'} 
+  {/* Timer */}
+  <Typography
+    variant="h6"
+    sx={{
+      fontSize: { xs: "0.8rem", sm: "1rem" }, // shrink font on mobile
+      whiteSpace: "nowrap",
+    }}
+  >
+    {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
+  </Typography>
+
+  {/* Cards */}
+  <Box
+    sx={{
+      display: "flex",
+      gap: { xs: 1, sm: 2 },
+      flexDirection: "row",
+      flexWrap: "nowrap", // no wrapping
+    }}
+  >
+    {/* Players */}
+    <Card
+      sx={{
+        minWidth: { xs: 45, sm: 70 },
+        height: { xs: 45, sm: 70 },
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+      }}
+    >
+      <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
+        <Typography
+          variant="body2"
+          sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
+        >
+          {language === "am" ? "ተጫዋቾች" : "Players"}
         </Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            fontSize: { xs: "0.8rem", sm: "1rem" },
+            fontWeight: "bold",
+            color: "white",
+          }}
+        >
+          {playerCount}
+        </Typography>
+      </CardContent>
+    </Card>
 
-        <Box sx={{ 
-          display: 'flex', 
-          gap: 2,
-          flexDirection: { xs: 'column', sm: 'row' },
-          width: { xs: '100%', sm: 'auto' }
-        }}>
-          <Card sx={{
-            minWidth: 60,
-            height: 60,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(145deg, #4CAF50, #8BC34A)',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="white">
-                {language === 'am' ? "ተጫዋቾች" : "Players"}
-              </Typography>
-              <Typography variant="h6" color="white" sx={{ fontWeight: 'bold' }}>
-                {playerCount}
-              </Typography>
-            </CardContent>
-          </Card>
-          
-          <Card sx={{
-            minWidth: 60,
-            height: 60,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'linear-gradient(145deg, #FF9800, #FFC107)',
-            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-          }}>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Typography variant="body2" color="white">
-                {language === 'am' ? "ደራሽ" : "Derash"}
-              </Typography>
-              <Typography variant="h6" color="white" sx={{ fontWeight: 'bold' }}>
-                {prizePool.toFixed(2)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
+    {/* Prize Pool */}
+    <Card
+      sx={{
+        minWidth: { xs: 45, sm: 70 },
+        height: { xs: 45, sm: 70 },
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(145deg, #FF9800, #FFC107)",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+      }}
+    >
+      <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
+        <Typography
+          variant="body2"
+          sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
+        >
+          {language === "am" ? "ደራሽ" : "Derash"}
+        </Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            fontSize: { xs: "0.8rem", sm: "1rem" },
+            fontWeight: "bold",
+            color: "white",
+          }}
+        >
+          {prizePool.toFixed(2)}
+        </Typography>
+      </CardContent>
+    </Card>
+  </Box>
+</Box>
+
 
       {/* Main Game Lobby Content */}
       <Box sx={{ 
         p: { xs: 0.5, sm: 0.5 }, 
         textAlign: 'center',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-        minHeight: '40vh',
+        minHeight: '50vh',
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
         overflow: 'hidden'
       }}>
         <Box
-  ref={gridContainerRef}
-  sx={{
-    flex: 1,
-    display: 'grid',
-    gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`, // responsive like above
-    gridAutoRows: 'minmax(30px, auto)',
-    gap: 0.5,
-    justifyContent: 'center',
-    p: 0.5,
-    background: 'rgba(255,255,255,0.7)',
-    borderRadius: 2,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    overflow: 'auto',
-    mb: 0.5,
-    mx: 'auto',
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box',
-  }}
->
-  {Array.from({ length: 100 }, (_, i) => i + 1).map((id) => {
-    const isOccupied = occupiedCards.includes(id);
-    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-    const isSelectedByOthers = isOccupied && !isSelectedByUser;
-
-    return (
-      <motion.div
-        key={id}
-        whileHover={{ scale: isSelectedByOthers ? 1 : 1.05 }}
-        whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
-      >
-        <Box
-          onClick={() => togglePlayer(id)}
+          ref={gridContainerRef}
           sx={{
-            width: '100%',
-            height: '100%',
-            minHeight: 30,
-            display: 'flex',
-            alignItems: 'center',
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`,
+            gridAutoRows: 'minmax(30px, auto)',
+            gap: 0.5,
             justifyContent: 'center',
-            borderRadius: '50%',
-            fontWeight: 'bold',
-            fontSize: '0.8rem',
-            cursor: (isSelectedByOthers || isLoading || remainingTime <= 0)
-              ? 'not-allowed'
-              : 'pointer',
-            transition: 'all 0.2s ease',
-
-            background: isSelectedByUser
-              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
-              : isSelectedByOthers
-              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
-              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
-
-            color: isSelectedByUser
-              ? 'white'
-              : isSelectedByOthers
-              ? '#d32f2f'
-              : 'text.primary',
-
-            border: isSelectedByUser
-              ? '2px solid #2E7D32'
-              : isSelectedByOthers
-              ? '2px solid #d32f2f'
-              : '1px solid #e0e0e0',
-
-            boxShadow: isSelectedByUser
-              ? '0 4px 8px rgba(76,175,80,0.3)'
-              : isSelectedByOthers
-              ? '0 2px 4px rgba(244,67,54,0.2)'
-              : '0 2px 4px rgba(33,150,243,0.2)',
-
-            '&:hover': {
-              background: isSelectedByUser
-                ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                : isSelectedByOthers
-                ? 'linear-gradient(145deg, #ef9a9a, #e57373)'
-                : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
-            },
+            p: 0.5,
+            background: 'rgba(255,255,255,0.7)',
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            overflow: 'auto',
+            mb: 0.5,
+            mx: 'auto',
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
           }}
         >
-          {isLoading && isSelectedByUser ? (
-            <CircularProgress size={20} />
-          ) : (
-            id
-          )}
-        </Box>
-      </motion.div>
-    );
-  })}
-</Box>
+          {Array.from({ length: 100 }, (_, i) => i + 1).map((id) => {
+            const isOccupied = occupiedCards.includes(id);
+            const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+            const isSelectedByOthers = isOccupied && !isSelectedByUser;
 
+            return (
+              <motion.div
+                key={id}
+                whileHover={{ scale: isSelectedByOthers ? 1 : 1.05 }}
+                whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
+              >
+                <Box
+                  onClick={() => togglePlayer(id)}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: 42,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem',
+                    cursor: (isSelectedByOthers || isLoading || remainingTime <= 0)
+                      ? 'not-allowed'
+                      : 'pointer',
+                    transition: 'all 0.2s ease',
+
+                    background: isSelectedByUser
+                      ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+                      : isSelectedByOthers
+                      ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
+                      : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+
+                    color: isSelectedByUser
+                      ? 'white'
+                      : isSelectedByOthers
+                      ? '#d32f2f'
+                      : 'text.primary',
+
+                    border: isSelectedByUser
+                      ? '2px solid #2E7D32'
+                      : isSelectedByOthers
+                      ? '2px solid #d32f2f'
+                      : '1px solid #e0e0e0',
+
+                    boxShadow: isSelectedByUser
+                      ? '0 4px 8px rgba(76,175,80,0.3)'
+                      : isSelectedByOthers
+                      ? '0 2px 4px rgba(244,67,54,0.2)'
+                      : '0 2px 4px rgba(33,150,243,0.2)',
+
+                    '&:hover': {
+                      background: isSelectedByUser
+                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
+                        : isSelectedByOthers
+                        ? 'linear-gradient(145deg, #ef9a9a, #e57373)'
+                        : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
+                    },
+                  }}
+                >
+                  {isLoading && isSelectedByUser ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    id
+                  )}
+                </Box>
+              </motion.div>
+            );
+          })}
+        </Box>
 
         {/* Action Button - Full width matching the grid */}
         <Box sx={{ 

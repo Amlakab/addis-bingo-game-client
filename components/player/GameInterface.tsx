@@ -240,7 +240,7 @@ const GameInterface = ({
           const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
           
           // Calculate remaining time (52 seconds - time difference)
-          const remainingTime = Math.max(0, 50 - timeDifference);
+          const remainingTime = Math.max(0, 46 - timeDifference);
           setCountdown(remainingTime);
           
           // Start countdown if there's time left
@@ -327,9 +327,12 @@ const GameInterface = ({
     const betSessions = sessions.filter(session => session.betAmount === bet);
     
     // Calculate prize pool and player count
-    const activePlayers = betSessions.filter(session =>
-      ['playing', 'blocked', 'active'].includes(session.status)
-    ).length;
+    // const activePlayers = betSessions.filter(session =>
+    //   ['playing', 'blocked', 'active'].includes(session.status)
+    // ).length;
+
+    const activePlayers = betSessions.length;
+
 
     setNumberOfPlayers(activePlayers);
     
@@ -355,20 +358,32 @@ const GameInterface = ({
   };
 
   // Check for game over condition
-  useEffect(() => {
-    if (numberOfPlayers === 0 && calledNumbers.length > 0) {
-      checkGameOver();
-    }
-  }, [numberOfPlayers, calledNumbers]);
+useEffect(() => {
+  if (
+    (numberOfPlayers === 0 && calledNumbers.length > 0) ||
+    calledNumbers.length === 75
+  ) {
+    checkGameOver();
+  }
+}, [numberOfPlayers, calledNumbers]);
+
 
   const checkGameOver = async () => {
     try {
+
+      
       // Check if there's a winner in game history
       const response = await api.get(`/game/history/latest/${bet}`);
       if (response.data) {
         const winnerHistory: GameHistory = response.data;
         setGameOverWinner(winnerHistory);
         
+        // Delete game sessions for this bet amount via WebSocket
+        if (webSocketService) {
+          webSocketService.send('reset-game', {
+            betAmount: bet,
+          });
+        }
         // Show toast message
         const winMessage = language === 'am' 
           ? `ተጫዋች ${winnerHistory.winnerCard} አሸንፏል!` 
@@ -397,7 +412,7 @@ const GameInterface = ({
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-3);
+      const recent = calledNumbers.slice(-4);
       setRecentNumbers(recent);
     }
   }, [calledNumbers]);
@@ -541,7 +556,7 @@ const GameInterface = ({
           webSocketService.send('update-session-status', {
             cardNumber: playerId,
             betAmount: bet,
-            status: 'blocked'
+            status: 'playing' // Keep as playing to allow re-attempt
           });
         }
         
@@ -789,8 +804,8 @@ const GameInterface = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        p: 1,
-        minHeight: "10vh",
+        p: 0.5,
+        minHeight: "8vh",
         background: 'rgba(255,255,255,0.8)',
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         mb: 1,
@@ -1021,7 +1036,7 @@ const GameInterface = ({
               }
               label={
                 <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
-                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'On') : (language === 'am' ? 'ድምፅ' : 'Off')}
+                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound SSOff')}
                 </Typography>
                 
               }
@@ -1353,7 +1368,7 @@ const GameInterface = ({
                                         : 'rgba(255,255,255,0.7)',
                                     color: 'text.primary',
                                     fontWeight: 'normal',
-                                    fontSize: '0.6rem',
+                                    fontSize: '0.9rem',
                                     minHeight: 20,
                                     display: 'flex',
                                     alignItems: 'center',
@@ -1619,7 +1634,7 @@ const GameInterface = ({
                         ? `ተጫዋች ${gameOverWinner.winnerCard} አሸንፏል!`
                         : `Player ${gameOverWinner.winnerCard} wins!`}
                     </Typography>
-                    <Typography variant="body2" sx={{ 
+                    {/* <Typography variant="body2" sx={{ 
                       color: '#a1c4fd',
                       mb: 1.5,
                       fontStyle: 'italic'
@@ -1627,7 +1642,7 @@ const GameInterface = ({
                       {language === 'am' 
                         ? `የሽልማት መጠን: ${gameOverWinner.prizePool.toFixed(0)} ብር`
                         : `Prize Amount: ${gameOverWinner.prizePool.toFixed(0)} Birr`}
-                    </Typography>
+                    </Typography> */}
                     
                     {/* Winner Card */}
                     <Typography variant="body2" sx={{ 
@@ -1641,7 +1656,7 @@ const GameInterface = ({
                     <Box sx={{ 
                       display: 'grid',
                       gridTemplateColumns: 'repeat(5, 1fr)',
-                      gap: 0.3,
+                      gap: 0.5,
                       mb: 1,
                       p: 1,
                       background: 'rgba(255,255,255,0.9)',
@@ -1650,11 +1665,11 @@ const GameInterface = ({
                       {/* BINGO Header */}
                       {["B", "I", "N", "G", "O"].map((letter, idx) => (
                         <Box key={letter} sx={{
-                          p: 0.3,
+                          p: 0.5,
                           backgroundColor: 'primary.main',
                           color: 'white',
                           fontWeight: 'bold',
-                          fontSize: '0.6rem',
+                          fontSize: '0.9rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',

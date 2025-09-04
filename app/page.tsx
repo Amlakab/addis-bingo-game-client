@@ -11,7 +11,7 @@ export default function Home() {
     <div className="container mx-0 px-1 py-2">
     <Navbar />
       <section className="text-center mb-12 pb-24 pt-20">
-        <h1 className="text-4xl md:text-6xl font-bold mb-6">Welcome to Bingo Platform</h1>
+        <h1 className="text-4xl md:text-6xl font-bold mb-6">Welcome to Feta Bingo</h1>
         <p className="text-xl mb-8">Play Bingo, win real money, and have fun!</p>
         
         {user ? (
