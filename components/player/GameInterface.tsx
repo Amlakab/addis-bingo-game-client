@@ -1070,7 +1070,7 @@ const GameInterface = ({
             </Typography>
             
             {userCards.length === 0 ? (
-              <Typography variant="body2" sx={{ textAlign: 'center', py: 1, fontSize: '0.8rem' }}>
+              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
                 {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
               </Typography>
             ) : (
@@ -1098,7 +1098,7 @@ const GameInterface = ({
                       display: 'grid',
                       gridTemplateColumns: 'repeat(5, 1fr)',
                       gap: 0.3,
-                      mb: 1
+                      mb: 0.5
                     }}>
                       {/* BINGO Header */}
                       {["B", "I", "N", "G", "O"].map((letter, idx) => (
@@ -1107,7 +1107,7 @@ const GameInterface = ({
                           backgroundColor: 'primary.main',
                           color: 'white',
                           fontWeight: 'bold',
-                          fontSize: '0.9rem',
+                          fontSize: '0.8rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1139,7 +1139,7 @@ const GameInterface = ({
                                 color: 'text.primary',
                                 fontWeight: 'normal',
                                 fontSize: '0.8rem',
-                                minHeight: 26,
+                                minHeight: 24,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1168,7 +1168,7 @@ const GameInterface = ({
                       disabled={isBlocked || !gameStarted}
                       fullWidth
                       size="small"
-                      sx={{ fontSize: '0.9rem' }}
+                      sx={{ fontSize: '0.8rem' }}
                     >
                       BINGO
                     </Button>
@@ -1185,7 +1185,7 @@ const GameInterface = ({
                 onClick={onBackToPlayerLobby}
                 fullWidth
                 size="small"
-                sx={{ fontSize: '0.9rem', mt: 1 }}
+                sx={{ fontSize: '0.8rem', mt: 1 }}
               >
                 {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
               </Button>

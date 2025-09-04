@@ -1,7 +1,5 @@
 {
-  "/termsofservice/page": "app/termsofservice/page.js",
-  "/privacypolicy/page": "app/privacypolicy/page.js",
-  "/contact-us/page": "app/contact-us/page.js",
-  "/user/dashboard/page": "app/user/dashboard/page.js",
-  "/user/lobby/page": "app/user/lobby/page.js"
+  "/page": "app/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/user/dashboard/page": "app/user/dashboard/page.js"
 }
