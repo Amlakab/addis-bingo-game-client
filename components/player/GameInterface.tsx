@@ -852,7 +852,7 @@ const GameInterface = ({
         display: 'flex',
         flexDirection: { xs: 'row' },
         flex: 1,
-        gap: 1,
+        gap: 0.5,
         minHeight: '25vh',
         overflow: 'hidden'
       }}>
@@ -926,7 +926,7 @@ const GameInterface = ({
                           sx={{
                             width: '100%',
                             height: '100%',
-                            minHeight: 31,
+                            minHeight: 30,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1137,7 +1137,7 @@ const GameInterface = ({
                                 color: 'text.primary',
                                 fontWeight: 'normal',
                                 fontSize: '0.8rem',
-                                minHeight: 27,
+                                minHeight: 26,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
