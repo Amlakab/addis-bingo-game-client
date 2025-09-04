@@ -790,6 +790,7 @@ const GameInterface = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         p: 1,
+        minHeight: "10vh",
         background: 'rgba(255,255,255,0.8)',
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         mb: 1,
@@ -1011,6 +1012,7 @@ const GameInterface = ({
             flexDirection: 'column',
             gap: 1,
             p: 1,
+            minHeight: '10vh',
             background: 'rgba(255,255,255,0.7)',
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -1068,7 +1070,7 @@ const GameInterface = ({
             </Typography>
             
             {userCards.length === 0 ? (
-              <Typography variant="body2" sx={{ textAlign: 'center', py: 2, fontSize: '0.8rem' }}>
+              <Typography variant="body2" sx={{ textAlign: 'center', py: 1, fontSize: '0.8rem' }}>
                 {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
               </Typography>
             ) : (
