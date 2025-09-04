@@ -1,4 +1,3 @@
-// app/auth/login/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -107,7 +106,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50">
       <Navbar />
-      
       <div className="container mx-auto px-4 py-8 pt-24">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
@@ -135,7 +133,7 @@ export default function LoginPage() {
               <form className="space-y-6" onSubmit={handleLogin}>
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
+                    Phone Number *
                   </label>
                   <input
                     id="phone"
@@ -152,7 +150,7 @@ export default function LoginPage() {
                 {!isOtpLogin ? (
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                      Password
+                      Password *
                     </label>
                     <input
                       id="password"
@@ -168,7 +166,7 @@ export default function LoginPage() {
                 ) : (
                   <div>
                     <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
-                      OTP Code
+                      OTP Code *
                     </label>
                     <input
                       id="otp"
@@ -245,7 +243,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Features Section - Matching About page style */}
+            {/* Features Section */}
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
                 <h3 className="text-xl font-semibold text-purple-700 mb-4">Why Join Feta Bingo?</h3>
