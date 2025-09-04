@@ -1,4 +1,4 @@
-// app/user/profile/page.tsx
+// app/user/profile/page.jsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,19 +7,20 @@ import MobileHeader from '@/components/Layout/MobileHeader';
 import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { User, Phone, Shield, Calendar, Wallet, TrendingUp, CreditCard, Edit } from 'lucide-react';
+import api from '@/app/utils/api';
 
-// type UserType = {
-//   _id: string;
-//   phone: string;
-//   role: 'user' | 'agent' | 'admin';
-//   wallet: number;
-//   dailyEarnings: number;
-//   weeklyEarnings: number;
-//   totalEarnings: number;
-//   isActive: boolean;
-//   createdAt: string;
-//   updatedAt: string;
-// };
+type UserType = {
+  _id: string;
+  phone: string;
+  role: 'user' | 'agent' | 'admin';
+  wallet: number;
+  dailyEarnings: number;
+  weeklyEarnings: number;
+  totalEarnings: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null);
@@ -27,44 +28,18 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'wallet'>('profile');
 
   useEffect(() => {
-    // Simulate API call to fetch user data
     const fetchUser = async () => {
       try {
-        // In a real app, you would fetch from your API
         const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-        } else {
-          // Fallback mock data
-          setUser({
-            _id: '1',
-            phone: '+251912345678',
-            role: 'user',
-            wallet: 1250.75,
-            dailyEarnings: 125.50,
-            weeklyEarnings: 850.25,
-            totalEarnings: 5250.00,
-            isActive: true,
-            createdAt: '2023-05-15T10:30:00.000Z',
-            updatedAt: '2024-01-20T14:45:00.000Z'
-          });
-        }
+        if (!storedUser) return;
+
+        const parsedUser = JSON.parse(storedUser);
+        if (!parsedUser?._id) return;
+
+        const res = await api.get(`/user/${parsedUser._id}`);
+        setUser(res.data.data);
       } catch (error) {
         console.error('Failed to fetch user:', error);
-        // Fallback mock data on error
-        setUser({
-          _id: '1',
-          phone: '+251912345678',
-          role: 'user',
-          wallet: 1250.75,
-          dailyEarnings: 125.50,
-          weeklyEarnings: 850.25,
-          totalEarnings: 5250.00,
-          isActive: true,
-          createdAt: '2023-05-15T10:30:00.000Z',
-          updatedAt: '2024-01-20T14:45:00.000Z'
-        });
       } finally {
         setIsLoading(false);
       }
@@ -73,29 +48,8 @@ export default function ProfilePage() {
     fetchUser();
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <MobileHeader title="Profile" showWallet={false} />
-        <div className="pt-16 pb-24 px-4">
-          <p className="text-center mt-10 text-gray-500">Loading...</p>
-        </div>
-        <MobileNavigation />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50 pb-20">
-        <MobileHeader title="Profile" showWallet={false} />
-        <div className="pt-16 pb-24 px-4">
-          <p className="text-center mt-10 text-gray-500">User not found</p>
-        </div>
-        <MobileNavigation />
-      </div>
-    );
-  }
+  if (!user && !isLoading) return <p className="text-center mt-10 text-gray-500">User not found</p>;
+  if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
 
   const ProfileInfo = () => (
     <motion.div 
@@ -118,7 +72,7 @@ export default function ProfilePage() {
           <Phone className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Phone Number</p>
-            <p className="font-medium">{user.phone}</p>
+            <p className="font-medium">{user!.phone}</p>
           </div>
         </div>
 
@@ -126,7 +80,7 @@ export default function ProfilePage() {
           <Shield className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Account Type</p>
-            <p className="font-medium capitalize">{user.role}</p>
+            <p className="font-medium capitalize">{user!.role}</p>
           </div>
         </div>
 
@@ -134,7 +88,7 @@ export default function ProfilePage() {
           <Shield className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Account Status</p>
-            <p className="font-medium">{user.isActive ? 'Active' : 'Inactive'}</p>
+            <p className="font-medium">{user!.isActive ? 'Active' : 'Inactive'}</p>
           </div>
         </div>
 
@@ -142,7 +96,7 @@ export default function ProfilePage() {
           <Calendar className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Member Since</p>
-            <p className="font-medium">{new Date(user.createdAt).toLocaleDateString()}</p>
+            <p className="font-medium">{new Date(user!.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
       </div>
@@ -166,22 +120,22 @@ export default function ProfilePage() {
       <div className="space-y-4">
         <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
           <span className="text-blue-700">Current Balance:</span>
-          <span className="font-semibold text-blue-700">{formatCurrency(user.wallet)}</span>
+          <span className="font-semibold text-blue-700">{formatCurrency(user!.wallet || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
           <span className="text-green-700">Daily Earnings:</span>
-          <span className="font-semibold text-green-700">{formatCurrency(user.dailyEarnings)}</span>
+          <span className="font-semibold text-green-700">{formatCurrency(user!.dailyEarnings || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
           <span className="text-yellow-700">Weekly Earnings:</span>
-          <span className="font-semibold text-yellow-700">{formatCurrency(user.weeklyEarnings)}</span>
+          <span className="font-semibold text-yellow-700">{formatCurrency(user!.weeklyEarnings || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
           <span className="text-purple-700">Total Earnings:</span>
-          <span className="font-semibold text-purple-700">{formatCurrency(user.totalEarnings)}</span>
+          <span className="font-semibold text-purple-700">{formatCurrency(user!.totalEarnings || 0)}</span>
         </div>
       </div>
     </motion.div>
