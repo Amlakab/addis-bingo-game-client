@@ -8,6 +8,18 @@ import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { User, Phone, Shield, Calendar, Wallet, TrendingUp, CreditCard, Edit } from 'lucide-react';
 
+// type UserType = {
+//   _id: string;
+//   phone: string;
+//   role: 'user' | 'agent' | 'admin';
+//   wallet: number;
+//   dailyEarnings: number;
+//   weeklyEarnings: number;
+//   totalEarnings: number;
+//   isActive: boolean;
+//   createdAt: string;
+//   updatedAt: string;
+// };
 
 export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null);
