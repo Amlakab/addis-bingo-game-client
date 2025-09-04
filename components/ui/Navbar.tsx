@@ -51,6 +51,9 @@ const Navbar: React.FC = () => {
                 <Link href="/about" className="hover:underline px-3">
                   About Us
                 </Link>
+                <Link href="/about" className="hover:underline px-3">
+                  Contact Us
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded"
@@ -65,6 +68,9 @@ const Navbar: React.FC = () => {
                 </Link>
                 <Link href="/about" className="hover:underline px-3">
                   About Us
+                </Link>
+                <Link href="/contact-us" className="hover:underline px-3">
+                  Contact Us
                 </Link>
                 <Link href="/auth/login" className="hover:underline px-3">
                   Login
@@ -127,6 +133,9 @@ const Navbar: React.FC = () => {
                   <Link href="/about" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     About Us
                   </Link>
+                  <Link href="/contact-us" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                    Contact Us
+                  </Link>
                   <button
                     onClick={() => {
                       handleLogout();
@@ -144,6 +153,9 @@ const Navbar: React.FC = () => {
                   </Link>
                   <Link href="/about" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     About Us
+                  </Link>
+                  <Link href="/contact-us" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                    Contact Us
                   </Link>
                   <Link href="/auth/login" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     Login

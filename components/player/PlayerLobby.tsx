@@ -424,7 +424,7 @@ const PlayerLobby = ({
                   onClick={() => togglePlayer(id)}
                   disabled={(isSelectedByOthers) || isLoading || remainingTime <= 0}
                   sx={{ 
-                    minWidth: 0,
+                    minWidth: 5,
                     width: '100%',
                     height: '100%',
                     borderRadius: '50%',

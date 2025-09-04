@@ -5,12 +5,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/ui/Navbar';
 
-// Placeholder images - replace with your actual game screenshots
+// Your actual images in public folder
 const GameFlowImages = [
-  { id: 1, alt: "Game Lobby", description: "Join a game room from the lobby" },
-  { id: 2, alt: "Bingo Card", description: "Your bingo card with numbers" },
-  { id: 3, alt: "Game in Progress", description: "Numbers being called in real-time" },
-  { id: 4, alt: "Bingo Win", description: "Celebrate your winning pattern!" },
+  { id: 1, file: "Step1.png", alt: "Home Page", description: "Click Get Started if you are new  Clicl Login if you have account " },
+  { id: 2, file: "Step2.png", alt: "Bingo Card", description: "register by your phone number and your secret password. And if you have account login by your phone number and your password.Y" },
+  { id: 3, file: "Step3.png", alt: "Game in Progress", description: "Numbers being called in real-time" },
+  { id: 4, file: "Step4.png", alt: "Bingo Win", description: "Celebrate your winning pattern!" },
+  { id: 5, file: "Step5.png", alt: "Betting Screen", description: "Choose your stake and start playing" },
+  { id: 6, file: "Step6.png", alt: "Betting Screen", description: "Choose your stake and start playing" },
 ];
 
 export default function HowToPlayPage() {
@@ -24,6 +26,7 @@ export default function HowToPlayPage() {
             How to Play Feta Bingo
           </h1>
           
+          {/* Game Basics */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-blue-700 mb-4">Game Basics</h2>
             <p className="text-gray-700 mb-4">
@@ -61,29 +64,27 @@ export default function HowToPlayPage() {
             </div>
           </div>
           
+          {/* Game Flow */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-blue-700 mb-4">Game Flow</h2>
             
             <div className="grid md:grid-cols-2 gap-6">
               {GameFlowImages.map((image) => (
                 <div key={image.id} className="text-center">
-                  <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center mb-2">
-                    <span className="text-gray-500">Screenshot: {image.alt}</span>
-                    {/* Replace with actual Image component when you have images */}
-                    {/* <Image 
-                      src={`/screenshots/game-${image.id}.jpg`} 
-                      alt={image.alt}
-                      width={300}
-                      height={200}
-                      className="rounded-lg"
-                    /> */}
-                  </div>
-                  <p className="text-sm text-gray-600">{image.description}</p>
+                  <Image 
+                    src={`/${image.file}`} 
+                    alt={image.alt}
+                    width={400}
+                    height={250}
+                    className="rounded-lg shadow-md mx-auto"
+                  />
+                  <p className="text-sm text-gray-600 mt-2">{image.description}</p>
                 </div>
               ))}
             </div>
           </div>
           
+          {/* Betting Interface */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-blue-700 mb-4">Betting Interface</h2>
             
@@ -138,6 +139,7 @@ export default function HowToPlayPage() {
             </div>
           </div>
           
+          {/* Play Now Button */}
           <div className="text-center">
             <Link 
               href="/auth/register"

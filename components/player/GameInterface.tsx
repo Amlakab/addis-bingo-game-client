@@ -1,6 +1,5 @@
 'use client';
 
-// components/player/GameInterface.tsx
 import { useState, useEffect, useRef } from 'react';
 import { 
   Button, Box, Typography, Card, CardContent, 
@@ -55,7 +54,7 @@ interface GameInterfaceProps {
   players: PlayerSelection[]; 
   bet: number; 
   onGameEnd: () => void;
-  onBackToPlayerLobby: () => void; // 
+  onBackToPlayerLobby: () => void;
   language: 'en' | 'am';
   earningsPercentage?: number;
   setLanguage?: (lang: 'en' | 'am') => void;
@@ -72,7 +71,7 @@ const GameInterface = ({
 }: GameInterfaceProps) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
-  const [isCalling, setIsCalling] = useState(false); // Start with false until game starts
+  const [isCalling, setIsCalling] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
@@ -137,6 +136,8 @@ const GameInterface = ({
     webSocketService.on('connected', handleWebSocketConnected);
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('game-ended', handleGameEnded);
+    webSocketService.on('number-called', handleNumberCalled);
+    webSocketService.on('game-state', handleGameState);
     
     // Request initial session data
     webSocketService.send('get-sessions', { betAmount: bet });
@@ -145,42 +146,58 @@ const GameInterface = ({
       webSocketService.off('connected', handleWebSocketConnected);
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('game-ended', handleGameEnded);
+      webSocketService.off('number-called', handleNumberCalled);
+      webSocketService.off('game-state', handleGameState);
     };
   }, [isClient, webSocketService, bet]);
 
-  // Initialize and shuffle numbers on component mount
+  // Setup WebSocket listeners for server-side number calling
+  useEffect(() => {
+    if (!isClient || !webSocketService || !gameStarted) return;
+
+    // Request game state when component mounts or game starts
+    webSocketService.send('get-game-state', { betAmount: bet });
+    
+    // Start the game on the server if it's not already running
+    webSocketService.send('start-game', { betAmount: bet });
+    
+    return () => {
+      // Cleanup is handled in the main useEffect
+    };
+  }, [isClient, webSocketService, gameStarted, bet]);
+
+  // Handler for server-called numbers
+  const handleNumberCalled = (data: { 
+    betAmount: number; 
+    number: string; 
+    calledNumbers: string[] 
+  }) => {
+    if (data.betAmount !== bet) return;
+    
+    setCurrentNumber(data.number);
+    setCalledNumbers(data.calledNumbers);
+    
+    if (soundOn && voiceService) {
+      const langCode = language === 'am' ? 'am-ET' : 'en-US';
+      voiceService.speak(data.number, langCode, 1);
+    }
+  };
+
+  // Handler for game state updates
+  const handleGameState = (data: { 
+    betAmount: number; 
+    calledNumbers: string[]; 
+    currentNumber: string 
+  }) => {
+    if (data.betAmount !== bet) return;
+    
+    setCalledNumbers(data.calledNumbers);
+    setCurrentNumber(data.currentNumber);
+  };
+
+  // Initialize and set up window size tracking
   useEffect(() => {
     if (!isClient) return;
-
-    const shuffleNumbers = () => {
-      const letters = ["B", "I", "N", "G", "O"];
-      const ranges = [
-        { min: 1, max: 15 },
-        { min: 16, max: 30 },
-        { min: 31, max: 45 },
-        { min: 46, max: 60 },
-        { min: 61, max: 75 }
-      ];
-      
-      const allNumbers: string[] = [];
-      letters.forEach((letter, idx) => {
-        for (let num = ranges[idx].min; num <= ranges[idx].max; num++) {
-          allNumbers.push(`${letter}-${num}`);
-        }
-      });
-      
-      // Shuffle the array
-      for (let i = allNumbers.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allNumbers[i], allNumbers[j]] = [allNumbers[j], allNumbers[i]];
-      }
-      
-      setRemainingNumbers(allNumbers);
-      setCalledNumbers([]);
-      setCurrentNumber("");
-    };
-
-    shuffleNumbers();
 
     const handleResize = () => {
       setWindowSize({
@@ -201,63 +218,63 @@ const GameInterface = ({
 
   // Fetch game sessions and setup countdown timer
   useEffect(() => {
-  if (!isClient || !bet) return;
+    if (!isClient || !bet) return;
 
-  // Function to handle sessions update from WebSocket
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    if (sessions.length > 0) {
-      // Filter sessions for the current bet amount
-      const betSessions = sessions.filter(session => session.betAmount === bet);
-      
-      if (betSessions.length > 0) {
-        // Get the earliest createdAt from all sessions
-        const earliestSession = betSessions.reduce((earliest, session) => {
-          const sessionDate = new Date(session.createdAt);
-          return sessionDate < earliest ? sessionDate : earliest;
-        }, new Date(betSessions[0].createdAt));
+    // Function to handle sessions update from WebSocket
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      if (sessions.length > 0) {
+        // Filter sessions for the current bet amount
+        const betSessions = sessions.filter(session => session.betAmount === bet);
         
-        setSessionCreatedAt(earliestSession);
-        
-        // Calculate time difference
-        const currentDate = new Date();
-        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
-        
-        // Calculate remaining time (52 seconds - time difference)
-        const remainingTime = Math.max(0, 50 - timeDifference);
-        setCountdown(remainingTime);
-        
-        // Start countdown if there's time left
-        if (remainingTime > 0) {
-          startCountdown(remainingTime);
-        } else {
-          // If time is already up, start the game immediately
-          startGame();
+        if (betSessions.length > 0) {
+          // Get the earliest createdAt from all sessions
+          const earliestSession = betSessions.reduce((earliest, session) => {
+            const sessionDate = new Date(session.createdAt);
+            return sessionDate < earliest ? sessionDate : earliest;
+          }, new Date(betSessions[0].createdAt));
+          
+          setSessionCreatedAt(earliestSession);
+          
+          // Calculate time difference
+          const currentDate = new Date();
+          const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
+          
+          // Calculate remaining time (52 seconds - time difference)
+          const remainingTime = Math.max(0, 50 - timeDifference);
+          setCountdown(remainingTime);
+          
+          // Start countdown if there's time left
+          if (remainingTime > 0) {
+            startCountdown(remainingTime);
+          } else {
+            // If time is already up, start the game immediately
+            startGame();
+          }
         }
       }
-    }
-  };
+    };
 
-  // Set up WebSocket listener
-  if (webSocketService) {
-    webSocketService.on('sessions-updated', handleSessionsUpdate);
-    
-    // Request sessions for the current bet amount
-    webSocketService.send('get-sessions', {
-      betAmount: bet
-    });
-  }
-
-  return () => {
-    // Clean up interval and WebSocket listener
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-    
+    // Set up WebSocket listener
     if (webSocketService) {
-      webSocketService.off('sessions-updated', handleSessionsUpdate);
+      webSocketService.on('sessions-updated', handleSessionsUpdate);
+      
+      // Request sessions for the current bet amount
+      webSocketService.send('get-sessions', {
+        betAmount: bet
+      });
     }
-  };
-}, [isClient, bet, webSocketService]);
+
+    return () => {
+      // Clean up interval and WebSocket listener
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      
+      if (webSocketService) {
+        webSocketService.off('sessions-updated', handleSessionsUpdate);
+      }
+    };
+  }, [isClient, bet, webSocketService]);
 
   const startCountdown = (initialTime: number) => {
     setCountdown(initialTime);
@@ -282,26 +299,23 @@ const GameInterface = ({
     }, 1000);
   };
 
-const startGame = () => {
-  setGameStarted(true);
-  setIsCalling(true);
-  
-  // Update game sessions status to playing via WebSocket
-  if (webSocketService) {
-    // First update all sessions with this bet amount to 'playing' status
-    webSocketService.send('update-session-status-by-bet', {
-      betAmount: bet,
-      status: 'playing'
-    });
+  const startGame = () => {
+    setGameStarted(true);
     
-    // Then fetch the updated sessions for this bet amount
-    webSocketService.send('get-sessions', {
-      betAmount: bet
-    });
-  } else {
-    console.error('WebSocket service not available');
-  }
-};
+    // Update game sessions status to playing via WebSocket
+    if (webSocketService) {
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('update-session-status-by-bet', {
+        betAmount: bet,
+        status: 'playing'
+      });
+      
+      // The server will start calling numbers automatically
+      // when we send the 'start-game' message in the useEffect
+    } else {
+      console.error('WebSocket service not available');
+    }
+  };
 
   const handleWebSocketConnected = () => {
     setIsWebSocketConnected(true);
@@ -318,8 +332,6 @@ const startGame = () => {
     ).length;
 
     setNumberOfPlayers(activePlayers);
-
-
     
     // Calculate prize pool as 80% of total bets
     const pool = activePlayers * bet * 0.8;
@@ -383,34 +395,12 @@ const startGame = () => {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isCalling && isClient && gameStarted) {
-      interval = setInterval(callNumber, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [isCalling, calledNumbers, remainingNumbers, language, isClient, gameStarted]);
-
-  useEffect(() => {
     // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
       const recent = calledNumbers.slice(-3);
       setRecentNumbers(recent);
     }
   }, [calledNumbers]);
-
-  const callNumber = () => {
-    if (remainingNumbers.length === 0) return;
-    
-    const newNum = remainingNumbers[0];
-    setCurrentNumber(newNum);
-    setCalledNumbers([...calledNumbers, newNum]);
-    setRemainingNumbers(remainingNumbers.slice(1));
-    
-    if (soundOn && voiceService) {
-      const langCode = language === 'am' ? 'am-ET' : 'en-US';
-      voiceService.speak(newNum, langCode, 1);
-    }
-  };
 
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
@@ -761,6 +751,16 @@ const startGame = () => {
     return cells;
   };
 
+  // Add cleanup when component unmounts or game ends
+  useEffect(() => {
+    return () => {
+      // Stop the game on server when component unmounts
+      if (webSocketService && bet) {
+        webSocketService.send('stop-game', { betAmount: bet });
+      }
+    };
+  }, [webSocketService, bet]);
+
   if (!isClient) {
     return (
       <Box sx={{ 
@@ -926,7 +926,7 @@ const startGame = () => {
                           sx={{
                             width: '100%',
                             height: '100%',
-                            minHeight: 30,
+                            minHeight: 31,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -961,7 +961,7 @@ const startGame = () => {
               borderRadius: 2,
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               mt: 1,
-              minHeight: '10vh'
+              minHeight: '5vh'
             }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
                 {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
@@ -1033,7 +1033,6 @@ const startGame = () => {
             />
             
             {/* Language Selection */}
-
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
                 {language === 'am' ? 'ቋንቋ' : 'Language'}:
@@ -1138,7 +1137,7 @@ const startGame = () => {
                                 color: 'text.primary',
                                 fontWeight: 'normal',
                                 fontSize: '0.8rem',
-                                minHeight: 30,
+                                minHeight: 27,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1178,17 +1177,16 @@ const startGame = () => {
             
             {/* Clear Button (only shown before game starts) */}
             {!gameStarted && (
-              // In the GameInterface component, find the Back to Lobby button and update it:
-            <Button 
-              variant="outlined" 
-              color="secondary"
-              onClick={onBackToPlayerLobby} // Use the new prop
-              fullWidth
-              size="small"
-              sx={{ fontSize: '0.9rem', mt: 1 }}
-            >
-              {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
-            </Button>
+              <Button 
+                variant="outlined" 
+                color="secondary"
+                onClick={onBackToPlayerLobby}
+                fullWidth
+                size="small"
+                sx={{ fontSize: '0.9rem', mt: 1 }}
+              >
+                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
+              </Button>
             )}
           </Box>
         </Box>
@@ -1309,15 +1307,6 @@ const startGame = () => {
                           ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
                           : `Won with ${winner.pattern} pattern!`}
                       </Typography>
-                      {/* <Typography variant="body2" sx={{ 
-                        color: 'gold',
-                        mb: 1.5,
-                        fontWeight: 'bold'
-                      }}>
-                        {language === 'am' 
-                          ? `የሽልማት መጠን: ${prizePool.toFixed(0)} ብር`
-                          : `Prize Amount: ${prizePool.toFixed(0)} Birr`}
-                      </Typography> */}
                       
                       {/* Winner Card */}
                       <Box sx={{ 
