@@ -568,31 +568,55 @@ const PlayerLobby = ({
         </Box>
 
         {/* Action Button - Full width matching the grid */}
-        <Box sx={{ 
-          width: '100%', 
-          maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-          mx: 'auto',
-          px: 1
-        }}>
-          <Button
-            variant="contained"
-            color={playerCount > 3 ? "success" : "primary"}
-            onClick={playerCount > 3 ? handleDirectToGame : onBackToLobby}
-            sx={{
-              width: '100%',
-              py: 1,
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-              borderRadius: 2,
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-            }}
-          >
-            {playerCount > 3
-              ? (language === 'am' ? 'ጨዋታ ጀምር' : 'Play') 
-              : (language === 'am' ? 'ተመለስ' : 'Back')
-            }
-          </Button>
-        </Box>
+        <Box
+  sx={{
+    width: '100%',
+    maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+    mx: 'auto',
+    px: 1,
+  }}
+>
+  <Button
+    variant="contained"
+    color={
+      playerCount > 3
+        ? 'success'
+        : playerCount === 0
+        ? 'primary'
+        : 'warning'
+    }
+    onClick={() => {
+      if (playerCount > 3) {
+        handleDirectToGame;
+      } else if (playerCount === 0) {
+        onBackToLobby;
+      } else {
+        // 1–3 players → do nothing (waiting)
+      }
+    }}
+    sx={{
+      width: '100%',
+      py: 1,
+      fontSize: '1.1rem',
+      fontWeight: 'bold',
+      borderRadius: 2,
+      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+    }}
+  >
+    {playerCount > 3
+      ? language === 'am'
+        ? 'ጨዋታ ጀምር' // Play
+        : 'Play'
+      : playerCount === 0
+      ? language === 'am'
+        ? 'ተመለስ' // Back
+        : 'Back'
+      : language === 'am'
+      ? 'ጠብቅ' // Wait
+      : 'Wait'}
+  </Button>
+</Box>
+
 
         <Snackbar
           open={walletError}
