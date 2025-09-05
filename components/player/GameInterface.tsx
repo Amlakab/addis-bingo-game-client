@@ -304,11 +304,11 @@ useEffect(() => {
   if (!isClient || !bet || !gameSessions.length) return;
 
   // Check if we have at least 2 unique players
-  const uniqueUserIds = new Set(
-    gameSessions.map(session => session.userId.toString())
-  );
+  // const uniqueUserIds = new Set(
+  //   gameSessions.map(session => session.userId.toString())
+  // );
 
-  if (uniqueUserIds.size < 2) {
+  if (numberOfPlayers < 3) {
     // Delete game sessions for this bet amount via WebSocket
     if (webSocketService) {
       webSocketService.send('refund-wallet', {
@@ -317,8 +317,8 @@ useEffect(() => {
     }
 
     const errorMessage = language === 'am' 
-      ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
-      : 'At least 2 unique players must be there!';
+      ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
+      : 'At least 3 players or cards must be there!';
     
     setToastMessage(errorMessage);
     setShowToast(true);
@@ -334,11 +334,11 @@ useEffect(() => {
 // Also update the startGame function to include the check
 const startGame = () => {
   // Check if we have at least 2 unique players before starting
-  const uniqueUserIds = new Set(
-    gameSessions.map(session => session.userId.toString())
-  );
+  // const uniqueUserIds = new Set(
+  //   gameSessions.map(session => session.userId.toString())
+  // );
 
-  if (uniqueUserIds.size < 2) {
+  if (numberOfPlayers < 3) {
     // Delete game sessions for this bet amount via WebSocket
     if (webSocketService) {
       webSocketService.send('refund-wallet', {
@@ -347,8 +347,8 @@ const startGame = () => {
     }
 
     const errorMessage = language === 'am' 
-      ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
-      : 'At least 2 unique players must be there!';
+      ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
+      : 'At least 3 players or cards must be there!';
     
     setToastMessage(errorMessage);
     setShowToast(true);
