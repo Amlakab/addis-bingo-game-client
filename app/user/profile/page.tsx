@@ -87,7 +87,7 @@ export default function ProfilePage() {
     }
 
     const gamesPlayed = gameHistory.length;
-    const gamesWon = gameHistory.filter(game => game.winnerId === user?._id).length;
+    const gamesWon = gameHistory.length;
     const winRate = gamesPlayed > 0 ? (gamesWon / gamesPlayed) * 100 : 0;
     
     const totalEarnings = gameHistory

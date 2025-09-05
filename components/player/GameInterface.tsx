@@ -299,23 +299,122 @@ const GameInterface = ({
     }, 1000);
   };
 
-  const startGame = () => {
-    setGameStarted(true);
+  // Add this useEffect hook right after the existing useEffect hooks
+useEffect(() => {
+  if (!isClient || !bet || !gameSessions.length) return;
+
+  // Check if we have at least 2 unique players
+  //const uniqueUserIds = new Set(gameSessions.map(session => session.userId));
+  
+  const uniqueUserIds = new Set(
+      gameSessions
+        .filter(session => session.betAmount === bet) // filter by bet amount
+        .map(session => session.userId)              // collect only userId
+    ); 
+
+ if (uniqueUserIds.size < 2) {
+    // Delete game sessions for this bet amount via WebSocket
+        if (webSocketService) {
+
+          const amount = numberOfPlayers * bet;
+          webSocketService.send('refund-wallet', {
+            betAmount: bet,
+            });
+
+          //   webSocketService.send('reset-game', {
+          //   betAmount: bet,
+          // });
+        }
+
+      const errorMessage = language === 'am' 
+      ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
+      : 'At least 2 unique players must be there!';
     
-    // Update game sessions status to playing via WebSocket
-    if (webSocketService) {
-      // First update all sessions with this bet amount to 'playing' status
-      webSocketService.send('update-session-status-by-bet', {
-        betAmount: bet,
-        status: 'playing'
-      });
+    setToastMessage(errorMessage);
+    setShowToast(true);
+    
+    const timer = setTimeout(() => {
+      onGameEnd();
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }  
+  
+}, [gameSessions, bet, isClient, language, onBackToPlayerLobby]);
+
+// Also update the startGame function to include the check
+const startGame = () => {
+  // Check if we have at least 2 unique players before starting
+    const uniqueUserIds = new Set(
+      gameSessions
+        .filter(session => session.betAmount === bet) // filter by bet amount
+        .map(session => session.userId)              // collect only userId
+    );  
+
+  if (uniqueUserIds.size < 2) {
+    // Delete game sessions for this bet amount via WebSocket
+        if (webSocketService) {
+
+          const amount = numberOfPlayers * bet;
+          webSocketService.send('refund-wallet', {
+            betAmount: bet,
+            });
+
+          //   webSocketService.send('reset-game', {
+          //   betAmount: bet,
+          // });
+        }
+
+      const errorMessage = language === 'am' 
+      ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
+      : 'At least 2 unique players must be there!';
+    
+    setToastMessage(errorMessage);
+    setShowToast(true);
+    
+    const timer = setTimeout(() => {
+      onGameEnd();
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }  
+  
+  // Update game sessions status to playing via WebSocket
+  if (webSocketService) {
+    // First update all sessions with this bet amount to 'playing' status
+    webSocketService.send('update-session-status-by-bet', {
+      betAmount: bet,
+      status: 'playing'
+    });
+    
+    // The server will start calling numbers automatically
+    // when we send the 'start-game' message in the useEffect
+  } else {
+    console.error('WebSocket service not available');
+  }
+
+  setGameStarted(true);
+
+
+};
+
+  // const startGame = () => {
+  //   setGameStarted(true);
+    
+  //   // Update game sessions status to playing via WebSocket
+  //   if (webSocketService) {
+  //     // First update all sessions with this bet amount to 'playing' status
+  //     webSocketService.send('update-session-status-by-bet', {
+  //       betAmount: bet,
+  //       status: 'playing'
+  //     });
       
-      // The server will start calling numbers automatically
-      // when we send the 'start-game' message in the useEffect
-    } else {
-      console.error('WebSocket service not available');
-    }
-  };
+  //     // The server will start calling numbers automatically
+  //     // when we send the 'start-game' message in the useEffect
+  //   } else {
+  //     console.error('WebSocket service not available');
+  //   }
+  // };
 
   const handleWebSocketConnected = () => {
     setIsWebSocketConnected(true);
@@ -942,7 +1041,7 @@ useEffect(() => {
                           sx={{
                             width: '100%',
                             height: '100%',
-                            minHeight: 30,
+                            minHeight: 29,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -977,7 +1076,7 @@ useEffect(() => {
               borderRadius: 2,
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               mt: 1,
-              minHeight: '5vh'
+              minHeight: '3vh'
             }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
                 {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
@@ -1001,7 +1100,7 @@ useEffect(() => {
                       fontWeight: 'bold',
                       fontSize: '0.7rem',
                       minWidth: 15,
-                      minHeight: 5,
+                      minHeight: 2,
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                   >
