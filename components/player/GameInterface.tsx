@@ -307,7 +307,7 @@ useEffect(() => {
   // const uniqueUserIds = new Set(
   //   gameSessions.map(session => session.userId.toString())
   // );
-alert(numberOfPlayers);
+// alert(numberOfPlayers);
   if (numberOfPlayers < 3) {
     // Delete game sessions for this bet amount via WebSocket
     if (webSocketService) {
