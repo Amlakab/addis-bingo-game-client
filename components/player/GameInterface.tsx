@@ -300,14 +300,44 @@ const GameInterface = ({
   };
 
   // Add this useEffect hook right after the existing useEffect hooks
-useEffect(() => {
-  if (!isClient || !bet || !gameSessions.length) return;
+// useEffect(() => {
+//   if (!isClient || !bet || !gameSessions.length) return;
 
-  // Check if we have at least 2 unique players
+//   // Check if we have at least 2 unique players
+//   // const uniqueUserIds = new Set(
+//   //   gameSessions.map(session => session.userId.toString())
+//   // );
+// // alert(numberOfPlayers);
+//   if (numberOfPlayers < 3) {
+//     // Delete game sessions for this bet amount via WebSocket
+//     if (webSocketService) {
+//       webSocketService.send('refund-wallet', {
+//         betAmount: bet,
+//       });
+//     }
+
+//     const errorMessage = language === 'am' 
+//       ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
+//       : 'At least 3 players or cards must be there!';
+    
+//     setToastMessage(errorMessage);
+//     setShowToast(true);
+    
+//     const timer = setTimeout(() => {
+//       onGameEnd();
+//     }, 4000);
+    
+//     return () => clearTimeout(timer);
+//   }  
+// }, [gameSessions, bet, isClient, language, onGameEnd]);
+
+// Also update the startGame function to include the check
+const startGame = () => {
+  // Check if we have at least 2 unique players before starting
   // const uniqueUserIds = new Set(
   //   gameSessions.map(session => session.userId.toString())
   // );
-// alert(numberOfPlayers);
+
   if (numberOfPlayers < 3) {
     // Delete game sessions for this bet amount via WebSocket
     if (webSocketService) {
@@ -328,37 +358,7 @@ useEffect(() => {
     }, 4000);
     
     return () => clearTimeout(timer);
-  }  
-}, [gameSessions, bet, isClient, language, onGameEnd]);
-
-// Also update the startGame function to include the check
-const startGame = () => {
-  // Check if we have at least 2 unique players before starting
-  // const uniqueUserIds = new Set(
-  //   gameSessions.map(session => session.userId.toString())
-  // );
-
-  // if (numberOfPlayers < 3) {
-  //   // Delete game sessions for this bet amount via WebSocket
-  //   if (webSocketService) {
-  //     webSocketService.send('refund-wallet', {
-  //       betAmount: bet,
-  //     });
-  //   }
-
-  //   const errorMessage = language === 'am' 
-  //     ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
-  //     : 'At least 3 players or cards must be there!';
-    
-  //   setToastMessage(errorMessage);
-  //   setShowToast(true);
-    
-  //   const timer = setTimeout(() => {
-  //     onGameEnd();
-  //   }, 4000);
-    
-  //   return () => clearTimeout(timer);
-  // }
+  }
   
   // Update game sessions status to playing via WebSocket
   if (webSocketService) {
