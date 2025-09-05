@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Box, Typography, Card, CardContent, Button,
-  useTheme, useMediaQuery, Chip, LinearProgress
+  useTheme, useMediaQuery, Chip, LinearProgress, Skeleton
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { 
@@ -416,7 +416,7 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
         </Box>
 
         {/* User Balance Display */}
-        {/* <Box sx={{ 
+        <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
           mb: 2,
@@ -429,10 +429,14 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
           <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
             {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
           </Typography>
-          <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
-            {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
-          </Typography>
-        </Box> */}
+          {isLoadingBalance ? (
+            <Skeleton variant="text" width={60} sx={{ ml: 1, fontSize: '1rem' }} />
+          ) : (
+            <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
+              {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
+            </Typography>
+          )}
+        </Box>
 
         {/* Bet Cards Container */}
         <Box sx={{ 
@@ -452,9 +456,9 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
               createdAt: null
             };
             
-            // Only disable if status is in-progress OR insufficient balance
+            // Only disable if status is in-progress OR insufficient balance (only after balance is loaded)
             const isDisabledByStatus = status.status === 'in-progress';
-            const isDisabledByBalance = hasInsufficientBalance(bet);
+            const isDisabledByBalance = !isLoadingBalance && hasInsufficientBalance(bet);
             const isDisabled = isDisabledByStatus || isDisabledByBalance;
             const canPlay = status.status === 'active' && !isDisabledByBalance;
             
@@ -473,7 +477,7 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
                       borderRadius: 2,
                       boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
                       background: '#ffffff',
-                      opacity: isDisabledByStatus ? 0.7 : 1, // Only reduce opacity for in-progress, not for low balance
+                      opacity: isDisabledByStatus ? 0.7 : 1,
                       position: 'relative',
                       overflow: 'visible',
                       border: `1px solid ${isDisabled ? '#e0e0e0' : '#e0e0e0'}`,
@@ -571,52 +575,62 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
                       <Button
                         variant="contained"
                         size="small"
-                        disabled={isDisabled}
+                        disabled={isDisabled || isLoadingBalance}
                         onClick={() => handlePlayClick(bet)}
-                        startIcon={!isDisabledByBalance ? <SportsEsports /> : undefined}
+                        startIcon={!isDisabledByBalance && !isLoadingBalance ? <SportsEsports /> : undefined}
                         sx={{
                           textTransform: 'none',
-                          background: canPlay
-                            ? 'linear-gradient(145deg, #3498db, #2980b9)'
-                            : isDisabledByBalance
-                              ? 'linear-gradient(145deg, #ff6b6b, #ee5a52)'
-                              : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
+                          background: isLoadingBalance
+                            ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
+                            : canPlay
+                              ? 'linear-gradient(145deg, #3498db, #2980b9)'
+                              : isDisabledByBalance
+                                ? 'linear-gradient(145deg, #ff6b6b, #ee5a52)'
+                                : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
                           color: 'white',
                           fontWeight: 'bold',
                           borderRadius: 1.5,
                           py: 0.7,
                           width: '100%',
                           fontSize: '0.9rem',
-                          boxShadow: canPlay
-                            ? '0 4px 8px rgba(52, 152, 219, 0.3)' 
-                            : isDisabledByBalance
-                              ? '0 3px 6px rgba(244, 67, 54, 0.3)'
-                              : '0 3px 6px rgba(0,0,0,0.1)',
+                          boxShadow: isLoadingBalance
+                            ? '0 3px 6px rgba(0,0,0,0.1)'
+                            : canPlay
+                              ? '0 4px 8px rgba(52, 152, 219, 0.3)' 
+                              : isDisabledByBalance
+                                ? '0 3px 6px rgba(244, 67, 54, 0.3)'
+                                : '0 3px 6px rgba(0,0,0,0.1)',
                           '&:hover': {
-                            background: canPlay
-                              ? 'linear-gradient(145deg, #2980b9, #2471a3)' 
-                              : isDisabledByBalance
-                                ? 'linear-gradient(145deg, #ee5a52, #d32f2f)'
-                                : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
-                            boxShadow: canPlay
-                              ? '0 6px 12px rgba(52, 152, 219, 0.4)' 
-                              : isDisabledByBalance
-                                ? '0 4px 8px rgba(244, 67, 54, 0.4)'
-                                : '0 3px 6px rgba(0,0,0,0.1)'
+                            background: isLoadingBalance
+                              ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
+                              : canPlay
+                                ? 'linear-gradient(145deg, #2980b9, #2471a3)' 
+                                : isDisabledByBalance
+                                  ? 'linear-gradient(145deg, #ee5a52, #d32f2f)'
+                                  : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
+                            boxShadow: isLoadingBalance
+                              ? '0 3px 6px rgba(0,0,0,0.1)'
+                              : canPlay
+                                ? '0 6px 12px rgba(52, 152, 219, 0.4)' 
+                                : isDisabledByBalance
+                                  ? '0 4px 8px rgba(244, 67, 54, 0.4)'
+                                  : '0 3px 6px rgba(0,0,0,0.1)'
                           },
                           '&:disabled': {
-                            background: isDisabledByBalance 
+                            background: isDisabledByBalance && !isLoadingBalance
                               ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)' 
                               : '#ecf0f1',
-                            color: isDisabledByBalance ? '#d32f2f' : '#bdc3c7'
+                            color: isDisabledByBalance && !isLoadingBalance ? '#d32f2f' : '#bdc3c7'
                           }
                         }}
                       >
-                        {isDisabledByBalance 
-                          ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
-                          : (status.status === 'active' 
-                              ? (language === 'am' ? "ጨዋታ ይጫወቱ" : "Play") 
-                              : (language === 'am' ? "ዝግጁ" : "Ready"))
+                        {isLoadingBalance 
+                          ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
+                          : isDisabledByBalance 
+                            ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
+                            : (status.status === 'active' 
+                                ? (language === 'am' ? "ጨዋታ ይጫወቱ" : "Play") 
+                                : (language === 'am' ? "ዝግጁ" : "Ready"))
                         }
                       </Button>
 

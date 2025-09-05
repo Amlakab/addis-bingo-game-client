@@ -406,6 +406,8 @@ const startGame = () => {
     // Filter sessions for the current bet amount
     const betSessions = sessions.filter(session => session.betAmount === bet);
     
+    console.log('Bet sessions:', betSessions);
+    console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
     // Calculate prize pool and player count
     // const activePlayers = betSessions.filter(session =>
     //   ['playing', 'blocked', 'active'].includes(session.status)
