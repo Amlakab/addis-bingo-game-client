@@ -42,9 +42,6 @@ const Navbar: React.FC = () => {
                 <Link href="/user/dashboard" className="hover:underline px-3">
                   Dashboard
                 </Link>
-                <Link href="/game/lobby" className="hover:underline px-3">
-                  Games
-                </Link>
                 <Link href="/howtoplay" className="hover:underline px-3">
                   How to Play
                 </Link>
@@ -123,9 +120,6 @@ const Navbar: React.FC = () => {
                   )}
                   <Link href="/user/dashboard" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     Dashboard
-                  </Link>
-                  <Link href="/game/lobby" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
-                    Games
                   </Link>
                   <Link href="/howtoplay" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     How to Play
