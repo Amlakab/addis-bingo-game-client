@@ -304,29 +304,19 @@ useEffect(() => {
   if (!isClient || !bet || !gameSessions.length) return;
 
   // Check if we have at least 2 unique players
-  //const uniqueUserIds = new Set(gameSessions.map(session => session.userId));
-  
   const uniqueUserIds = new Set(
-      gameSessions
-        .filter(session => session.betAmount === bet) // filter by bet amount
-        .map(session => session.userId)              // collect only userId
-    ); 
+    gameSessions.map(session => session.userId.toString())
+  );
 
- if (uniqueUserIds.size < 2) {
+  if (uniqueUserIds.size < 2) {
     // Delete game sessions for this bet amount via WebSocket
-        if (webSocketService) {
+    if (webSocketService) {
+      webSocketService.send('refund-wallet', {
+        betAmount: bet,
+      });
+    }
 
-          const amount = numberOfPlayers * bet;
-          webSocketService.send('refund-wallet', {
-            betAmount: bet,
-            });
-
-          //   webSocketService.send('reset-game', {
-          //   betAmount: bet,
-          // });
-        }
-
-      const errorMessage = language === 'am' 
+    const errorMessage = language === 'am' 
       ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
       : 'At least 2 unique players must be there!';
     
@@ -335,37 +325,28 @@ useEffect(() => {
     
     const timer = setTimeout(() => {
       onGameEnd();
-    }, 3000);
+    }, 4000);
     
     return () => clearTimeout(timer);
   }  
-  
-}, [gameSessions, bet, isClient, language, onBackToPlayerLobby]);
+}, [gameSessions, bet, isClient, language, onGameEnd]);
 
 // Also update the startGame function to include the check
 const startGame = () => {
   // Check if we have at least 2 unique players before starting
-    const uniqueUserIds = new Set(
-      gameSessions
-        .filter(session => session.betAmount === bet) // filter by bet amount
-        .map(session => session.userId)              // collect only userId
-    );  
+  const uniqueUserIds = new Set(
+    gameSessions.map(session => session.userId.toString())
+  );
 
   if (uniqueUserIds.size < 2) {
     // Delete game sessions for this bet amount via WebSocket
-        if (webSocketService) {
+    if (webSocketService) {
+      webSocketService.send('refund-wallet', {
+        betAmount: bet,
+      });
+    }
 
-          const amount = numberOfPlayers * bet;
-          webSocketService.send('refund-wallet', {
-            betAmount: bet,
-            });
-
-          //   webSocketService.send('reset-game', {
-          //   betAmount: bet,
-          // });
-        }
-
-      const errorMessage = language === 'am' 
+    const errorMessage = language === 'am' 
       ? 'ከታች ቢያንስ 2 የተለያዩ ተጫዋቾች ሊኖሩ ይገባል!' 
       : 'At least 2 unique players must be there!';
     
@@ -374,10 +355,10 @@ const startGame = () => {
     
     const timer = setTimeout(() => {
       onGameEnd();
-    }, 3000);
+    }, 4000);
     
     return () => clearTimeout(timer);
-  }  
+  }
   
   // Update game sessions status to playing via WebSocket
   if (webSocketService) {
@@ -1068,6 +1049,19 @@ useEffect(() => {
             })}
           </Box>
           
+            {!gameStarted && (
+              <Button 
+                variant="contained" 
+                color="error"
+                onClick={onBackToPlayerLobby}
+                fullWidth
+                size="small"
+                sx={{ fontSize: '0.8rem', mt: 1 }}
+              >
+                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
+              </Button>
+            )}
+
           {/* Recent Numbers */}
           {gameStarted && (
             <Box sx={{ 
@@ -1278,18 +1272,6 @@ useEffect(() => {
             )}
             
             {/* Clear Button (only shown before game starts) */}
-            {!gameStarted && (
-              <Button 
-                variant="outlined" 
-                color="secondary"
-                onClick={onBackToPlayerLobby}
-                fullWidth
-                size="small"
-                sx={{ fontSize: '0.8rem', mt: 1 }}
-              >
-                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
-              </Button>
-            )}
           </Box>
         </Box>
       </Box>

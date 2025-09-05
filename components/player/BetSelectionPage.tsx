@@ -288,10 +288,14 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
         return;
       }
       
-      // Parse user data
-      const userData: UserData = JSON.parse(userDataString);
+      // Parse user data to get user ID
+      const parsedUser: UserData = JSON.parse(userDataString);
       
-      // Set user balance
+      // Fetch latest user data from API
+      const res = await api.get(`/user/${parsedUser._id}`);
+      const userData: UserData = res.data.data;
+      
+      // Set user balance from database
       setUserBalance(userData.wallet);
       
     } catch (error) {
@@ -410,6 +414,25 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
             {language === 'am' ? "ውርርድ መጠን ይምረጡ" : "Select your bet amount"}
           </Typography>
         </Box>
+
+        {/* User Balance Display */}
+        {/* <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          mb: 2,
+          background: 'rgba(255, 255, 255, 0.8)', 
+          borderRadius: 2, 
+          p: 1.5,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
+          <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+            {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
+          </Typography>
+          <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
+            {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
+          </Typography>
+        </Box> */}
 
         {/* Bet Cards Container */}
         <Box sx={{ 
