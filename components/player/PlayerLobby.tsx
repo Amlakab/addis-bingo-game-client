@@ -576,8 +576,8 @@ const PlayerLobby = ({
         }}>
           <Button
             variant="contained"
-            color={playerCount > 0 ? "success" : "primary"}
-            onClick={playerCount > 0 ? handleDirectToGame : onBackToLobby}
+            color={playerCount > 3 ? "success" : "primary"}
+            onClick={playerCount > 3 ? handleDirectToGame : onBackToLobby}
             sx={{
               width: '100%',
               py: 1,
@@ -587,7 +587,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {playerCount > 2 
+            {playerCount > 3
               ? (language === 'am' ? 'ጨዋታ ጀምር' : 'Play') 
               : (language === 'am' ? 'ተመለስ' : 'Back')
             }
