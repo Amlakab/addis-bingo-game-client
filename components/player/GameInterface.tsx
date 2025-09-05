@@ -338,27 +338,27 @@ const startGame = () => {
   //   gameSessions.map(session => session.userId.toString())
   // );
 
-  if (numberOfPlayers < 3) {
-    // Delete game sessions for this bet amount via WebSocket
-    if (webSocketService) {
-      webSocketService.send('refund-wallet', {
-        betAmount: bet,
-      });
-    }
+  // if (numberOfPlayers < 3) {
+  //   // Delete game sessions for this bet amount via WebSocket
+  //   if (webSocketService) {
+  //     webSocketService.send('refund-wallet', {
+  //       betAmount: bet,
+  //     });
+  //   }
 
-    const errorMessage = language === 'am' 
-      ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
-      : 'At least 3 players or cards must be there!';
+  //   const errorMessage = language === 'am' 
+  //     ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
+  //     : 'At least 3 players or cards must be there!';
     
-    setToastMessage(errorMessage);
-    setShowToast(true);
+  //   setToastMessage(errorMessage);
+  //   setShowToast(true);
     
-    const timer = setTimeout(() => {
-      onGameEnd();
-    }, 4000);
+  //   const timer = setTimeout(() => {
+  //     onGameEnd();
+  //   }, 4000);
     
-    return () => clearTimeout(timer);
-  }
+  //   return () => clearTimeout(timer);
+  // }
   
   // Update game sessions status to playing via WebSocket
   if (webSocketService) {
