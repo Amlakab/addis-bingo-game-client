@@ -55,6 +55,8 @@ const PlayerLobby = ({
   const [wallet, setWallet] = useState(0);
   const [walletError, setWalletError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
   const [occupiedCards, setOccupiedCards] = useState<number[]>([]);
   const [occupiedCardsByUser, setOccupiedCardsByUser] = useState<{[key: number]: string}>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -137,10 +139,17 @@ const PlayerLobby = ({
     } else {
       // Auto-start game when timer reaches 0 if there are players
       // This will trigger the onStartGame which should update session status
-      if (selectedPlayers.length > 0) {
+      if (playerCount > 3) {
         onStartGame(selectedPlayers, betAmount);
       } else if (playerCount === 0 && onBackToLobby) {
         onBackToLobby();
+      }
+      else{
+     const msg = language === 'am'
+      ? 'በጨዋታ መጀመሪያ 3 ተጫዋቾች ያስፈልጋሉ!'
+      : 'At least 3 players are required to start the game!';
+        setToastMessage(msg  );
+        setShowToast(true);
       }
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby]);
@@ -567,8 +576,8 @@ const PlayerLobby = ({
         }}>
           <Button
             variant="contained"
-            color={selectedPlayers.length > 0 ? "success" : "primary"}
-            onClick={selectedPlayers.length > 0 ? handleDirectToGame : onBackToLobby}
+            color={playerCount > 0 ? "success" : "primary"}
+            onClick={playerCount > 0 ? handleDirectToGame : onBackToLobby}
             sx={{
               width: '100%',
               py: 1,
@@ -578,7 +587,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {selectedPlayers.length > 0 
+            {playerCount > 2 
               ? (language === 'am' ? 'ጨዋታ ጀምር' : 'Play') 
               : (language === 'am' ? 'ተመለስ' : 'Back')
             }

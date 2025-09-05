@@ -299,103 +299,28 @@ const GameInterface = ({
     }, 1000);
   };
 
-  // Add this useEffect hook right after the existing useEffect hooks
-// useEffect(() => {
-//   if (!isClient || !bet || !gameSessions.length) return;
-
-//   // Check if we have at least 2 unique players
-//   // const uniqueUserIds = new Set(
-//   //   gameSessions.map(session => session.userId.toString())
-//   // );
-// // alert(numberOfPlayers);
-//   if (numberOfPlayers < 3) {
-//     // Delete game sessions for this bet amount via WebSocket
-//     if (webSocketService) {
-//       webSocketService.send('refund-wallet', {
-//         betAmount: bet,
-//       });
-//     }
-
-//     const errorMessage = language === 'am' 
-//       ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
-//       : 'At least 3 players or cards must be there!';
-    
-//     setToastMessage(errorMessage);
-//     setShowToast(true);
-    
-//     const timer = setTimeout(() => {
-//       onGameEnd();
-//     }, 4000);
-    
-//     return () => clearTimeout(timer);
-//   }  
-// }, [gameSessions, bet, isClient, language, onGameEnd]);
+  
 
 // Also update the startGame function to include the check
-const startGame = () => {
-  // Check if we have at least 2 unique players before starting
-  // const uniqueUserIds = new Set(
-  //   gameSessions.map(session => session.userId.toString())
-  // );
-alert(numberOfPlayers);
-  if (Number(numberOfPlayers) < 3) {
-    // Delete game sessions for this bet amount via WebSocket
+
+
+  const startGame = () => {
+    setGameStarted(true);
+    
+    // Update game sessions status to playing via WebSocket
     if (webSocketService) {
-      webSocketService.send('refund-wallet', {
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('update-session-status-by-bet', {
         betAmount: bet,
+        status: 'playing'
       });
-    }
-
-    const errorMessage = language === 'am' 
-      ? 'ከታች ቢያንስ 3 የተለያዩ ተጫዋቾች ወይም ቻርዶች ሊኖሩ ይገባል!' 
-      : 'At least 3 players or cards must be there!';
-    
-    setToastMessage(errorMessage);
-    setShowToast(true);
-    
-    const timer = setTimeout(() => {
-      onGameEnd();
-    }, 4000);
-    
-    return () => clearTimeout(timer);
-  }
-  
-  // Update game sessions status to playing via WebSocket
-  if (webSocketService) {
-    // First update all sessions with this bet amount to 'playing' status
-    webSocketService.send('update-session-status-by-bet', {
-      betAmount: bet,
-      status: 'playing'
-    });
-    
-    // The server will start calling numbers automatically
-    // when we send the 'start-game' message in the useEffect
-  } else {
-    console.error('WebSocket service not available');
-  }
-
-  setGameStarted(true);
-
-
-};
-
-  // const startGame = () => {
-  //   setGameStarted(true);
-    
-  //   // Update game sessions status to playing via WebSocket
-  //   if (webSocketService) {
-  //     // First update all sessions with this bet amount to 'playing' status
-  //     webSocketService.send('update-session-status-by-bet', {
-  //       betAmount: bet,
-  //       status: 'playing'
-  //     });
       
-  //     // The server will start calling numbers automatically
-  //     // when we send the 'start-game' message in the useEffect
-  //   } else {
-  //     console.error('WebSocket service not available');
-  //   }
-  // };
+      // The server will start calling numbers automatically
+      // when we send the 'start-game' message in the useEffect
+    } else {
+      console.error('WebSocket service not available');
+    }
+  };
 
   const handleWebSocketConnected = () => {
     setIsWebSocketConnected(true);
