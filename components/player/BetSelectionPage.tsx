@@ -392,7 +392,7 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
         justifyContent: 'center'
       }}>
         {/* Header */}
-        <Box sx={{ textAlign: 'center', mb: 3, color: '#2c3e50' }}>
+        {/* <Box sx={{ textAlign: 'center', mb: 3, color: '#2c3e50' }}>
           <Casino sx={{ 
             fontSize: 50, 
             mb: 1.5, 
@@ -412,8 +412,8 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
             color: '#7f8c8d'
           }}>
             {language === 'am' ? "ውርርድ መጠን ይምረጡ" : "Select your bet amount"}
-          </Typography> */}
-        </Box>
+          </Typography> 
+         </Box> */}
 
         {/* User Balance Display */}
         <Box sx={{ 
