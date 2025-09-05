@@ -399,20 +399,20 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
             color: '#3498db'
           }} />
-          <Typography variant="h4" sx={{ 
+          {/* <Typography variant="h4" sx={{ 
             fontWeight: 'bold', 
             mb: 1,
             fontSize: { xs: '1.75rem', sm: '2.125rem' }
           }}>
             {language === 'am' ? "የጨዋታ ምድብ" : "Game Lobby"}
-          </Typography>
-          <Typography variant="body1" sx={{ 
+          </Typography> */}
+          {/* <Typography variant="body1" sx={{ 
             opacity: 0.8, 
             fontSize: { xs: '0.9rem', sm: '1rem' },
             color: '#7f8c8d'
           }}>
             {language === 'am' ? "ውርርድ መጠን ይምረጡ" : "Select your bet amount"}
-          </Typography>
+          </Typography> */}
         </Box>
 
         {/* User Balance Display */}
