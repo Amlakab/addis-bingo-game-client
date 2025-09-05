@@ -337,8 +337,8 @@ const startGame = () => {
   // const uniqueUserIds = new Set(
   //   gameSessions.map(session => session.userId.toString())
   // );
-
-  if (numberOfPlayers < 3) {
+alert(numberOfPlayers);
+  if (Number(numberOfPlayers) < 3) {
     // Delete game sessions for this bet amount via WebSocket
     if (webSocketService) {
       webSocketService.send('refund-wallet', {
