@@ -549,7 +549,7 @@ const PlayerLobby = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: '50%',
+                    borderRadius: '4px',
                     fontWeight: 'bold',
                     fontSize: '0.8rem',
                     cursor: (isSelectedByOthers || isLoading || remainingTime <= 0)
