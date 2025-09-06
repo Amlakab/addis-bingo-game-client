@@ -107,7 +107,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50">
       <Navbar />
       <div className="container mx-auto px-4 py-8 pt-24">
-        <div className="max-w-4xl mx-auto">
+        <div id="login-form"  className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-purple-800 mb-4">
               Welcome to Feta Bingo
@@ -117,7 +117,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div id="login-form" className="grid md:grid-cols-2 gap-12 items-start">
+          <div className="grid md:grid-cols-2 gap-12 items-start">
             {/* Login Form Card */}
             <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
               <h2 className="text-2xl font-semibold text-purple-700 mb-6 text-center">
