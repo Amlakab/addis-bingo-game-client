@@ -421,80 +421,103 @@ const PlayerLobby = ({
         </Typography>
 
         {/* Cards */}
-        <Box
-          sx={{
-            display: "flex",
-            gap: { xs: 1, sm: 2 },
-            flexDirection: "row",
-            flexWrap: "nowrap",
-          }}
-        >
-          {/* Players */}
-          <Card
-            sx={{
-              minWidth: { xs: 50, sm: 80 },
-              height: { xs: 45, sm: 70 },
-              borderRadius: "4PX",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
-              <Typography
-                variant="body2"
-                sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
-              >
-                {language === "am" ? "ተጫዋቾች" : "Players"}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontSize: { xs: "0.8rem", sm: "1rem" },
-                  fontWeight: "bold",
-                  color: "white",
-                }}
-              >
-                {playerCount}
-              </Typography>
-            </CardContent>
-          </Card>
+<Box
+  sx={{
+    display: "flex",
+    gap: { xs: 1, sm: 2 },
+    flexDirection: "row",
+    flexWrap: "nowrap",
+  }}
+>
+  {/* Players */}
+  <Card
+    sx={{
+      minWidth: { xs: 50, sm: 80 },
+      height: { xs: 45, sm: 70 },
+      borderRadius: "4px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
+      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    }}
+  >
+    <CardContent
+      sx={{
+        textAlign: "center",
+        p: { xs: 0.5, sm: 1 },
+        "&:last-child": { pb: { xs: 0.5, sm: 1 } }, // 🔥 remove bottom padding
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: { xs: "0.6rem", sm: "0.75rem" },
+          color: "white",
+          lineHeight: 1.2, // 🔥 prevent cut-off
+        }}
+      >
+        {language === "am" ? "ተጫዋቾች" : "Players"}
+      </Typography>
+      <Typography
+        variant="h6"
+        sx={{
+          fontSize: { xs: "0.8rem", sm: "1rem" },
+          fontWeight: "bold",
+          color: "white",
+          lineHeight: 1.2,
+        }}
+      >
+        {playerCount}
+      </Typography>
+    </CardContent>
+  </Card>
 
-          {/* Prize Pool */}
-          <Card
-            sx={{
-              minWidth: { xs: 50, sm: 80 },
-              height: { xs: 45, sm: 70 },
-              borderRadius: "4PX",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(145deg, #FF9800, #FFC107)",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
-              <Typography
-                variant="body2"
-                sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
-              >
-                {language === "am" ? "ደራሽ" : "Derash"}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontSize: { xs: "0.8rem", sm: "1rem" },
-                  fontWeight: "bold",
-                  color: "white",
-                }}
-              >
-                {prizePool.toFixed(2)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
+  {/* Prize Pool */}
+  <Card
+    sx={{
+      minWidth: { xs: 50, sm: 80 },
+      height: { xs: 45, sm: 70 },
+      borderRadius: "4px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(145deg, #FF9800, #FFC107)",
+      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+    }}
+  >
+    <CardContent
+      sx={{
+        textAlign: "center",
+        p: { xs: 0.5, sm: 1 },
+        "&:last-child": { pb: { xs: 0.5, sm: 1 } }, // 🔥 fix padding
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: { xs: "0.6rem", sm: "0.75rem" },
+          color: "white",
+          lineHeight: 1.2,
+        }}
+      >
+        {language === "am" ? "ደራሽ" : "Derash"}
+      </Typography>
+      <Typography
+        variant="h6"
+        sx={{
+          fontSize: { xs: "0.8rem", sm: "1rem" },
+          fontWeight: "bold",
+          color: "white",
+          lineHeight: 1.2,
+        }}
+      >
+        {prizePool.toFixed(2)}
+      </Typography>
+    </CardContent>
+  </Card>
+</Box>
+
       </Box>
 
       {/* Main Game Lobby Content */}
