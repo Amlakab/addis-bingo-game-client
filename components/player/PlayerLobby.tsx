@@ -252,13 +252,14 @@ const PlayerLobby = ({
     if (isSelectedByUser) {
       setIsLoading(true);
       try {
+        
+        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
+        
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
         });
-        
-        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
-        
+
       } catch (error: any) {
         console.error('Error deselecting card:', error);
         const errorMsg = error.response?.data?.error || "Error deselecting card";
