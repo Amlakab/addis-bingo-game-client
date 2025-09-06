@@ -315,6 +315,36 @@ const PlayerLobby = ({
     }
   };
 
+  // New method to handle canceling selections
+  const handleCancelSelections = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    if (selectedPlayers.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      // Loop through all selected cards and delete each session
+      for (let i = 0; i < selectedPlayers.length; i++) {
+        const player = selectedPlayers[i];
+        webSocketService.send('delete-session', {
+          cardNumber: player.id,
+          betAmount,
+        });
+      }
+      
+      // Clear selected players
+      setSelectedPlayers([]);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isClient) {
     return (
       <Box sx={{ 
@@ -335,133 +365,132 @@ const PlayerLobby = ({
       transition={{ duration: 0.5 }}
     >
       {/* Bet Amount and Stats Row */}
- <Box
-  sx={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    p: 1,
-    background: "rgba(255,255,255,0.8)",
-    boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-    mb: 2,
-    flexDirection: "row", // always row
-    gap: { xs: 1, sm: 2 }, // smaller gap on mobile
-    flexWrap: "nowrap", // prevent wrapping to new line
-  }}
->
-  {/* Bet Input */}
-  <TextField
-    label={language === "am" ? "የተጫዋቾች በቢር" : "Bet (Birr)"}
-    type="number"
-    size="small"
-    value={betAmount}
-    disabled
-    onChange={(e) => setBetAmount(Number(e.target.value))}
-    sx={{
-      width: { xs: 100, sm: 150 }, // smaller on mobile
-      "& .MuiOutlinedInput-root": {
-        borderRadius: 1,
-        background: "white",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-      },
-      "& .MuiInputBase-input": {
-        fontSize: { xs: "0.75rem", sm: "0.9rem" }, // font smaller on mobile
-        p: { xs: 0.5, sm: 1 },
-      },
-    }}
-    InputProps={{
-      inputProps: { min: 0 },
-    }}
-  />
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          p: 1,
+          background: "rgba(255,255,255,0.8)",
+          boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+          mb: 2,
+          flexDirection: "row",
+          gap: { xs: 1, sm: 2 },
+          flexWrap: "nowrap",
+        }}
+      >
+        {/* Bet Input */}
+        <TextField
+          label={language === "am" ? "የተጫዋቾች በቢር" : "Bet (Birr)"}
+          type="number"
+          size="small"
+          value={betAmount}
+          disabled
+          onChange={(e) => setBetAmount(Number(e.target.value))}
+          sx={{
+            width: { xs: 100, sm: 150 },
+            "& .MuiOutlinedInput-root": {
+              borderRadius: 1,
+              background: "white",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            },
+            "& .MuiInputBase-input": {
+              fontSize: { xs: "0.75rem", sm: "0.9rem" },
+              p: { xs: 0.5, sm: 1 },
+            },
+          }}
+          InputProps={{
+            inputProps: { min: 0 },
+          }}
+        />
 
-  {/* Timer */}
-  <Typography
-    variant="h6"
-    sx={{
-      fontSize: { xs: "0.8rem", sm: "1rem" }, // shrink font on mobile
-      whiteSpace: "nowrap",
-    }}
-  >
-    {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
-  </Typography>
-
-  {/* Cards */}
-  <Box
-    sx={{
-      display: "flex",
-      gap: { xs: 1, sm: 2 },
-      flexDirection: "row",
-      flexWrap: "nowrap", // no wrapping
-    }}
-  >
-    {/* Players */}
-    <Card
-      sx={{
-        minWidth: { xs: 45, sm: 70 },
-        height: { xs: 45, sm: 70 },
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
-        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-      }}
-    >
-      <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
-        <Typography
-          variant="body2"
-          sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
-        >
-          {language === "am" ? "ተጫዋቾች" : "Players"}
-        </Typography>
+        {/* Timer */}
         <Typography
           variant="h6"
           sx={{
             fontSize: { xs: "0.8rem", sm: "1rem" },
-            fontWeight: "bold",
-            color: "white",
+            whiteSpace: "nowrap",
           }}
         >
-          {playerCount}
+          {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
         </Typography>
-      </CardContent>
-    </Card>
 
-    {/* Prize Pool */}
-    <Card
-      sx={{
-        minWidth: { xs: 45, sm: 70 },
-        height: { xs: 45, sm: 70 },
-        borderRadius: "50%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "linear-gradient(145deg, #FF9800, #FFC107)",
-        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-      }}
-    >
-      <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
-        <Typography
-          variant="body2"
-          sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
-        >
-          {language === "am" ? "ደራሽ" : "Derash"}
-        </Typography>
-        <Typography
-          variant="h6"
+        {/* Cards */}
+        <Box
           sx={{
-            fontSize: { xs: "0.8rem", sm: "1rem" },
-            fontWeight: "bold",
-            color: "white",
+            display: "flex",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: "row",
+            flexWrap: "nowrap",
           }}
         >
-          {prizePool.toFixed(2)}
-        </Typography>
-      </CardContent>
-    </Card>
-  </Box>
-</Box>
+          {/* Players */}
+          <Card
+            sx={{
+              minWidth: { xs: 45, sm: 70 },
+              height: { xs: 45, sm: 70 },
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            }}
+          >
+            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
+              <Typography
+                variant="body2"
+                sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
+              >
+                {language === "am" ? "ተጫዋቾች" : "Players"}
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                }}
+              >
+                {playerCount}
+              </Typography>
+            </CardContent>
+          </Card>
 
+          {/* Prize Pool */}
+          <Card
+            sx={{
+              minWidth: { xs: 45, sm: 70 },
+              height: { xs: 45, sm: 70 },
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(145deg, #FF9800, #FFC107)",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            }}
+          >
+            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 } }}>
+              <Typography
+                variant="body2"
+                sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white" }}
+              >
+                {language === "am" ? "ደራሽ" : "Derash"}
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                }}
+              >
+                {prizePool.toFixed(2)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
 
       {/* Main Game Lobby Content */}
       <Box sx={{ 
@@ -567,56 +596,77 @@ const PlayerLobby = ({
           })}
         </Box>
 
-        {/* Action Button - Full width matching the grid */}
+        {/* Action Buttons - Two buttons in one row */}
         <Box
-  sx={{
-    width: '100%',
-    maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-    mx: 'auto',
-    px: 1,
-  }}
->
-  <Button
-    variant="contained"
-    color={
-      playerCount > 2
-        ? 'success'
-        : playerCount === 0
-        ? 'primary'
-        : 'warning'
-    }
-    onClick={() => {
-      if (playerCount > 2) {
-        handleDirectToGame();
-      } else if (playerCount === 0 && onBackToLobby) {
-        onBackToLobby();
-      } else {
-        // 1–3 players → do nothing (waiting)
-      }
-    }}
-    sx={{
-      width: '100%',
-      py: 1,
-      fontSize: '1.1rem',
-      fontWeight: 'bold',
-      borderRadius: 2,
-      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-    }}
-  >
-    {playerCount > 2
-      ? language === 'am'
-        ? 'ጨዋታ ጀምር' // Play
-        : 'Play'
-      : playerCount === 0
-      ? language === 'am'
-        ? 'ተመለስ' // Back
-        : 'Back'
-      : language === 'am'
-      ? 'ጠብቅ' // Wait
-      : 'Wait'}
-  </Button>
-</Box>
+          sx={{
+            width: '100%',
+            maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+            mx: 'auto',
+            px: 1,
+            display: 'flex',
+            gap: 1,
+          }}
+        >
+          {/* Left Button */}
+          <Button
+            variant="contained"
+            color={
+              playerCount > 2
+                ? 'success'
+                : selectedPlayers.length === 0
+                ? 'primary'
+                : 'warning'
+            }
+            onClick={() => {
+              if (playerCount > 2) {
+                handleDirectToGame();
+              } else if (selectedPlayers.length && onBackToLobby) {
+                onBackToLobby();
+              } else {
+                // 1–3 players → do nothing (waiting)
+              }
+            }}
+            sx={{
+              flex: 2,
+              py: 1,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+            }}
+          >
+            {playerCount > 2
+              ? language === 'am'
+                ? 'ጨዋታ ጀምር'
+                : 'Play'
+              : selectedPlayers.length === 0
+              ? language === 'am'
+                ? 'ተመለስ'
+                : 'Back'
+              : language === 'am'
+              ? 'ጠብቅ'
+              : 'Wait'}
+          </Button>
 
+          {/* Right Button (Clear) */}
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleCancelSelections}
+            disabled={selectedPlayers.length === 0}
+            sx={{
+              flex: 1,
+              py: 1,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              opacity: selectedPlayers.length === 0 ? 0.6 : 1,
+            }}
+          >
+            {language === 'am' ? 'አጽዳ' : 'Clear'}
+          </Button>
+        </Box>
 
         <Snackbar
           open={walletError}
