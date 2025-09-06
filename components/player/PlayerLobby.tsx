@@ -587,9 +587,9 @@ const PlayerLobby = ({
     }
     onClick={() => {
       if (playerCount > 2) {
-        handleDirectToGame;
-      } else if (playerCount === 0) {
-        onBackToLobby;
+        handleDirectToGame();
+      } else if (playerCount === 0 && onBackToLobby) {
+        onBackToLobby();
       } else {
         // 1–3 players → do nothing (waiting)
       }

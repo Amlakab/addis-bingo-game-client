@@ -5,9 +5,9 @@ import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
 
 const TeamMembers = [
-  { name: "Abeje Doe", role: "Founder & CEO", bio: "10+ years in gaming industry" },
+  { name: "Abeje Belew", role: "Founder & CEO", bio: "10+ years in gaming industry" },
   { name: "Amlakie Abebaw", role: "Lead Developer", bio: "Full-stack developer specializing in real-time applications" },
-  { name: "Brik Dessalegn Johnson", role: "Game Designer", bio: "Creative mind behind engaging game mechanics" },
+  { name: "Brik Dessalegn", role: "Game Designer", bio: "Creative mind behind engaging game mechanics" },
   { name: "Samual Wilson", role: "Community Manager", bio: "Ensuring our players have the best experience" },
 ];
 

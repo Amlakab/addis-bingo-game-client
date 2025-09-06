@@ -117,7 +117,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-start">
+          <div id="login-form" className="grid md:grid-cols-2 gap-12 items-start">
             {/* Login Form Card */}
             <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
               <h2 className="text-2xl font-semibold text-purple-700 mb-6 text-center">
@@ -289,11 +289,11 @@ export default function LoginPage() {
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
                 <h3 className="text-xl font-semibold text-purple-700 mb-4">Quick Access</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <Link href="/game/lobby" className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-center py-3 rounded-lg transition duration-200">
+                  <Link href="#login-form" className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-center py-3 rounded-lg transition duration-200">
                     <div className="font-semibold">Play Now</div>
                     <div className="text-xs">Join a Game</div>
                   </Link>
-                  <Link href="/how-to-play" className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-center py-3 rounded-lg transition duration-200">
+                  <Link href="/howtoplay" className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-center py-3 rounded-lg transition duration-200">
                     <div className="font-semibold">Learn</div>
                     <div className="text-xs">How to Play</div>
                   </Link>
@@ -305,11 +305,11 @@ export default function LoginPage() {
           <div className="mt-12 text-center">
             <p className="text-xs text-gray-500">
               By signing in, you agree to our{' '}
-              <Link href="/terms" className="text-purple-600 hover:underline">
+              <Link href="/termsofservise" className="text-purple-600 hover:underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-purple-600 hover:underline">
+              <Link href="/privacypolicy" className="text-purple-600 hover:underline">
                 Privacy Policy
               </Link>
             </p>

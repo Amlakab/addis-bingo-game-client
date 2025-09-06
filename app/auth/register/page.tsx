@@ -97,7 +97,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-12 items-start">
+          <div id="register-form" className="grid md:grid-cols-2 gap-12 items-start">
             {/* Registration Form Card */}
             <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
               <h2 className="text-2xl font-semibold text-purple-700 mb-6 text-center">
@@ -282,11 +282,11 @@ export default function RegisterPage() {
                   Join thousands of players enjoying our multiplayer bingo games. Register now and claim your welcome bonus!
                 </p>
                 <div className="grid grid-cols-2 gap-4">
-                  <Link href="/how-to-play" className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-center py-3 rounded-lg transition duration-200">
+                  <Link href="/howtoplay" className="bg-purple-50 hover:bg-purple-100 text-purple-700 text-center py-3 rounded-lg transition duration-200">
                     <div className="font-semibold">Learn</div>
                     <div className="text-xs">How to Play</div>
                   </Link>
-                  <Link href="/game/lobby" className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-center py-3 rounded-lg transition duration-200">
+                  <Link href="#register-form" className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-center py-3 rounded-lg transition duration-200">
                     <div className="font-semibold">View Games</div>
                     <div className="text-xs">Game Lobby</div>
                   </Link>
