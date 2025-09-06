@@ -432,8 +432,8 @@ const PlayerLobby = ({
   {/* Players */}
   <Card
     sx={{
-      minWidth: { xs: 50, sm: 80 },
-      height: { xs: 45, sm: 70 },
+      minWidth: { xs: 50, sm: 90 },
+      height: { xs: 40, sm: 60 },
       borderRadius: "4px",
       display: "flex",
       alignItems: "center",
@@ -476,8 +476,8 @@ const PlayerLobby = ({
   {/* Prize Pool */}
   <Card
     sx={{
-      minWidth: { xs: 50, sm: 80 },
-      height: { xs: 45, sm: 70 },
+      minWidth: { xs: 50, sm: 90 },
+      height: { xs: 40, sm: 60 },
       borderRadius: "4px",
       display: "flex",
       alignItems: "center",
