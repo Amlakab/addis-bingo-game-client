@@ -620,7 +620,7 @@ const PlayerLobby = ({
             onClick={() => {
               if (playerCount > 2) {
                 handleDirectToGame();
-              } else if (selectedPlayers.length && onBackToLobby) {
+              } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
               } else {
                 // 1–3 players → do nothing (waiting)
