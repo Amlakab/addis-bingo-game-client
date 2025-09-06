@@ -323,14 +323,16 @@ const PlayerLobby = ({
     
     setIsLoading(true);
     try {
-      // Loop through all selected cards and delete each session
-      for (let i = 0; i < selectedPlayers.length; i++) {
-        const player = selectedPlayers[i];
-        webSocketService.send('delete-session', {
-          cardNumber: player.id,
-          betAmount,
-        });
-      }
+
+      if (webSocketService) {
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('update-session-status-by-bet', {
+        betAmount: betAmount,
+      });
+      
+    } else {
+      console.error('WebSocket service not available');
+    }
       
       // Clear selected players
       setSelectedPlayers([]);
