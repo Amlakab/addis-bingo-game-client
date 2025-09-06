@@ -326,7 +326,7 @@ const PlayerLobby = ({
 
       if (webSocketService) {
       // First update all sessions with this bet amount to 'playing' status
-      webSocketService.send('update-session-status-by-bet', {
+      webSocketService.send('refund-wallet', {
         betAmount: betAmount,
       });
       
