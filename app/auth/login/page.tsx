@@ -305,7 +305,7 @@ export default function LoginPage() {
           <div className="mt-12 text-center">
             <p className="text-xs text-gray-500">
               By signing in, you agree to our{' '}
-              <Link href="/termsofservise" className="text-purple-600 hover:underline">
+              <Link href="/termsofservice" className="text-purple-600 hover:underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
