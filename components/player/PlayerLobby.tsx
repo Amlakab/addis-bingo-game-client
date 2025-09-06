@@ -286,6 +286,8 @@ const PlayerLobby = ({
 
       setIsLoading(true);
       try {
+        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
+
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
@@ -293,7 +295,7 @@ const PlayerLobby = ({
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
         
-        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
+        //setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
         
       } catch (error: any) {
         console.error('Error selecting card:', error);
