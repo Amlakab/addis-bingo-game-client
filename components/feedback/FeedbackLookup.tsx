@@ -77,7 +77,7 @@ const FeedbackLookup: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100 mb-8">
+    <div className="bg-white rounded-lg shadow-lg p-2 border border-gray-100 mb-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-purple-700">
           View Your Feedback
@@ -165,7 +165,7 @@ const FeedbackLookup: React.FC = () => {
               {feedbacks.map((feedback) => (
                 <div key={feedback._id} className="border border-gray-200 rounded-lg p-4 relative">
                   {/* Feedback content - takes 3/4 width and aligned to right */}
-                  <div className="w-3/4 ml-auto bg-blue-50 p-4 rounded-lg mb-4">
+                  <div className="w-3/4 ml-auto bg-blue-50 p-1 rounded-lg mb-4">
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-sm font-medium text-purple-700 capitalize">
                         {feedback.subject.replace('-', ' ')}
@@ -189,7 +189,7 @@ const FeedbackLookup: React.FC = () => {
                   
                   {/* Response content - takes 3/4 width and aligned to left */}
                   {feedback.response ? (
-                    <div className="w-3/4 mr-auto p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="w-3/4 mr-auto p-1 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm font-medium text-green-700">Response</span>
                         <span className="text-xs text-gray-500">
@@ -199,7 +199,7 @@ const FeedbackLookup: React.FC = () => {
                       <p className="text-gray-700">{feedback.response}</p>
                     </div>
                   ) : (
-                    <div className="w-3/4 mr-auto p-4 rounded-lg border border-gray-200 bg-gray-100">
+                    <div className="w-3/4 mr-auto p-1 rounded-lg border border-gray-200 bg-gray-100">
                       <div className="text-center py-2">
                         <p className="text-sm text-gray-500 italic">
                           No response yet. Our team will get back to you soon.
