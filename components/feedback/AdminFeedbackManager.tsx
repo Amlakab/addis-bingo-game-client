@@ -411,7 +411,7 @@ const AdminFeedbackPage: React.FC = () => {
                     </button>
                     
                     {/* Feedback content - takes 3/4 width and aligned to left */}
-                    <div className="w-3/4 mr-auto p-4 rounded-lg mb-4">
+                    <div className="w-3/4 mr-auto bg-gray-50 p-4 rounded-lg mb-4">
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-sm font-medium text-purple-700 capitalize">
                           {feedback.subject.replace('-', ' ')}
