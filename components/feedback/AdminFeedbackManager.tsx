@@ -100,8 +100,11 @@ const AdminFeedbackPage: React.FC = () => {
     const groupedArray = Object.values(grouped).map(group => ({
       ...group,
       feedbacks: group.feedbacks.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       )
+      // feedbacks: group.feedbacks.sort((a, b) => 
+      //   new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      // )
     }));
     
     setContactGroups(groupedArray);
@@ -162,8 +165,7 @@ const AdminFeedbackPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8 pb-24 pt-20">
+        <div className="container mx-auto px-4 py-8">
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
           </div>
