@@ -5,6 +5,8 @@ import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import FeedbackForm from '@/components/feedback/FeedbackForm';
+import FeedbackLookup from '@/components/feedback/FeedbackLookup';
 
 export default function ContactUsPage() {
   const [formData, setFormData] = useState({
@@ -52,7 +54,14 @@ export default function ContactUsPage() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-12">
-            {/* Contact Form */}
+          
+          {/* New Feedback Form Section */}
+          <FeedbackForm />
+
+          {/* New Feedback Lookup Section */}
+          <FeedbackLookup />
+
+            {/* Contact Form
             <div className="bg-white rounded-lg shadow-lg p-8 border border-gray-100">
               <h2 className="text-2xl font-semibold text-purple-700 mb-6">
                 Send us a Message
@@ -137,7 +146,7 @@ export default function ContactUsPage() {
                   {isSubmitting ? 'Sending Message...' : 'Send Message'}
                 </button>
               </form>
-            </div>
+            </div> */}
 
             {/* Contact Information */}
             <div className="space-y-6">

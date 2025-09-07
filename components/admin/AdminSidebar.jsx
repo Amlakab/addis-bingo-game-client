@@ -17,6 +17,7 @@ const menuItems = [
   { name: 'Game History', href: '/admin/game-history', icon: History },
   { name: 'Transactions', href: '/admin/transactions', icon: History },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+  { name: 'Feedback', href: '/admin/feedback', icon: Wallet },
   { name: 'Wallet', href: '/admin/wallet', icon: Wallet },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
