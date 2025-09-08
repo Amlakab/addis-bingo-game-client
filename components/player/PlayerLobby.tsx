@@ -254,24 +254,24 @@ const PlayerLobby = ({
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     
     if (isSelectedByUser) {
-      // setIsLoading(true);
-      // try {
+      setIsLoading(true);
+      try {
         
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
         
-        // webSocketService.send('delete-session', {
-        //   cardNumber: id,
-        //   betAmount,
-        // });
+        webSocketService.send('delete-session', {
+          cardNumber: id,
+          betAmount,
+        });
 
-      // } catch (error: any) {
-      //   console.error('Error deselecting card:', error);
-      //   const errorMsg = error.response?.data?.error || "Error deselecting card";
-      //   setErrorMessage(errorMsg);
-      //   setWalletError(true);
-      // } finally {
-      //   setIsLoading(false);
-      // }
+      } catch (error: any) {
+        console.error('Error deselecting card:', error);
+        const errorMsg = error.response?.data?.error || "Error deselecting card";
+        setErrorMessage(errorMsg);
+        setWalletError(true);
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -352,30 +352,31 @@ const PlayerLobby = ({
     
     if (selectedPlayers.length === 0) return;
     
-    // setIsLoading(true);
-    // try {
+    setIsLoading(true);
+    try {
 
-    //   if (webSocketService) {
-    //   // First update all sessions with this bet amount to 'playing' status
-    //   webSocketService.send('refund-wallet', {
-    //     betAmount: betAmount,
-    //   });
+      if (webSocketService) {
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('refund-wallet', {
+        betAmount: betAmount,
+      userId: user._id
+      });
       
-    // } else {
-    //   console.error('WebSocket service not available');
-    // }
+    } else {
+      console.error('WebSocket service not available');
+    }
       
       // Clear selected players
       setSelectedPlayers([]);
       
-    // } catch (error: any) {
-    //   console.error('Error canceling selections:', error);
-    //   const errorMsg = error.response?.data?.error || "Error canceling selections";
-    //   setErrorMessage(errorMsg);
-    //   setWalletError(true);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isClient) {
