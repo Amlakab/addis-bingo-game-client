@@ -199,7 +199,7 @@ export default function LoginPage() {
                   )}
                 </button>
 
-                <div className="text-center">
+                {/* <div className="text-center">
                   {!isOtpLogin ? (
                     <button
                       type="button"
@@ -207,7 +207,7 @@ export default function LoginPage() {
                       disabled={isLoading}
                       className="text-purple-600 hover:text-purple-800 font-medium transition duration-200 disabled:opacity-50 text-sm"
                     >
-                      Prefer to login with OTP?
+                      F?
                     </button>
                   ) : (
                     <button
@@ -218,7 +218,7 @@ export default function LoginPage() {
                       Use password login instead
                     </button>
                   )}
-                </div>
+                </div> */}
               </form>
 
               <div className="mt-8 pt-6 border-t border-gray-200">
