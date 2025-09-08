@@ -1,0 +1,7 @@
+{
+  "/howtoplay/page": "app/howtoplay/page.js",
+  "/auth/register/page": "app/auth/register/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/user/dashboard/page": "app/user/dashboard/page.js",
+  "/user/lobby/page": "app/user/lobby/page.js"
+}

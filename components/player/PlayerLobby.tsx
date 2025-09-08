@@ -139,7 +139,7 @@ const PlayerLobby = ({
     } else {
       // Auto-start game when timer reaches 0 if there are players
       // This will trigger the onStartGame which should update session status
-      if (playerCount > 2) {
+      if (playerCount > 1) {
         handleDirectToGame();
        //onStartGame(selectedPlayers, betAmount);
       } else if (playerCount === 0 && onBackToLobby) {
@@ -282,7 +282,8 @@ const PlayerLobby = ({
     }
 
     if (selectedPlayers.length < 2) {
-      if (wallet < betAmount) {
+      const checkBalance= selectedPlayers.length * betAmount + betAmount;
+      if (wallet < checkBalance) {
         setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
         setWalletError(true);
         return;

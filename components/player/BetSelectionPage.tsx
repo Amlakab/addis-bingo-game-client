@@ -194,68 +194,97 @@ const BetSelectionPage = ({
     };
   }, [isClient, webSocketService, betOptions]);
 
-const handleSessionsUpdate = (sessions: GameSession[]) => {
-  // Group sessions by bet amount
-  const sessionsByBet: {[key: number]: GameSession[]} = {};
-  
-  sessions.forEach(session => {
-    if (!sessionsByBet[session.betAmount]) {
-      sessionsByBet[session.betAmount] = [];
-    }
-    sessionsByBet[session.betAmount].push(session);
-  });
-  
-  // Update bet statuses for each bet amount
-  setBetStatuses(prev => {
-    const updatedStatuses = { ...prev };
+  const handleSessionsUpdate = (sessions: GameSession[]) => {
+    // Group sessions by bet amount
+    const sessionsByBet: {[key: number]: GameSession[]} = {};
     
-    Object.keys(sessionsByBet).forEach(betAmountStr => {
-      const betAmount = parseInt(betAmountStr);
-      const sessions = sessionsByBet[betAmount];
-      
-      if (updatedStatuses[betAmount]) {
-        const activePlayers = sessions.filter(session => session.status === 'active').length;
-        const gameInProgress = sessions.some(session => session.status === 'playing');
-        const prizePool = activePlayers * betAmount * 0.8;
-        
-        // If there are active sessions, calculate the correct timer based on createdAt
-        let timer = updatedStatuses[betAmount].timer;
-        let createdAt = updatedStatuses[betAmount].createdAt;
-        
-        if (activePlayers > 0 && sessions.length > 0) {
-          // Find the earliest createdAt time among active sessions
-          const earliestSession = sessions
-            .filter(session => session.status === 'active')
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
-          
-          if (earliestSession) {
-            const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-            // Get current time in UTC to match server time format
-            const currentTime = new Date().toISOString();
-            const currentTimeUTC = new Date(currentTime).getTime();
-            const elapsedSeconds = Math.floor((currentTimeUTC - sessionStartTime) / 1000);
-            const remainingTime = Math.max(0, 45 - elapsedSeconds);
-            
-            timer = remainingTime;
-            createdAt = new Date(earliestSession.createdAt);
-          }
-        }
-        
-        // Update player count, prize pool, and status
-        updatedStatuses[betAmount] = {
-          ...updatedStatuses[betAmount],
-          timer,
-          createdAt,
-          playerCount: activePlayers,
-          prizePool: prizePool,
-          status: gameInProgress ? 'in-progress' : (activePlayers > 0 ? 'active' : updatedStatuses[betAmount].status)
-        };
+    sessions.forEach(session => {
+      if (!sessionsByBet[session.betAmount]) {
+        sessionsByBet[session.betAmount] = [];
       }
+      sessionsByBet[session.betAmount].push(session);
     });
     
-    return updatedStatuses;
-  });
-};
+    // Update bet statuses for each bet amount
+    setBetStatuses(prev => {
+      const updatedStatuses = { ...prev };
+      
+      Object.keys(sessionsByBet).forEach(betAmountStr => {
+        const betAmount = parseInt(betAmountStr);
+        const sessions = sessionsByBet[betAmount];
+        
+        if (updatedStatuses[betAmount]) {
+          // ALWAYS calculate player count and prize pool (for display)
+          const activePlayers = sessions.filter(session => 
+            session.status === 'active' || session.status === 'ready' || session.status === 'playing'
+          ).length;
+          
+          const gameInProgress = sessions.some(session => session.status === 'playing');
+          const prizePool = activePlayers * betAmount * 0.8;
+          
+          // Only update timer and status logic if there are active sessions
+          let timer = updatedStatuses[betAmount].timer;
+          let createdAt = updatedStatuses[betAmount].createdAt;
+          let status = updatedStatuses[betAmount].status;
+          
+          if (activePlayers > 0) {
+            // Find the earliest createdAt time among active sessions
+            const activeSessions = sessions.filter(session => 
+              session.status === 'active' || session.status === 'ready'
+            );
+            
+            if (activeSessions.length > 0) {
+              const earliestSession = activeSessions.sort((a, b) => 
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              )[0];
+              
+              if (earliestSession) {
+                const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+                const currentTimeUTC = new Date().getTime();
+                const elapsedSeconds = Math.floor((currentTimeUTC - sessionStartTime) / 1000);
+                
+                if (earliestSession.status === 'ready') {
+                  // Ready phase: 5 seconds countdown
+                  const remainingTime = Math.max(0, 5 - elapsedSeconds);
+                  timer = remainingTime;
+                  status = 'ready';
+                } else if (earliestSession.status === 'active') {
+                  // Active phase: 45 seconds countdown
+                  const remainingTime = Math.max(0, 45 - elapsedSeconds);
+                  timer = remainingTime;
+                  status = 'active';
+                }
+                
+                createdAt = new Date(earliestSession.createdAt);
+              }
+            }
+          }
+          
+          // Update game status based on whether game is in progress
+          if (gameInProgress) {
+            status = 'in-progress';
+          } else if (activePlayers === 0) {
+            // If no active players, reset to ready state
+            status = 'ready';
+            timer = 5;
+            createdAt = null;
+          }
+          
+          // Update player count, prize pool, and status
+          updatedStatuses[betAmount] = {
+            ...updatedStatuses[betAmount],
+            timer,
+            status,
+            createdAt,
+            playerCount: activePlayers, // Always show actual player count
+            prizePool: prizePool        // Always show actual prize pool
+          };
+        }
+      });
+      
+      return updatedStatuses;
+    });
+  };
 
   const fetchGames = async () => {
     try {
@@ -307,7 +336,7 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
 
   const handlePlayClick = (bet: number) => {
     const status = betStatuses[bet];
-    if (status.status === 'active' && status.createdAt) {
+    if ((status.status === 'active' || status.status === 'ready') && status.createdAt) {
       onPlay(bet, status.timer, status.playerCount, status.createdAt);
     }
   };
@@ -339,29 +368,28 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
     }
   };
 
+  const [testBetAmount, setTestBetAmount] = useState("");
+  const handleTest = () => {
+    if (!webSocketService) return;
 
-const [testBetAmount, setTestBetAmount] = useState("");
-const handleTest = () => {
-  if (!webSocketService) return;
+    const value = parseInt(testBetAmount, 10);
+    if (!value || value <= 0) {
+      alert(language === "am" ? "ትክክለኛ ውርርድ ያስገቡ" : "Enter a valid bet amount");
+      return;
+    }
 
-  const value = parseInt(testBetAmount, 10);
-  if (!value || value <= 0) {
-    alert(language === "am" ? "ትክክለኛ ውርርድ ያስገቡ" : "Enter a valid bet amount");
-    return;
-  }
+    // ✅ Send test-game event
+    webSocketService.send("test-game", { betAmount: value });
 
-  // ✅ Send test-game event
-  webSocketService.send("test-game", { betAmount: value });
+    console.log("Sent test-game with betAmount:", value);
+    alert(
+      language === "am"
+        ? `ፈትሽ ተልኳል: ${value}`
+        : `Test sent with betAmount: ${value}`
+    );
 
-  console.log("Sent test-game with betAmount:", value);
-  alert(
-    language === "am"
-      ? `ፈትሽ ተልኳል: ${value}`
-      : `Test sent with betAmount: ${value}`
-  );
-
-  setTestBetAmount(""); // clear input after test
-};
+    setTestBetAmount(""); // clear input after test
+  };
 
   // Check if user has insufficient balance for a bet
   const hasInsufficientBalance = (betAmount: number) => {
@@ -415,30 +443,6 @@ const handleTest = () => {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        {/* Header */}
-        {/* <Box sx={{ textAlign: 'center', mb: 3, color: '#2c3e50' }}>
-          <Casino sx={{ 
-            fontSize: 50, 
-            mb: 1.5, 
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
-            color: '#3498db'
-          }} />
-          {/* <Typography variant="h4" sx={{ 
-            fontWeight: 'bold', 
-            mb: 1,
-            fontSize: { xs: '1.75rem', sm: '2.125rem' }
-          }}>
-            {language === 'am' ? "የጨዋታ ምድብ" : "Game Lobby"}
-          </Typography> */}
-          {/* <Typography variant="body1" sx={{ 
-            opacity: 0.8, 
-            fontSize: { xs: '0.9rem', sm: '1rem' },
-            color: '#7f8c8d'
-          }}>
-            {language === 'am' ? "ውርርድ መጠን ይምረጡ" : "Select your bet amount"}
-          </Typography> 
-         </Box> */}
-
         {/* User Balance Display */}
         <Box sx={{ 
           display: 'flex', 
@@ -679,38 +683,38 @@ const handleTest = () => {
             : "All games use a fair random system. Winners receive 80% of the prize pool."
           }
         </Typography>
-      </Box>
-      {/* 🔍 Test Game Section */}
-<Box 
-  sx={{ 
-    mt: 4, 
-    display: "flex", 
-    flexDirection: { xs: "column", sm: "row" }, 
-    alignItems: "center", 
-    gap: 2,
-    background: "#fff",
-    p: 2,
-    borderRadius: 2,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-  }}
->
-  <input
-    type="number"
-    placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
-    value={testBetAmount}
-    onChange={(e) => setTestBetAmount(e.target.value)}
-    className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-  <Button
-    variant="contained"
-    color="secondary"
-    onClick={handleTest}
-    sx={{ textTransform: "none", px: 4, py: 1 }}
-  >
-    {language === "am" ? "ፈትሽ" : "Test"}
-  </Button>
-</Box>
 
+        {/* Test Game Section */}
+        <Box 
+          sx={{ 
+            mt: 4, 
+            display: "flex", 
+            flexDirection: { xs: "column", sm: "row" }, 
+            alignItems: "center", 
+            gap: 2,
+            background: "#fff",
+            p: 2,
+            borderRadius: 2,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+          }}
+        >
+          <input
+            type="number"
+            placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
+            value={testBetAmount}
+            onChange={(e) => setTestBetAmount(e.target.value)}
+            className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleTest}
+            sx={{ textTransform: "none", px: 4, py: 1 }}
+          >
+            {language === "am" ? "ፈትሽ" : "Test"}
+          </Button>
+        </Box>
+      </Box>
     </motion.div>
   );
 };
