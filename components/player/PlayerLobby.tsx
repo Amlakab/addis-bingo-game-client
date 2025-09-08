@@ -288,27 +288,27 @@ const PlayerLobby = ({
         return;
       }
 
-      // setIsLoading(true);
-      // try {
+      setIsLoading(true);
+      try {
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
 
-        // webSocketService.send('create-session', {
-        //   userId: user._id,
-        //   cardNumber: id,
-        //   betAmount,
-        //   createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
-        // });
+        webSocketService.send('create-session', {
+          userId: user._id,
+          cardNumber: id,
+          betAmount,
+          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
+        });
         
         //setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
         
-      // } catch (error: any) {
-      //   console.error('Error selecting card:', error);
-      //   const errorMsg = error.response?.data?.error || "Error selecting card";
-      //   setErrorMessage(errorMsg);
-      //   setWalletError(true);
-      // } finally {
-      //   setIsLoading(false);
-      // }
+      } catch (error: any) {
+        console.error('Error selecting card:', error);
+        const errorMsg = error.response?.data?.error || "Error selecting card";
+        setErrorMessage(errorMsg);
+        setWalletError(true);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
       setWalletError(true);
