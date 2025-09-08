@@ -357,9 +357,9 @@ const PlayerLobby = ({
 
       if (webSocketService) {
       // First update all sessions with this bet amount to 'playing' status
-      webSocketService.send('refund-wallet', {
+      webSocketService.send('clear-selected', {
         betAmount: betAmount,
-      userId: user._id
+        userId: user._id
       });
       
     } else {
@@ -668,14 +668,14 @@ const PlayerLobby = ({
           <Button
             variant="contained"
             color={
-              playerCount > 2
+              playerCount > 1
                 ? 'success'
                 : selectedPlayers.length === 0
                 ? 'primary'
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 2) {
+              if (playerCount > 1) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
@@ -692,7 +692,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {playerCount > 2
+            {playerCount > 1
               ? language === 'am'
                 ? 'ጨዋታ ጀምር'
                 : 'Play'
