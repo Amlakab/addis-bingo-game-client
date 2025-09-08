@@ -339,6 +339,30 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
     }
   };
 
+
+const [testBetAmount, setTestBetAmount] = useState("");
+const handleTest = () => {
+  if (!webSocketService) return;
+
+  const value = parseInt(testBetAmount, 10);
+  if (!value || value <= 0) {
+    alert(language === "am" ? "ትክክለኛ ውርርድ ያስገቡ" : "Enter a valid bet amount");
+    return;
+  }
+
+  // ✅ Send test-game event
+  webSocketService.send("test-game", { betAmount: value });
+
+  console.log("Sent test-game with betAmount:", value);
+  alert(
+    language === "am"
+      ? `ፈትሽ ተልኳል: ${value}`
+      : `Test sent with betAmount: ${value}`
+  );
+
+  setTestBetAmount(""); // clear input after test
+};
+
   // Check if user has insufficient balance for a bet
   const hasInsufficientBalance = (betAmount: number) => {
     return userBalance < betAmount;
@@ -656,6 +680,37 @@ const handleSessionsUpdate = (sessions: GameSession[]) => {
           }
         </Typography>
       </Box>
+      {/* 🔍 Test Game Section */}
+<Box 
+  sx={{ 
+    mt: 4, 
+    display: "flex", 
+    flexDirection: { xs: "column", sm: "row" }, 
+    alignItems: "center", 
+    gap: 2,
+    background: "#fff",
+    p: 2,
+    borderRadius: 2,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+  }}
+>
+  <input
+    type="number"
+    placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
+    value={testBetAmount}
+    onChange={(e) => setTestBetAmount(e.target.value)}
+    className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+  />
+  <Button
+    variant="contained"
+    color="secondary"
+    onClick={handleTest}
+    sx={{ textTransform: "none", px: 4, py: 1 }}
+  >
+    {language === "am" ? "ፈትሽ" : "Test"}
+  </Button>
+</Box>
+
     </motion.div>
   );
 };
