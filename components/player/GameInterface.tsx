@@ -116,6 +116,7 @@ const GameInterface = ({
   // New state for countdown timer
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
   const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
@@ -487,12 +488,14 @@ const checkForWinner = (playerId: number) => {
 };
 
   const handleBingo = async (playerId: number) => {
-  setIsCalling(false); // Stop calling numbers
-   
+   // Stop calling numbers
+    setGameEnded(true);
   const result = checkForWinner(playerId);
   
   if (result.isWinner) {
     try {
+
+      setIsCalling(false);
       const prizeAmount = numberOfPlayers * bet * 0.8; // 80% of total bets
       
       // Show toast message for all users
@@ -1154,9 +1157,9 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                 onClick={handleBackToLobbyWithRefund}
                 fullWidth
                 size="small"
-                sx={{ fontSize: '0.8rem', mt: 1 }}
+                sx={{ fontSize: '0.95rem', mt: 1, p: 2 }}
               >
-                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Back to Lobby'}
+                {language === 'am' ? 'ካችሮችን አጥፋ' : 'Clear Card'}
               </Button>
             )}
           {/* Recent Numbers */}
@@ -1356,7 +1359,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted}
+                      disabled={isBlocked || !gameStarted || gameEnded}
                       fullWidth
                       size="small"
                       sx={{ fontSize: '0.8rem' }}
