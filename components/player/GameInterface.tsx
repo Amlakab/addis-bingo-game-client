@@ -1157,7 +1157,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                 onClick={handleBackToLobbyWithRefund}
                 fullWidth
                 size="small"
-                sx={{ fontSize: '0.95rem', mt: 1, p: 1 }}
+                sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}
               >
                 {language === 'am' ? 'ካችሮችን አጥፋ' : 'Clear Card'}
               </Button>
