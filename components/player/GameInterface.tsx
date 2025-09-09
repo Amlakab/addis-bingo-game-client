@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Button, Box, Typography, Card, CardContent, 
   useTheme, useMediaQuery, Alert, Snackbar, TextField,
@@ -14,6 +14,7 @@ import Confetti from 'react-confetti';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '@/lib/auth';
 import api from '@/app/utils/api';
+import { debounce } from 'lodash';
 
 type WinPattern = 'row' | 'column' | 'diagonal' | 'corners';
 
@@ -110,12 +111,14 @@ const GameInterface = ({
   const [voiceService, setVoiceService] = useState<any>(null);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   
   // New state for countdown timer
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const numberCalledRef = useRef<string>('');
 
   // Initialize component on client side only
   useEffect(() => {
@@ -139,29 +142,58 @@ const GameInterface = ({
     loadBrowserModules();
   }, []);
 
-  // Setup WebSocket listeners when service is available
+  // Setup WebSocket connection state
+  useEffect(() => {
+    if (!webSocketService) return;
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      console.log('WebSocket connected');
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      console.log('WebSocket disconnected');
+    };
+
+    webSocketService.on('connect', handleConnect);
+    webSocketService.on('disconnect', handleDisconnect);
+
+    return () => {
+      webSocketService.off('connect', handleConnect);
+      webSocketService.off('disconnect', handleDisconnect);
+    };
+  }, [webSocketService]);
+
+  // Setup WebSocket listeners when service is available - RUNS ONLY ONCE
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
-    webSocketService.on('connected', handleWebSocketConnected);
-    webSocketService.on('sessions-updated', handleSessionsUpdate);
-    webSocketService.on('game-ended', handleGameEnded);
-    webSocketService.on('number-called', handleNumberCalled);
-    webSocketService.on('game-state', handleGameState);
-    
-    // Request initial session data
-    webSocketService.send('get-sessions', { betAmount: bet });
-    
-    return () => {
-      webSocketService.off('connected', handleWebSocketConnected);
-      webSocketService.off('sessions-updated', handleSessionsUpdate);
-      webSocketService.off('game-ended', handleGameEnded);
-      webSocketService.off('number-called', handleNumberCalled);
-      webSocketService.off('game-state', handleGameState);
+    const setupWebSocketListeners = () => {
+      webSocketService.on('connected', handleWebSocketConnected);
+      webSocketService.on('sessions-updated', handleSessionsUpdate);
+      webSocketService.on('game-ended', handleGameEnded);
+      webSocketService.on('number-called', handleNumberCalled);
+      webSocketService.on('game-state', handleGameState);
+      
+      // Request initial session data
+      webSocketService.send('get-sessions', { betAmount: bet });
     };
-  }, [isClient, webSocketService, bet]);
 
-  // Setup WebSocket listeners for server-side number calling
+    setupWebSocketListeners();
+
+    return () => {
+      if (webSocketService) {
+        webSocketService.off('connected', handleWebSocketConnected);
+        webSocketService.off('sessions-updated', handleSessionsUpdate);
+        webSocketService.off('game-ended', handleGameEnded);
+        webSocketService.off('number-called', handleNumberCalled);
+        webSocketService.off('game-state', handleGameState);
+      }
+    };
+  }, [isClient, webSocketService]); // Removed bet from dependencies
+
+  // Setup WebSocket listeners for server-side number calling when game starts
   useEffect(() => {
     if (!isClient || !webSocketService || !gameStarted) return;
 
@@ -172,26 +204,36 @@ const GameInterface = ({
     webSocketService.send('start-game', { betAmount: bet });
     
     return () => {
-      // Cleanup is handled in the main useEffect
+      // Cleanup: Stop the game when component unmounts or game ends
+      if (webSocketService && bet) {
+        webSocketService.send('stop-game', { betAmount: bet });
+      }
     };
   }, [isClient, webSocketService, gameStarted, bet]);
 
-  // Handler for server-called numbers
-  const handleNumberCalled = (data: { 
-    betAmount: number; 
-    number: string; 
-    calledNumbers: string[] 
-  }) => {
-    if (data.betAmount !== bet) return;
-    
-    setCurrentNumber(data.number);
-    setCalledNumbers(data.calledNumbers);
-    
-    if (soundOn && voiceService) {
-      const langCode = language === 'am' ? 'am-ET' : 'en-US';
-      voiceService.speak(data.number, langCode, 1);
-    }
-  };
+  // Handler for server-called numbers with debouncing and duplicate prevention
+  const handleNumberCalled = useCallback(
+    debounce((data: { 
+      betAmount: number; 
+      number: string; 
+      calledNumbers: string[] 
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      // Prevent processing the same number multiple times
+      if (numberCalledRef.current === data.number) return;
+      
+      numberCalledRef.current = data.number;
+      setCurrentNumber(data.number);
+      setCalledNumbers(data.calledNumbers);
+      
+      if (soundOn && voiceService) {
+        const langCode = language === 'am' ? 'am-ET' : 'en-US';
+        voiceService.speak(data.number, langCode, 1);
+      }
+    }, 100), // 100ms debounce
+    [bet, soundOn, voiceService, language]
+  );
 
   // Handler for game state updates
   const handleGameState = (data: { 
@@ -309,11 +351,6 @@ const GameInterface = ({
     }, 1000);
   };
 
-  
-
-// Also update the startGame function to include the check
-
-
   const startGame = () => {
     setGameStarted(true);
     
@@ -324,9 +361,6 @@ const GameInterface = ({
         betAmount: bet,
         status: 'playing'
       });
-      
-      // The server will start calling numbers automatically
-      // when we send the 'start-game' message in the useEffect
     } else {
       console.error('WebSocket service not available');
     }
@@ -343,15 +377,10 @@ const GameInterface = ({
     
     console.log('Bet sessions:', betSessions);
     console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
-    // Calculate prize pool and player count
-    // const activePlayers = betSessions.filter(session =>
-    //   ['playing', 'blocked', 'active'].includes(session.status)
-    // ).length;
-
+    
     const activePlayers = betSessions.filter(
       (session) => session.status !== "active"
     ).length;
-
 
     setNumberOfPlayers(activePlayers);
     
@@ -362,8 +391,6 @@ const GameInterface = ({
     // Update game sessions
     setGameSessions(betSessions);
   };
-
-  
   
   const handleGameEnded = (data: GameEndData) => {
   console.log('Game ended data received:', data);
@@ -399,71 +426,6 @@ const GameInterface = ({
   
 };
 
-  // const handleGameEnded = (data: { winnerId: string, winnerCard: number, prizePool: number }) => {
-  //   // Show winner modal
-  //   setWinners([{ 
-  //     id: data.winnerCard, 
-  //     userId: data.winnerId, 
-  //     pattern: 'row' // Default pattern
-  //   }]);
-  //   setShowGameOverModal(true);
-    
-  //   // Stop calling numbers
-  //   setIsCalling(false);
-  // };
-
-  // Check for game over condition
-// useEffect(() => {
-//   if (
-//     (numberOfPlayers === 0 && calledNumbers.length > 0) ||
-//     calledNumbers.length === 75
-//   ) {
-//     checkGameOver();
-//   }
-// }, [numberOfPlayers, calledNumbers]);
-
-
-  const checkGameOver = async () => {
-    try {
-
-      
-      // Check if there's a winner in game history
-      const response = await api.get(`/game/history/latest/${bet}`);
-      if (response.data) {
-        const winnerHistory: GameHistory = response.data;
-        setGameOverWinner(winnerHistory);
-        
-        // Delete game sessions for this bet amount via WebSocket
-        if (webSocketService) {
-          webSocketService.send('reset-game', {
-            betAmount: bet,
-          });
-        }
-        // Show toast message
-        const winMessage = language === 'am' 
-          ? `ተጫዋች ${winnerHistory.winnerCard} አሸንፏል!` 
-          : `Player ${winnerHistory.winnerCard} wins!`;
-        setToastMessage(winMessage);
-        setShowToast(true);
-        
-        // Show winner modal after 2 seconds
-        setTimeout(() => {
-          setWinners([{ 
-            id: winnerHistory.winnerCard, 
-            userId: winnerHistory.winnerId._id, 
-            pattern: 'row' // Default pattern, will be determined in getWinningPatternCells
-          }]);
-          setShowGameOverModal(true);
-        }, 2000);
-        
-        // Stop calling numbers
-        setIsCalling(false);
-      }
-    } catch (error) {
-      console.error('Error checking game over:', error);
-    }
-  };
-
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
@@ -472,92 +434,61 @@ const GameInterface = ({
     }
   }, [calledNumbers]);
 
-  const checkForWinner = (playerId: number) => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) {
-      return {
-        isWinner: false,
-        message: language === 'am' 
-          ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
-          : `Player ${playerId} is not in the game`,
-        playerId
-      };
-    }
-
-    if (blockedPlayers.includes(playerId)) {
-      return {
-        isWinner: false,
-        message: language === 'am' 
-          ? `ተጫዋች ${playerId} ተገድቧል` 
-          : `Player ${playerId} is blocked`,
-        playerId
-      };
-    }
-
-    const card = getCardById(playerId);
-    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
-    const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-
-    for (const pattern of patterns) {
-      const winResult = checkWin(calledNumbers, card, pattern);
-      if (winResult) {
-        // Check if the last called number is part of the winning pattern
-        const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
-        const lastLetter = lastCalledNumber?.split('-')[0] || '';
-        
-        let includesLastCalled = false;
-        
-        if (pattern === 'row') {
-          // Check which row has the last called number
-          const rowIndex = card.findIndex(col => col.includes(lastNum));
-          includesLastCalled = rowIndex !== -1;
-        } else if (pattern === 'column') {
-          const colIndex = "BINGO".indexOf(lastLetter);
-          includesLastCalled = colIndex !== -1 && card[colIndex]?.includes(lastNum);
-        } else if (pattern === 'diagonal') {
-          // Check both diagonals
-          const mainDiagonal = card.map((col, idx) => col[idx]);
-          const antiDiagonal = card.map((col, idx) => col[4 - idx]);
-          includesLastCalled = mainDiagonal.includes(lastNum) || antiDiagonal.includes(lastNum);
-        } else if (pattern === 'corners') {
-          const corners = [card[0][0], card[0][4], card[4][0], card[4][4]];
-          includesLastCalled = corners.includes(lastNum);
-        }
-
-        if (includesLastCalled) {
-          return {
-            isWinner: true,
-            pattern,
-            message: language === 'am' 
-              ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
-              : `Player ${playerId} wins with ${pattern} pattern!`,
-            playerId,
-            userId: player.userId
-          };
-        } else {
-          return {
-            isWinner: false,
-            message: language === 'am' 
-              ? `ተጫዋች ${playerId} አሸንፏል ነገር ግን ያለፈውን ቁጥር ተጠቅሟል!` 
-              : `Player ${playerId} won but missed the last call!`,
-            playerId
-          };
-        }
-      }
-    }
-
+// Update the checkForWinner function to detect the specific winning pattern
+const checkForWinner = (playerId: number) => {
+  const player = players.find(p => p.id === playerId);
+  if (!player) {
     return {
       isWinner: false,
       message: language === 'am' 
-        ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
-        : `Player ${playerId} has not won yet`,
+        ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
+        : `Player ${playerId} is not in the game`,
       playerId
     };
-  };
+  }
 
-const handleBingo = async (playerId: number) => {
+  if (blockedPlayers.includes(playerId)) {
+    return {
+      isWinner: false,
+      message: language === 'am' 
+        ? `ተጫዋች ${playerId} ተገድቧል` 
+        : `Player ${playerId} is blocked`,
+      playerId
+    };
+  }
+
+  const card = getCardById(playerId);
+  const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
+
+  for (const pattern of patterns) {
+    const winningCells = getWinningPatternCells(card, pattern);
+    
+    if (winningCells.length > 0) {
+      return {
+        isWinner: true,
+        pattern,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
+          : `Player ${playerId} wins with ${pattern} pattern!`,
+        playerId,
+        userId: player.userId
+      };
+    }
+  }
+
+  return {
+    isWinner: false,
+    message: language === 'am' 
+      ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
+      : `Player ${playerId} has not won yet`,
+    playerId
+  };
+};
+
+  const handleBingo = async (playerId: number) => {
   setIsCalling(false); // Stop calling numbers
-  
+   
   const result = checkForWinner(playerId);
   
   if (result.isWinner) {
@@ -738,68 +669,63 @@ const handleBackToLobbyWithRefund = async () => {
   };
 
   // Get winning pattern cells for highlighting
-  const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
-    const cells: {row: number, col: number}[] = [];
-    const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-    const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
-    const lastLetter = lastCalledNumber?.split('-')[0] || '';
+// Update the getWinningPatternCells function to properly identify the winning pattern
+const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
+  const cells: {row: number, col: number}[] = [];
+  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
+  const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
+  const lastLetter = lastCalledNumber?.split('-')[0] || '';
+  
+  // Check if the last called number is in this card
+  const lastNumColIndex = "BINGO".indexOf(lastLetter);
+  const lastNumRowIndex = lastNumColIndex !== -1 ? card[lastNumColIndex]?.indexOf(lastNum) : -1;
+  
+  if (lastNumRowIndex === -1) {
+    return cells; // Last called number not in this card
+  }
+  
+  if (pattern === 'row') {
+    // Check if the row containing the last called number is a winning row
+    const rowIndex = lastNumRowIndex;
+    let isWinningRow = true;
     
-    if (pattern === 'row') {
-      // Check each row for a win
-      for (let row = 0; row < 5; row++) {
-        let isWinningRow = true;
-        let includesLastCalled = false;
-        
-        for (let col = 0; col < 5; col++) {
-          const number = card[col][row];
-          const letter = "BINGO"[col];
-          if (!isNumberCalled(number, letter)) {
-            isWinningRow = false;
-            break;
-          }
-          // Check if this cell contains the last called number
-          if (number === lastNum && letter === lastLetter) {
-            includesLastCalled = true;
-          }
-        }
-        
-        if (isWinningRow && includesLastCalled) {
-          for (let col = 0; col < 5; col++) {
-            cells.push({row, col});
-          }
-          break;
-        }
+    for (let col = 0; col < 5; col++) {
+      const number = card[col][rowIndex];
+      const letter = "BINGO"[col];
+      if (!isNumberCalled(number, letter)) {
+        isWinningRow = false;
+        break;
       }
-    } else if (pattern === 'column') {
-      // Check each column for a win
+    }
+    
+    if (isWinningRow) {
       for (let col = 0; col < 5; col++) {
-        let isWinningCol = true;
-        let includesLastCalled = false;
-        
-        for (let row = 0; row < 5; row++) {
-          const number = card[col][row];
-          const letter = "BINGO"[col];
-          if (!isNumberCalled(number, letter)) {
-            isWinningCol = false;
-            break;
-          }
-          // Check if this cell contains the last called number
-          if (number === lastNum && letter === lastLetter) {
-            includesLastCalled = true;
-          }
-        }
-        
-        if (isWinningCol && includesLastCalled) {
-          for (let row = 0; row < 5; row++) {
-            cells.push({row, col});
-          }
-          break;
-        }
+        cells.push({row: rowIndex, col});
       }
-    } else if (pattern === 'diagonal') {
-      // Check main diagonal
+    }
+  } else if (pattern === 'column') {
+    // Check if the column containing the last called number is a winning column
+    const colIndex = lastNumColIndex;
+    let isWinningCol = true;
+    
+    for (let row = 0; row < 5; row++) {
+      const number = card[colIndex][row];
+      const letter = "BINGO"[colIndex];
+      if (!isNumberCalled(number, letter)) {
+        isWinningCol = false;
+        break;
+      }
+    }
+    
+    if (isWinningCol) {
+      for (let row = 0; row < 5; row++) {
+        cells.push({row, col: colIndex});
+      }
+    }
+  } else if (pattern === 'diagonal') {
+    // Check main diagonal
+    if (lastNumColIndex === lastNumRowIndex) {
       let isWinningDiagonal = true;
-      let includesLastCalled = false;
       
       for (let i = 0; i < 5; i++) {
         const number = card[i][i];
@@ -808,21 +734,18 @@ const handleBackToLobbyWithRefund = async () => {
           isWinningDiagonal = false;
           break;
         }
-        // Check if this cell contains the last called number
-        if (number === lastNum && letter === lastLetter) {
-          includesLastCalled = true;
-        }
       }
       
-      if (isWinningDiagonal && includesLastCalled) {
+      if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
           cells.push({row: i, col: i});
         }
       }
-      
-      // Check anti-diagonal
-      isWinningDiagonal = true;
-      includesLastCalled = false;
+    }
+    
+    // Check anti-diagonal
+    if (lastNumColIndex === 4 - lastNumRowIndex) {
+      let isWinningDiagonal = true;
       
       for (let i = 0; i < 5; i++) {
         const number = card[i][4 - i];
@@ -831,26 +754,28 @@ const handleBackToLobbyWithRefund = async () => {
           isWinningDiagonal = false;
           break;
         }
-        // Check if this cell contains the last called number
-        if (number === lastNum && letter === lastLetter) {
-          includesLastCalled = true;
-        }
       }
       
-      if (isWinningDiagonal && includesLastCalled) {
+      if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
           cells.push({row: 4 - i, col: i});
         }
       }
-    } else if (pattern === 'corners') {
-      // Check corners
-      const corners = [
-        {row: 0, col: 0}, {row: 0, col: 4},
-        {row: 4, col: 0}, {row: 4, col: 4}
-      ];
-      
+    }
+  } else if (pattern === 'corners') {
+    // Check corners
+    const corners = [
+      {row: 0, col: 0}, {row: 0, col: 4},
+      {row: 4, col: 0}, {row: 4, col: 4}
+    ];
+    
+    // Check if the last called number is a corner
+    const isLastCalledCorner = corners.some(corner => 
+      corner.row === lastNumRowIndex && corner.col === lastNumColIndex
+    );
+    
+    if (isLastCalledCorner) {
       let isWinningCorners = true;
-      let includesLastCalled = false;
       
       for (const corner of corners) {
         const number = card[corner.col][corner.row];
@@ -859,29 +784,16 @@ const handleBackToLobbyWithRefund = async () => {
           isWinningCorners = false;
           break;
         }
-        // Check if this cell contains the last called number
-        if (number === lastNum && letter === lastLetter) {
-          includesLastCalled = true;
-        }
       }
       
-      if (isWinningCorners && includesLastCalled) {
+      if (isWinningCorners) {
         cells.push(...corners);
       }
     }
-    
-    return cells;
-  };
-
-  // Add cleanup when component unmounts or game ends
-  useEffect(() => {
-    return () => {
-      // Stop the game on server when component unmounts
-      if (webSocketService && bet) {
-        webSocketService.send('stop-game', { betAmount: bet });
-      }
-    };
-  }, [webSocketService, bet]);
+  }
+  
+  return cells;
+};
 
   if (!isClient) {
     return (
@@ -955,69 +867,102 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
         </Typography>
         
         {/* Winner Card Grid */}
-        <Box sx={{ 
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          gap: 0.3,
-          mb: 1,
-          p: 1,
-          background: 'rgba(255,255,255,0.9)',
-          borderRadius: 1
-        }}>
-          {/* BINGO Header */}
-          {["B", "I", "N", "G", "O"].map((letter, idx) => (
-            <Box key={letter} sx={{
+        // In the WinnerCard component, update the number display
+<Box sx={{ 
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, 1fr)',
+  gap: 0.3,
+  mb: 1,
+  p: 1,
+  background: 'rgba(255,255,255,0.9)',
+  borderRadius: 1,
+  position: 'relative'
+}}>
+  {/* BINGO Header */}
+  {["B", "I", "N", "G", "O"].map((letter, idx) => (
+    <Box key={letter} sx={{
+      p: 0.3,
+      backgroundColor: 'primary.main',
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: '0.7rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '4px 4px 0 0'
+    }}>
+      {letter}
+    </Box>
+  ))}
+  
+  {/* Card numbers with winning pattern highlight */}
+  {transposeCard(card).map((row, rowIdx) => (
+    row.map((num, colIdx) => {
+      const letter = "BINGO"[colIdx];
+      const isCalled = isNumberCalled(num, letter);
+      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+      const isLastCalled = currentNumber === `${letter}-${num}`;
+      
+      return (
+        <motion.div
+          key={`${rowIdx}-${colIdx}`}
+          animate={isLastCalled ? { 
+            scale: [1, 1.2, 1],
+            backgroundColor: [
+              'rgba(76,175,80,0.3)', 
+              'rgba(255,215,0,0.6)', 
+              'rgba(76,175,80,0.3)'
+            ]
+          } : {}}
+          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <Box
+            sx={{
               p: 0.3,
-              backgroundColor: 'primary.main',
-              color: 'white',
-              fontWeight: 'bold',
+              border: isWinningCell 
+                ? '2px solid #ff5722' 
+                : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: 
+                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                isCalled
+                  ? 'rgba(76,175,80,0.3)' 
+                  : 'rgba(255,255,255,0.7)',
+              color: isWinningCell ? '#ff5722' : 'text.primary',
+              fontWeight: isWinningCell ? 'bold' : 'normal',
               fontSize: '0.7rem',
+              width: '100%',
+              height: '100%',
+              minHeight: 22,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: '4px 4px 0 0'
-            }}>
-              {letter}
-            </Box>
-          ))}
-          
-          {/* Card numbers with winning pattern highlight */}
-          {transposeCard(card).map((row, rowIdx) => (
-            row.map((num, colIdx) => {
-              const letter = "BINGO"[colIdx];
-              const isCalled = isNumberCalled(num, letter);
-              const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
-              
-              return (
-                <Box
-                  key={`${rowIdx}-${colIdx}`}
-                  sx={{
-                    p: 0.3,
-                    border: isWinningCell 
-                      ? '2px solid orange' 
-                      : '1px solid rgba(0,0,0,0.1)',
-                    backgroundColor: 
-                      (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
-                      isCalled
-                        ? 'rgba(76,175,80,0.3)' 
-                        : 'rgba(255,255,255,0.7)',
-                    color: 'text.primary',
-                    fontWeight: 'normal',
-                    fontSize: '0.7rem',
-                    minHeight: 22,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '2px',
-                    boxShadow: isWinningCell ? '0 0 6px rgba(255,165,0,0.6)' : 'none'
-                  }}
-                >
-                  {num === 0 ? (language === 'am' ? '*' : '*') : num}
-                </Box>
-              );
-            })
-          ))}
-        </Box>
+              borderRadius: '2px',
+              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.6)' : 'none',
+              position: 'relative'
+            }}
+          >
+            {num === 0 ? (language === 'am' ? '*' : '*') : num}
+            {isWinningCell && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -2,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff5722',
+                  boxShadow: '0 0 4px rgba(255,87,34,0.8)'
+                }}
+              />
+            )}
+          </Box>
+        </motion.div>
+      );
+    })
+  ))}
+</Box>
       </Box>
     </motion.div>
   );
@@ -1779,78 +1724,100 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                   )}
                   
                   {/* Winner Card */}
-                  <Box sx={{ 
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(5, 1fr)',
-                    gap: 0.3,
-                    mb: 1,
-                    p: 1,
-                    background: 'rgba(255,255,255,0.9)',
-                    borderRadius: 1
-                  }}>
-                    {/* BINGO Header */}
-                    {["B", "I", "N", "G", "O"].map((letter, idx) => (
-                      <Box key={letter} sx={{
-                        p: 0.3,
-                        backgroundColor: 'primary.main',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '0.6rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        borderRadius: '4px 4px 0 0'
-                      }}>
-                        {letter}
-                      </Box>
-                    ))}
-                    
-                    {/* Card numbers with winning pattern highlight */}
-                    {transposeCard(card).map((row, rowIdx) => (
-                      row.map((num, colIdx) => {
-                        const letter = "BINGO"[colIdx];
-                        const isCalled = isNumberCalled(num, letter);
-                        const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
-                        const isLastCalled = currentNumber === `${letter}-${num}`;
-                        
-                        return (
-                          <motion.div
-                            key={`${rowIdx}-${colIdx}`}
-                            animate={isLastCalled ? { 
-                              scale: [1, 1.2, 1],
-                              boxShadow: ['0 0 0px rgba(255,215,0,0)', '0 0 10px rgba(255,215,0,0.8)', '0 0 0px rgba(255,215,0,0)']
-                            } : {}}
-                            transition={{ duration: 0.5, repeat: isLastCalled ? Infinity : 0 }}
+                <Box sx={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gap: 0.3,
+                  mb: 1,
+                  p: 1,
+                  background: 'rgba(255,255,255,0.9)',
+                  borderRadius: 1
+                }}>
+                  {/* BINGO Header */}
+                  {["B", "I", "N", "G", "O"].map((letter, idx) => (
+                    <Box key={letter} sx={{
+                      p: 0.3,
+                      backgroundColor: 'primary.main',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '0.6rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '4px 4px 0 0'
+                    }}>
+                      {letter}
+                    </Box>
+                  ))}
+                  
+                  {/* Card numbers with winning pattern highlight */}
+                  {transposeCard(card).map((row, rowIdx) => (
+                    row.map((num, colIdx) => {
+                      const letter = "BINGO"[colIdx];
+                      const isCalled = isNumberCalled(num, letter);
+                      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+                      const isLastCalled = currentNumber === `${letter}-${num}`;
+                      
+                      return (
+                        <motion.div
+                          key={`${rowIdx}-${colIdx}`}
+                          animate={isLastCalled ? { 
+                            scale: [1, 1.2, 1],
+                            backgroundColor: [
+                              'rgba(76,175,80,0.3)', 
+                              'rgba(255,215,0,0.6)', 
+                              'rgba(76,175,80,0.3)'
+                            ]
+                          } : {}}
+                          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
+                          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                        >
+                          <Box
+                            sx={{
+                              p: 0.3,
+                              border: isWinningCell 
+                                ? '2px solid #ff5722' 
+                                : '1px solid rgba(0,0,0,0.1)',
+                              backgroundColor: 
+                                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                                isCalled
+                                  ? 'rgba(76,175,80,0.3)' 
+                                  : 'rgba(255,255,255,0.7)',
+                              color: isWinningCell ? '#ff5722' : 'text.primary',
+                              fontWeight: isWinningCell ? 'bold' : 'normal',
+                              fontSize: '0.6rem',
+                              width: '100%',
+                              height: '100%',
+                              minHeight: 20,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '2px',
+                              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.8)' : 'none',
+                              position: 'relative'
+                            }}
                           >
-                            <Box
-                              sx={{
-                                p: 0.3,
-                                border: isWinningCell 
-                                  ? '2px solid orange' 
-                                  : '1px solid rgba(0,0,0,0.1)',
-                                backgroundColor: 
-                                  (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
-                                  isCalled
-                                    ? 'rgba(76,175,80,0.3)' 
-                                    : 'rgba(255,255,255,0.7)',
-                                color: 'text.primary',
-                                fontWeight: 'normal',
-                                fontSize: '0.6rem',
-                                minHeight: 20,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '2px',
-                                boxShadow: isWinningCell ? '0 0 8px rgba(255,165,0,0.8)' : 'none'
-                              }}
-                            >
-                              {num === 0 ? (language === 'am' ? '*' : '*') : num}
-                            </Box>
-                          </motion.div>
-                        );
-                      })
-                    ))}
-                  </Box>
+                            {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                            {isWinningCell && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: -2,
+                                  right: -2,
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  backgroundColor: '#ff5722',
+                                  boxShadow: '0 0 3px rgba(255,87,34,0.8)'
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </motion.div>
+                      );
+                    })
+                  ))}
+                </Box>
                 </Box>
               </motion.div>
             );
