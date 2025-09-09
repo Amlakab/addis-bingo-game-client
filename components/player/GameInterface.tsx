@@ -1590,7 +1590,141 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
   </>
 </Modal>
 
-      {/* Game Over Modal */}
+       {/* Loser Modal */}
+      <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
+        <Box sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: 400,
+          bgcolor: 'background.paper',
+          boxShadow: 24,
+          p: 2,
+          borderRadius: 3,
+          textAlign: 'center',
+          border: '3px solid #f44336',
+          background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+          maxHeight: '90vh',
+          overflow: 'auto'
+        }}>
+          <IconButton
+            aria-label="close"
+            onClick={() => setShowLoserModal(false)}
+            sx={{
+              position: 'absolute',
+              right: 4,
+              top: 4,
+              color: 'white'
+            }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          
+          <Typography variant="h6" gutterBottom sx={{ 
+            color: '#f44336',
+            mb: 2,
+            fontWeight: 'bold'
+          }}>
+            {language === 'am' ? 'ይቅርታ!' : 'Sorry!'}
+          </Typography>
+          
+          <Typography variant="body1" sx={{ 
+            color: 'white',
+            mb: 2
+          }}>
+            {loserMessage}
+          </Typography>
+          
+          {loserCardId && (
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 0.3,
+              mb: 2,
+              p: 1,
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: 1
+            }}>
+              {/* BINGO Header */}
+              {["B", "I", "N", "G", "O"].map((letter, idx) => (
+                <Box key={letter} sx={{
+                  p: 0.3,
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.6rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px 4px 0 0'
+                }}>
+                  {letter}
+                </Box>
+              ))}
+              
+              {/* Card numbers with actual called numbers highlighted */}
+              {transposeCard(getCardById(loserCardId)).map((row, rowIdx) => (
+                row.map((num, colIdx) => {
+                  const letter = "BINGO"[colIdx];
+                  const isCalled = isNumberCalled(num, letter);
+                  
+                  return (
+                    <Box
+                      key={`${rowIdx}-${colIdx}`}
+                      sx={{
+                        p: 0.3,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        backgroundColor: 
+                          (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                          isCalled 
+                            ? 'rgba(76,175,80,0.7)' 
+                            : 'rgba(255,255,255,0.1)',
+                        color: isCalled ? 'white' : 'rgba(255,255,255,0.7)',
+                        fontWeight: isCalled ? 'bold' : 'normal',
+                        fontSize: '0.6rem',
+                        minHeight: 20,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                    </Box>
+                  );
+                })
+              ))}
+            </Box>
+          )}
+          
+          <Typography variant="body2" sx={{ 
+            color: '#ffcdd2',
+            mb: 2,
+            fontStyle: 'italic'
+          }}>
+            {language === 'am' 
+              ? 'ይህ ካርድ ታግዷል. ወደ ሎቢ ይመለሳሉ።'
+              : 'This card is blocked. You will return to the lobby.'}
+          </Typography>
+          
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              setShowLoserModal(false);
+              onGameEnd();
+            }}
+            sx={{ 
+              mt: 1,
+              fontWeight: 'bold'
+            }}
+          >
+            {language === 'am' ? 'እሺ' : 'OK'}
+          </Button>
+        </Box>
+      </Modal>
       {/* Game Over Modal */}
 <Modal open={showGameOverModal} onClose={() => {
   setShowGameOverModal(false);
