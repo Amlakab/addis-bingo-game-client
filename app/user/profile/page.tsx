@@ -91,7 +91,6 @@ export default function ProfilePage() {
     const winRate = gamesPlayed > 0 ? (gamesWon / gamesPlayed) * 100 : 0;
     
     const totalEarnings = gameHistory
-      .filter(game => game.winnerId === user?._id)
       .reduce((sum, game) => sum + game.prizePool, 0);
     
     const averageEarnings = gamesWon > 0 ? totalEarnings / gamesWon : 0;
@@ -292,8 +291,8 @@ export default function ProfilePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold ${game.winnerId === user?._id ? 'text-green-600' : 'text-red-600'}`}>
-                      {game.winnerId === user?._id ? `Won: ${formatCurrency(game.prizePool)}` : 'Lost'}
+                    <p className={`font-semibold 'text-green-600' : 'text-green-600'}`}>
+                      {game.winnerId === user?._id ? `Won: ${formatCurrency(game.prizePool)}` : 'Won'}
                     </p>
                     <p className="text-sm text-gray-600">
                       {game.numberOfPlayers} players

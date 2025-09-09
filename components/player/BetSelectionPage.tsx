@@ -5,7 +5,7 @@ import {
   Box, Typography, Card, CardContent, Button,
   useTheme, useMediaQuery, Chip, LinearProgress, Skeleton
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { 
   SportsEsports, People, EmojiEvents, AccessTime,
   Casino, AccountBalanceWallet
@@ -54,6 +54,11 @@ interface Game {
   updatedAt: string;
 }
 
+// Define custom props interface for variants
+interface CustomVariantProps {
+  i: number;
+}
+
 const BetSelectionPage = ({ 
   onPlay,
   language = 'en'
@@ -67,6 +72,74 @@ const BetSelectionPage = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Animation variants for cards
+  const cardVariants: Variants = {
+    hidden: { 
+      opacity: 0, 
+      y: 50,
+      scale: 0.9
+    },
+    visible: ({ i }: CustomVariantProps) => ({
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        delay: i * 0.1,
+        duration: 0.5,
+        ease: "easeOut",
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    }),
+    hover: {
+      scale: 1.03,
+      y: -5,
+      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+      transition: {
+        duration: 0.3,
+        ease: "easeInOut"
+      }
+    },
+    tap: {
+      scale: 0.98
+    },
+    statusChange: {
+      scale: [1, 1.05, 1],
+      transition: {
+        duration: 0.5,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  // Animation variants for status chip
+  const statusVariants: Variants = {
+    ready: {
+      backgroundColor: "#e0e0e0",
+      color: "#424242",
+      scale: 1
+    },
+    active: {
+      backgroundColor: "#4caf50",
+      color: "#fff",
+      scale: [1, 1.1, 1],
+      transition: {
+        duration: 0.5,
+        ease: "easeInOut"
+      }
+    },
+    "in-progress": {
+      backgroundColor: "#f44336",
+      color: "#fff",
+      scale: [1, 1.05, 1],
+      transition: {
+        duration: 0.6,
+        ease: "easeInOut",
+        repeat: Infinity
+      }
+    }
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -444,27 +517,33 @@ const BetSelectionPage = ({
         justifyContent: 'center'
       }}>
         {/* User Balance Display */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          mb: 2,
-          background: 'rgba(255, 255, 255, 0.8)', 
-          borderRadius: 2, 
-          p: 1.5,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-        }}>
-          <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
-          <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
-            {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
-          </Typography>
-          {isLoadingBalance ? (
-            <Skeleton variant="text" width={60} sx={{ ml: 1, fontSize: '1rem' }} />
-          ) : (
-            <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
-              {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mb: 2,
+            background: 'rgba(255, 255, 255, 0.8)', 
+            borderRadius: 2, 
+            p: 1.5,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          }}>
+            <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
+            <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+              {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
             </Typography>
-          )}
-        </Box>
+            {isLoadingBalance ? (
+              <Skeleton variant="text" width={60} sx={{ ml: 1, fontSize: '1rem' }} />
+            ) : (
+              <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
+                {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
+              </Typography>
+            )}
+          </Box>
+        </motion.div>
 
         {/* Bet Cards Container */}
         <Box sx={{ 
@@ -475,7 +554,7 @@ const BetSelectionPage = ({
           maxWidth: 1000, 
           width: '100%' 
         }}>
-          {betOptions.map((bet) => {
+          {betOptions.map((bet, index) => {
             const status = betStatuses[bet] || { 
               timer: 5, 
               status: 'ready', 
@@ -491,14 +570,33 @@ const BetSelectionPage = ({
             const canPlay = status.status === 'active' && !isDisabledByBalance;
             
             return (
-              <Box key={bet} sx={{ 
-                width: { xs: 'calc(50% - 8px)', sm: 'calc(33.333% - 16px)', md: 'calc(25% - 16px)' },
-                minWidth: 140,
-                maxWidth: 240
-              }}>
+              <motion.div
+                key={bet}
+                custom={{ i: index }}
+                variants={cardVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                whileTap="tap"
+                style={{ 
+                  width: isMobile ? 'calc(50% - 8px)' : 'calc(33.333% - 16px)', 
+                  minWidth: 140,
+                  maxWidth: 240
+                }}
+              >
                 <motion.div
-                  whileHover={{ scale: !isDisabled ? 1.02 : 1 }}
-                  transition={{ duration: 0.2 }}
+                  animate={status.status}
+                  variants={{
+                    ready: {},
+                    active: {
+                      scale: [1, 1.02, 1],
+                      transition: {
+                        duration: 0.5,
+                        ease: "easeInOut"
+                      }
+                    },
+                    "in-progress": {}
+                  }}
                 >
                   <Card 
                     sx={{ 
@@ -511,209 +609,255 @@ const BetSelectionPage = ({
                       border: `1px solid ${isDisabled ? '#e0e0e0' : '#e0e0e0'}`,
                       height: '100%',
                       transition: 'all 0.3s ease',
-                      '&:hover': {
-                        boxShadow: !isDisabled ? '0 6px 20px rgba(0,0,0,0.12)' : '0 4px 14px rgba(0,0,0,0.08)'
-                      }
                     }}
                   >
                     {/* Status Badge */}
-                    <Box sx={{ position: 'absolute', top: -10, right: 10 }}>
-                      <Chip
-                        icon={<AccessTime />}
-                        label={getStatusText(status.status, status.timer)}
-                        color={getStatusColor(status.status)}
-                        size="small"
-                        sx={{ 
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                          fontSize: { xs: '0.7rem', sm: '0.8rem' }
-                        }}
-                      />
+                    <Box sx={{ position: 'absolute', top: -10, right: 10, zIndex: 1 }}>
+                      <motion.div
+                        animate={status.status}
+                        variants={statusVariants}
+                        transition={{ duration: 0.3 }}
+                        style={{ display: 'inline-block' }}
+                      >
+                        <Chip
+                          icon={<AccessTime />}
+                          label={getStatusText(status.status, status.timer)}
+                          color={getStatusColor(status.status)}
+                          size="small"
+                          sx={{ 
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                            fontSize: { xs: '0.7rem', sm: '0.8rem' }
+                          }}
+                        />
+                      </motion.div>
                     </Box>
 
                     <CardContent sx={{ p: 2, textAlign: 'center' }}>
                       {/* Bet Amount */}
-                      <Typography variant="h5" sx={{ 
-                        color: '#2c3e50', 
-                        fontWeight: 'bold', 
-                        mb: 1.5,
-                        fontSize: { xs: '1.5rem', sm: '1.75rem' }
-                      }}>
-                        {bet} {language === 'am' ? 'ብር' : 'Birr'}
-                      </Typography>
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2, duration: 0.3 }}
+                      >
+                        <Typography variant="h5" sx={{ 
+                          color: '#2c3e50', 
+                          fontWeight: 'bold', 
+                          mb: 1.5,
+                          fontSize: { xs: '1.5rem', sm: '1.75rem' }
+                        }}>
+                          {bet} {language === 'am' ? 'ብር' : 'Birr'}
+                        </Typography>
+                      </motion.div>
                       
                       {/* Players Count */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        mb: 1.5,
-                        background: '#f8f9fa', 
-                        borderRadius: 1.5, 
-                        p: 1 
-                      }}>
-                        <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
-                        <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
-                          {status.playerCount || 0}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
-                          {language === 'am' ? "ተጫዋች" : "Players"}
-                        </Typography>
-                      </Box>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.3 }}
+                      >
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          mb: 1.5,
+                          background: '#f8f9fa', 
+                          borderRadius: 1.5, 
+                          p: 1 
+                        }}>
+                          <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
+                          <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
+                            {status.playerCount || 0}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
+                            {language === 'am' ? "ተጫዋች" : "Players"}
+                          </Typography>
+                        </Box>
+                      </motion.div>
                       
                       {/* Prize Pool */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        mb: 2,
-                        background: '#f8f9fa', 
-                        borderRadius: 1.5, 
-                        p: 1 
-                      }}>
-                        <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
-                        <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
-                          {(status.prizePool || 0).toFixed(2)}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
-                          {language === 'am' ? "ደራሽ" : "Prize"}
-                        </Typography>
-                      </Box>
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4, duration: 0.3 }}
+                      >
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          mb: 2,
+                          background: '#f8f9fa', 
+                          borderRadius: 1.5, 
+                          p: 1 
+                        }}>
+                          <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
+                          <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
+                            {(status.prizePool || 0).toFixed(2)}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
+                            {language === 'am' ? "ደራሽ" : "Prize"}
+                          </Typography>
+                        </Box>
+                      </motion.div>
 
                       {/* Progress Bar for Timer */}
                       {(status.status === 'ready' || status.status === 'active') && (
-                        <LinearProgress 
-                          variant="determinate" 
-                          value={(status.timer / (status.status === 'ready' ? 5 : 45)) * 100}
-                          sx={{ 
-                            height: 6, 
-                            borderRadius: 3, 
-                            mb: 1.5,
-                            background: 'rgba(0,0,0,0.1)',
-                            '& .MuiLinearProgress-bar': {
-                              background: status.status === 'ready' 
-                                ? 'linear-gradient(90deg, #9e9e9e, #616161)' 
-                                : 'linear-gradient(90deg, #4CAF50, #2E7D32)',
-                              borderRadius: 3
-                            }
-                          }}
-                        />
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.5, duration: 0.3 }}
+                        >
+                          <Box sx={{ position: 'relative', height: 6, mb: 1.5, borderRadius: 3, background: 'rgba(0,0,0,0.1)' }}>
+                            <motion.div
+                              initial={{ width: "0%" }}
+                              animate={{ width: "100%" }}
+                              transition={{ 
+                                duration: status.status === 'ready' ? 5 : 45, 
+                                ease: "linear" 
+                              }}
+                              style={{
+                                height: '100%',
+                                borderRadius: 3,
+                                background: status.status === 'ready' 
+                                  ? 'linear-gradient(90deg, #9e9e9e, #616161)' 
+                                  : 'linear-gradient(90deg, #4CAF50, #2E7D32)'
+                              }}
+                            />
+                          </Box>
+                        </motion.div>
                       )}
 
-                      <Button
-                        variant="contained"
-                        size="small"
-                        disabled={isDisabled || isLoadingBalance}
-                        onClick={() => handlePlayClick(bet)}
-                        startIcon={!isDisabledByBalance && !isLoadingBalance ? <SportsEsports /> : undefined}
-                        sx={{
-                          textTransform: 'none',
-                          background: isLoadingBalance
-                            ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
-                            : canPlay
-                              ? 'linear-gradient(145deg, #3498db, #2980b9)'
-                              : isDisabledByBalance
-                                ? 'linear-gradient(145deg, #ff6b6b, #ee5a52)'
-                                : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          borderRadius: 1.5,
-                          py: 0.7,
-                          width: '100%',
-                          fontSize: '0.9rem',
-                          boxShadow: isLoadingBalance
-                            ? '0 3px 6px rgba(0,0,0,0.1)'
-                            : canPlay
-                              ? '0 4px 8px rgba(52, 152, 219, 0.3)' 
-                              : isDisabledByBalance
-                                ? '0 3px 6px rgba(244, 67, 54, 0.3)'
-                                : '0 3px 6px rgba(0,0,0,0.1)',
-                          '&:hover': {
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6, duration: 0.3 }}
+                      >
+                        <Button
+                          variant="contained"
+                          size="small"
+                          disabled={isDisabled || isLoadingBalance}
+                          onClick={() => handlePlayClick(bet)}
+                          startIcon={!isDisabledByBalance && !isLoadingBalance ? <SportsEsports /> : undefined}
+                          sx={{
+                            textTransform: 'none',
                             background: isLoadingBalance
                               ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
                               : canPlay
-                                ? 'linear-gradient(145deg, #2980b9, #2471a3)' 
+                                ? 'linear-gradient(145deg, #3498db, #2980b9)'
                                 : isDisabledByBalance
-                                  ? 'linear-gradient(145deg, #ee5a52, #d32f2f)'
+                                  ? 'linear-gradient(145deg, #ff6b6b, #ee5a52)'
                                   : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            borderRadius: 1.5,
+                            py: 0.7,
+                            width: '100%',
+                            fontSize: '0.9rem',
                             boxShadow: isLoadingBalance
                               ? '0 3px 6px rgba(0,0,0,0.1)'
                               : canPlay
-                                ? '0 6px 12px rgba(52, 152, 219, 0.4)' 
+                                ? '0 4px 8px rgba(52, 152, 219, 0.3)' 
                                 : isDisabledByBalance
-                                  ? '0 4px 8px rgba(244, 67, 54, 0.4)'
-                                  : '0 3px 6px rgba(0,0,0,0.1)'
-                          },
-                          '&:disabled': {
-                            background: isDisabledByBalance && !isLoadingBalance
-                              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)' 
-                              : '#ecf0f1',
-                            color: isDisabledByBalance && !isLoadingBalance ? '#d32f2f' : '#bdc3c7'
+                                  ? '0 3px 6px rgba(244, 67, 54, 0.3)'
+                                  : '0 3px 6px rgba(0,0,0,0.1)',
+                            '&:hover': {
+                              background: isLoadingBalance
+                                ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
+                                : canPlay
+                                  ? 'linear-gradient(145deg, #2980b9, #2471a3)' 
+                                  : isDisabledByBalance
+                                    ? 'linear-gradient(145deg, #ee5a52, #d32f2f)'
+                                    : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
+                              boxShadow: isLoadingBalance
+                                ? '0 3px 6px rgba(0,0,0,0.1)'
+                                : canPlay
+                                  ? '0 6px 12px rgba(52, 152, 219, 0.4)' 
+                                  : isDisabledByBalance
+                                    ? '0 4px 8px rgba(244, 67, 54, 0.4)'
+                                    : '0 3px 6px rgba(0,0,0,0.1)'
+                            },
+                            '&:disabled': {
+                              background: isDisabledByBalance && !isLoadingBalance
+                                ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)' 
+                                : '#ecf0f1',
+                              color: isDisabledByBalance && !isLoadingBalance ? '#d32f2f' : '#bdc3c7'
+                            }
+                          }}
+                        >
+                          {isLoadingBalance 
+                            ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
+                            : isDisabledByBalance 
+                              ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
+                              : (status.status === 'active' 
+                                  ? (language === 'am' ? "ጨዋታ ይጫወቱ" : "Play") 
+                                  : (language === 'am' ? "ዝግጁ" : "Ready"))
                           }
-                        }}
-                      >
-                        {isLoadingBalance 
-                          ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
-                          : isDisabledByBalance 
-                            ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
-                            : (status.status === 'active' 
-                                ? (language === 'am' ? "ጨዋታ ይጫወቱ" : "Play") 
-                                : (language === 'am' ? "ዝግጁ" : "Ready"))
-                        }
-                      </Button>
-
+                        </Button>
+                      </motion.div>
                     </CardContent>
                   </Card>
                 </motion.div>
-              </Box>
+              </motion.div>
             );
           })}
         </Box>
 
         {/* Footer */}
-        <Typography variant="body2" sx={{ 
-          mt: 3, 
-          color: '#7f8c8d',
-          textAlign: 'center',
-          maxWidth: 500,
-          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-        }}>
-          {language === 'am' 
-            ? "ሁሉም ጨዋታዎች ፍትሃዊ የበጋ ስርዓት ይጠቀማሉ። አሸናፊዎች የሽልማት ማከማቻውን 80% ይቀበላሉ።"
-            : "All games use a fair random system. Winners receive 80% of the prize pool."
-          }
-        </Typography>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+        >
+          <Typography variant="body2" sx={{ 
+            mt: 3, 
+            color: '#7f8c8d',
+            textAlign: 'center',
+            maxWidth: 500,
+            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+          }}>
+            {language === 'am' 
+              ? "ሁሉም ጨዋታዎች ፍትሃዊ የበጋ ስርዓት ይጠቀማሉ። አሸናፊዎች የሽልማት ማከማቻውን 80% ይቀበላሉ።"
+              : "All games use a fair random system. Winners receive 80% of the prize pool."
+            }
+          </Typography>
+        </motion.div>
 
         {/* Test Game Section */}
-        <Box 
-          sx={{ 
-            mt: 4, 
-            display: "flex", 
-            flexDirection: { xs: "column", sm: "row" }, 
-            alignItems: "center", 
-            gap: 2,
-            background: "#fff",
-            p: 2,
-            borderRadius: 2,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-          }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
         >
-          <input
-            type="number"
-            placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
-            value={testBetAmount}
-            onChange={(e) => setTestBetAmount(e.target.value)}
-            className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={handleTest}
-            sx={{ textTransform: "none", px: 4, py: 1 }}
+          <Box 
+            sx={{ 
+              mt: 4, 
+              display: "flex", 
+              flexDirection: { xs: "column", sm: "row" }, 
+              alignItems: "center", 
+              gap: 2,
+              background: "#fff",
+              p: 2,
+              borderRadius: 2,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+            }}
           >
-            {language === "am" ? "ፈትሽ" : "Test"}
-          </Button>
-        </Box>
+            <input
+              type="number"
+              placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
+              value={testBetAmount}
+              onChange={(e) => setTestBetAmount(e.target.value)}
+              className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleTest}
+              sx={{ textTransform: "none", px: 4, py: 1 }}
+            >
+              {language === "am" ? "ፈትሽ" : "Test"}
+            </Button>
+          </Box>
+        </motion.div>
       </Box>
     </motion.div>
   );
