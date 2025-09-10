@@ -11,6 +11,17 @@ export interface User {
   updatedAt: Date;
 }
 
+export interface Accountant {
+  _id: string;
+  fullName: string;
+  phoneNumber: string;
+  accountNumber: string;
+  bankName: string;
+  isBlocked: boolean;
+  createdAt: string;
+  updatedAt: string;
+} 
+
 export interface Game {
   _id: string;
   name: string;

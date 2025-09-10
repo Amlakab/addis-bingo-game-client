@@ -1359,7 +1359,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted || gameEnded}
+                      disabled={isBlocked || !gameStarted}
                       fullWidth
                       size="small"
                       sx={{ fontSize: '0.8rem' }}

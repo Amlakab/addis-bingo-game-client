@@ -9,19 +9,17 @@ import {
   X, Settings, LogOut ,History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AccountBalance } from '@mui/icons-material';
 
 const menuItems = [
-  { name: 'Home', href: '/admin', icon: Home },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Games', href: '/admin/games', icon: Gamepad2 },
-  { name: 'Acountants', href: '/admin/accountants', icon: AccountBalance },
-  { name: 'Game History', href: '/admin/game-history', icon: History },
-  { name: 'Transactions', href: '/admin/transactions', icon: History },
-  { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-  { name: 'Feedback', href: '/admin/feedback', icon: Wallet },
-  { name: 'Wallet', href: '/admin/wallet', icon: Wallet },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
+  { name: 'Home', href: '/agent', icon: Home },
+  //{ name: 'Users', href: '/agent/users', icon: Users },
+  //{ name: 'Games', href: '/agent/games', icon: Gamepad2 },
+  //{ name: 'Game History', href: '/agent/game-history', icon: History },
+  { name: 'Transactions', href: '/agent/transactions', icon: History },
+  { name: 'Analytics', href: '/agent/analytics', icon: BarChart3 },
+  { name: 'Feedback', href: '/agent/feedback', icon: Wallet },
+  { name: 'Wallet', href: '/agent/wallet', icon: Wallet },
+  { name: 'Settings', href: '/agent/settings', icon: Settings },
 ];
 
 export default function AdminSidebar({ isOpen, onClose }) {
@@ -43,7 +41,7 @@ export default function AdminSidebar({ isOpen, onClose }) {
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Admin</h2>
+          <h2 className="text-lg font-semibold">Agent</h2>
           <button 
             onClick={onClose}
             className="lg:hidden p-1 rounded-md hover:bg-gray-100"
@@ -85,8 +83,8 @@ export default function AdminSidebar({ isOpen, onClose }) {
               <Users className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <p className="font-medium">Admin User</p>
-              <p className="text-xs">Administrator</p>
+              <p className="font-medium">Admin Transactions</p>
+              <p className="text-xs">Agent</p>
             </div>
           </div>
         </div>
