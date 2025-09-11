@@ -7,11 +7,11 @@ import {
 import {
   ChevronLeft, ChevronRight,
   AccountBalance, TrendingUp, TrendingDown, CheckCircle, 
-  PendingActions, Cancel, AccountBalanceWallet
+  PendingActions, Cancel, AccountBalanceWallet, Payment
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-  ResponsiveContainer, PieChart, Pie, Cell
+  ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts';
 import api from '@/app/utils/api';
 
@@ -20,6 +20,7 @@ interface Transaction {
   type: 'deposit' | 'withdrawal' | 'game_purchase' | 'winning';
   amount: number;
   status: 'pending' | 'completed' | 'failed';
+  reference: string;
   createdAt: string;
 }
 
@@ -32,6 +33,7 @@ interface AnalyticsData {
     totalCompleted: number;
     totalPending: number;
     totalFailed: number;
+    totalRevenue: number;
   };
 }
 
@@ -40,6 +42,12 @@ const STATUS_COLORS = {
   completed: '#4CAF50',
   pending: '#FF9800',
   failed: '#F44336'
+};
+
+const METHOD_COLORS = {
+  telebirr: '#2196F3',
+  cbe: '#4CAF50',
+  other: '#FF9800'
 };
 
 export default function AnalyticsPage() {
@@ -74,6 +82,14 @@ export default function AnalyticsPage() {
       const totalCompleted = transactions.filter(t => t.status === 'completed').length;
       const totalPending = transactions.filter(t => t.status === 'pending').length;
       const totalFailed = transactions.filter(t => t.status === 'failed').length;
+      
+      const totalRevenue = transactions
+        .filter(t => t.status === 'completed')
+        .reduce((sum, t) => {
+          if (t.type === 'game_purchase') return sum + t.amount;
+          if (t.type === 'deposit') return sum + (t.amount * 0.02);
+          return sum;
+        }, 0);
 
       const analyticsData: AnalyticsData = {
         transactions: transactions,
@@ -83,7 +99,8 @@ export default function AnalyticsPage() {
           netBalance: totalDeposits - totalWithdrawals,
           totalCompleted,
           totalPending,
-          totalFailed
+          totalFailed,
+          totalRevenue
         }
       };
 
@@ -110,21 +127,32 @@ export default function AnalyticsPage() {
     return dates;
   };
 
-  const getWeeklyTransactionData = () => {
+  const getWeeklyRevenueData = () => {
     if (!data) return [];
     const weekDates = getWeekDates();
     const result = weekDates.map(date => ({
       date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-      completed: 0,
-      pending: 0,
-      failed: 0
+      deposit: 0,
+      withdrawal: 0,
+      revenue: 0,
+      netBalance: 0
     }));
 
     data.transactions.forEach(transaction => {
-      const transDate = new Date(transaction.createdAt).toISOString().split('T')[0];
-      const dayIndex = weekDates.indexOf(transDate);
-      if (dayIndex !== -1) {
-        result[dayIndex][transaction.status] += 1;
+      if (transaction.status === 'completed') {
+        const transDate = new Date(transaction.createdAt).toISOString().split('T')[0];
+        const dayIndex = weekDates.indexOf(transDate);
+        if (dayIndex !== -1) {
+          if (transaction.type === 'deposit') {
+            result[dayIndex].deposit += transaction.amount;
+            result[dayIndex].netBalance += transaction.amount;
+          } else if (transaction.type === 'withdrawal') {
+            result[dayIndex].withdrawal += transaction.amount;
+            result[dayIndex].netBalance -= transaction.amount;
+          } else if (transaction.type === 'game_purchase') {
+            result[dayIndex].revenue += transaction.amount;
+          }
+        }
       }
     });
 
@@ -138,6 +166,20 @@ export default function AnalyticsPage() {
       { name: 'Pending', value: data.stats.totalPending },
       { name: 'Failed', value: data.stats.totalFailed }
     ];
+  };
+
+  const getTransactionMethodData = () => {
+    if (!data) return [];
+    const methodCount = data.transactions.reduce((acc: any, transaction) => {
+      const method = transaction.reference || 'other';
+      acc[method] = (acc[method] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(methodCount).map(([method, count]) => ({
+      name: method.toUpperCase(),
+      value: count
+    }));
   };
 
   const formatCurrency = (amount: number) =>
@@ -180,11 +222,11 @@ export default function AnalyticsPage() {
     );
   }
 
-  const weeklyTransactionData = getWeeklyTransactionData();
+  const weeklyRevenueData = getWeeklyRevenueData();
   const transactionStatusData = getTransactionStatusData();
+  const transactionMethodData = getTransactionMethodData();
 
   return (
-    <div>
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Header */}
       <Box>
@@ -195,7 +237,7 @@ export default function AnalyticsPage() {
       {/* Summary Stats - 6 Cards */}
       <Box sx={{ 
         display: 'grid', 
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', 
         gap: 2,
         mb: 2 
       }}>
@@ -258,7 +300,8 @@ export default function AnalyticsPage() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            minHeight: '120px'
+            minHeight: '120px',
+            gridColumn: isMobile && index >= 4 ? 'span 2' : 'auto'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <Box sx={{ flex: 1 }}>
@@ -282,10 +325,10 @@ export default function AnalyticsPage() {
         ))}
       </Box>
 
-      {/* Transaction Status Chart - Full Width */}
+      {/* Revenue Chart */}
       <Card sx={{ p: 3, borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6">Transaction Status Distribution</Typography>
+          <Typography variant="h6">Weekly Revenue & Transactions</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
             <Typography variant="body2" sx={{ mx: 1, fontSize: '0.8rem' }}>{getWeekRangeText()}</Typography>
@@ -294,22 +337,29 @@ export default function AnalyticsPage() {
         </Box>
         <Box sx={{ height: isMobile ? 250 : 400 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weeklyTransactionData}>
+            <ComposedChart data={weeklyRevenueData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip formatter={(value, name) => 
+                name === 'revenue' || name === 'deposit' || name === 'withdrawal' || name === 'netBalance' 
+                  ? [formatCurrency(Number(value)), name.charAt(0).toUpperCase() + name.slice(1)] 
+                  : [value, name.charAt(0).toUpperCase() + name.slice(1)]
+              } />
               <Legend />
-              <Bar dataKey="completed" fill={STATUS_COLORS.completed} name="Completed" />
-              <Bar dataKey="pending" fill={STATUS_COLORS.pending} name="Pending" />
-              <Bar dataKey="failed" fill={STATUS_COLORS.failed} name="Failed" />
-            </BarChart>
+              <Bar yAxisId="left" dataKey="deposit" fill="#2196F3" name="Deposit" />
+              <Bar yAxisId="left" dataKey="withdrawal" fill="#9C27B0" name="Withdrawal" />
+              <Bar yAxisId="left" dataKey="revenue" fill="#4CAF50" name="Revenue" />
+              <Line yAxisId="right" type="monotone" dataKey="netBalance" stroke="#FF9800" name="Net Balance" strokeWidth={2} />
+            </ComposedChart>
           </ResponsiveContainer>
         </Box>
       </Card>
 
-      {/* Transaction Status Pie Chart */}
+      {/* Status and Method Charts - Side by Side */}
       <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3 }}>
+        {/* Status Chart */}
         <Card sx={{ 
           flex: 1, 
           p: 3, 
@@ -318,7 +368,9 @@ export default function AnalyticsPage() {
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>Transaction Status Overview</Typography>
+          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+            <Payment sx={{ mr: 1 }} /> Transaction Status
+          </Typography>
           <Box sx={{ height: isMobile ? 250 : 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -342,8 +394,45 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </Box>
         </Card>
+
+        {/* Method Chart */}
+        <Card sx={{ 
+          flex: 1, 
+          p: 3, 
+          borderRadius: 2, 
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+            <AccountBalance sx={{ mr: 1 }} /> Payment Methods
+          </Typography>
+          <Box sx={{ height: isMobile ? 250 : 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={transactionMethodData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={isMobile ? 80 : 100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) =>
+                    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                >
+                  {transactionMethodData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={
+                      METHOD_COLORS[entry.name.toLowerCase() as keyof typeof METHOD_COLORS] || METHOD_COLORS.other
+                    } />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [value, 'Transactions']} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Box>
+        </Card>
       </Box>
     </Box>
-    </div>
   );
 }

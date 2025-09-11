@@ -471,7 +471,7 @@ export default function WalletPage() {
                 disabled={loading}
                 className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium"
               >
-                {loading ? 'Submitting...' : 'Submit Verification'}
+                {loading ? 'Submitting...' : 'Submit'}
               </motion.button>
             </div>
           </form>
