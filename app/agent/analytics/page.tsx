@@ -6,23 +6,14 @@ import {
 } from '@mui/material';
 import {
   ChevronLeft, ChevronRight,
-  AccountBalance, People, Casino, Payment, EmojiEvents
+  AccountBalance, TrendingUp, TrendingDown, CheckCircle, 
+  PendingActions, Cancel, AccountBalanceWallet
 } from '@mui/icons-material';
 import {
-  ComposedChart, BarChart, PieChart,
-  Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, Pie
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+  ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import api from '@/app/utils/api';
-
-interface User {
-  _id: string;
-  phone: string;
-  role: 'user' | 'agent' | 'admin';
-  wallet: number;
-  totalEarnings: number;
-  isActive: boolean;
-  createdAt: string;
-}
 
 interface Transaction {
   _id: string;
@@ -32,31 +23,24 @@ interface Transaction {
   createdAt: string;
 }
 
-interface GameHistory {
-  _id: string;
-  winnerId: { phone: string };
-  winnerCard: number;
-  prizePool: number;
-  numberOfPlayers: number;
-  betAmount: number;
-  createdAt: string;
-}
-
 interface AnalyticsData {
-  users: User[];
   transactions: Transaction[];
-  gameHistory: GameHistory[];
   stats: {
-    totalUsers: number;
-    activeUsers: number;
-    totalTransactions: number;
-    totalRevenue: number;
-    totalGames: number;
-    averagePrizePool: number;
+    totalDeposits: number;
+    totalWithdrawals: number;
+    netBalance: number;
+    totalCompleted: number;
+    totalPending: number;
+    totalFailed: number;
   };
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+const STATUS_COLORS = {
+  completed: '#4CAF50',
+  pending: '#FF9800',
+  failed: '#F44336'
+};
 
 export default function AnalyticsPage() {
   const theme = useTheme();
@@ -74,23 +58,32 @@ export default function AnalyticsPage() {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const [usersRes, transactionsRes, gamesRes] = await Promise.all([
-        api.get('/user'),
-        api.get('/transactions'),
-        api.get('/game/history')
-      ]);
+      const transactionsRes = await api.get('/transactions');
+
+      const transactions: Transaction[] = transactionsRes.data.data;
+      
+      // Calculate stats
+      const totalDeposits = transactions
+        .filter(t => t.type === 'deposit' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const totalWithdrawals = transactions
+        .filter(t => t.type === 'withdrawal' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const totalCompleted = transactions.filter(t => t.status === 'completed').length;
+      const totalPending = transactions.filter(t => t.status === 'pending').length;
+      const totalFailed = transactions.filter(t => t.status === 'failed').length;
 
       const analyticsData: AnalyticsData = {
-        users: usersRes.data.data.users,
-        transactions: transactionsRes.data.data,
-        gameHistory: gamesRes.data,
+        transactions: transactions,
         stats: {
-          totalUsers: usersRes.data.data.users.length,
-          activeUsers: usersRes.data.data.users.filter((u: User) => u.isActive).length,
-          totalTransactions: transactionsRes.data.data.length,
-          totalRevenue: calculateTotalRevenue(transactionsRes.data.data),
-          totalGames: gamesRes.data.length,
-          averagePrizePool: calculateAveragePrizePool(gamesRes.data)
+          totalDeposits,
+          totalWithdrawals,
+          netBalance: totalDeposits - totalWithdrawals,
+          totalCompleted,
+          totalPending,
+          totalFailed
         }
       };
 
@@ -102,21 +95,6 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateTotalRevenue = (transactions: Transaction[]): number => {
-    return transactions
-      .filter(t => t.status === 'completed')
-      .reduce((sum, t) => {
-        if (t.type === 'game_purchase') return sum + t.amount;
-        if (t.type === 'deposit') return sum + (t.amount * 0.02);
-        return sum;
-      }, 0);
-  };
-
-  const calculateAveragePrizePool = (games: GameHistory[]): number => {
-    if (games.length === 0) return 0;
-    return games.reduce((sum, game) => sum + game.prizePool, 0) / games.length;
   };
 
   const getWeekDates = () => {
@@ -132,101 +110,34 @@ export default function AnalyticsPage() {
     return dates;
   };
 
-  const getWeeklyGamesData = () => {
+  const getWeeklyTransactionData = () => {
     if (!data) return [];
     const weekDates = getWeekDates();
     const result = weekDates.map(date => ({
       date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-      games: 0,
-      prizePool: 0,
-      earnings: 0
-    }));
-
-    data.gameHistory.forEach(game => {
-      const gameDate = new Date(game.createdAt).toISOString().split('T')[0];
-      const dayIndex = weekDates.indexOf(gameDate);
-      if (dayIndex !== -1) {
-        result[dayIndex].games++;
-        result[dayIndex].prizePool += game.prizePool;
-        result[dayIndex].earnings += (game.betAmount * game.numberOfPlayers) - game.prizePool;
-      }
-    });
-
-    return result;
-  };
-
-  const getWeeklyRevenueData = () => {
-    if (!data) return [];
-    const weekDates = getWeekDates();
-    const result = weekDates.map(date => ({
-      date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-      deposit: 0,
-      withdrawal: 0,
-      netBalance: 0
+      completed: 0,
+      pending: 0,
+      failed: 0
     }));
 
     data.transactions.forEach(transaction => {
-      if (transaction.status === 'completed') {
-        const transDate = new Date(transaction.createdAt).toISOString().split('T')[0];
-        const dayIndex = weekDates.indexOf(transDate);
-        if (dayIndex !== -1) {
-          if (transaction.type === 'deposit') {
-            result[dayIndex].deposit += transaction.amount;
-            result[dayIndex].netBalance += transaction.amount;
-          } else if (transaction.type === 'withdrawal') {
-            result[dayIndex].withdrawal += transaction.amount;
-            result[dayIndex].netBalance -= transaction.amount;
-          }
-        }
+      const transDate = new Date(transaction.createdAt).toISOString().split('T')[0];
+      const dayIndex = weekDates.indexOf(transDate);
+      if (dayIndex !== -1) {
+        result[dayIndex][transaction.status] += 1;
       }
     });
 
     return result;
   };
 
-  const getUsersByStatusData = () => {
+  const getTransactionStatusData = () => {
     if (!data) return [];
-    const activeUsers = data.users.filter(user => user.isActive).length;
-    const inactiveUsers = data.users.length - activeUsers;
     return [
-      { name: 'Active', value: activeUsers },
-      { name: 'Inactive', value: inactiveUsers }
+      { name: 'Completed', value: data.stats.totalCompleted },
+      { name: 'Pending', value: data.stats.totalPending },
+      { name: 'Failed', value: data.stats.totalFailed }
     ];
-  };
-
-  const getTransactionTypeData = () => {
-    if (!data) return [];
-    const typeCount = data.transactions.reduce((acc: any, transaction) => {
-      acc[transaction.type] = (acc[transaction.type] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(typeCount).map(([type, count]) => ({
-      name: type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-      value: count
-    }));
-  };
-
-  const getUserTypeData = () => {
-    if (!data) return [];
-    const roleCount = data.users.reduce((acc: any, user) => {
-      acc[user.role] = (acc[user.role] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(roleCount).map(([role, count]) => ({
-      name: role.charAt(0).toUpperCase() + role.slice(1),
-      value: count
-    }));
-  };
-
-  const getBetCountData = () => {
-    if (!data) return [];
-    const betCounts: { [key: number]: number } = {};
-    data.gameHistory.forEach(game => {
-      betCounts[game.betAmount] = (betCounts[game.betAmount] || 0) + 1;
-    });
-    return Object.entries(betCounts)
-      .map(([betAmount, count]) => ({ name: `${betAmount}`, value: count }))
-      .sort((a, b) => parseInt(a.name) - parseInt(b.name));
   };
 
   const formatCurrency = (amount: number) =>
@@ -269,173 +180,170 @@ export default function AnalyticsPage() {
     );
   }
 
-  const weeklyGamesData = getWeeklyGamesData();
-  const weeklyRevenueData = getWeeklyRevenueData();
-  const usersByStatusData = getUsersByStatusData();
-  const transactionTypeData = getTransactionTypeData();
-  const userTypeData = getUserTypeData();
-  const betCountData = getBetCountData();
+  const weeklyTransactionData = getWeeklyTransactionData();
+  const transactionStatusData = getTransactionStatusData();
 
   return (
+    <div>
     <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', display: 'flex', flexDirection: 'column', gap: 3 }}>
       {/* Header */}
       <Box>
-        <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>Analytics Dashboard</Typography>
-        <Typography variant="body1" color="text.secondary">Comprehensive insights and performance metrics</Typography>
+        <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>Transaction Analytics</Typography>
+        <Typography variant="body1" color="text.secondary">Comprehensive transaction insights and performance metrics</Typography>
       </Box>
 
-      {/* Summary Stats */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, mb: 2 }}>
+      {/* Summary Stats - 6 Cards */}
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+        gap: 2,
+        mb: 2 
+      }}>
         {[
-          { icon: <People sx={{ fontSize: 30 }} />, value: data.stats.totalUsers, label: 'Total Users', change: '+12%', color: '#2196F3' },
-          { icon: <Payment sx={{ fontSize: 30 }} />, value: data.stats.totalTransactions, label: 'Transactions', change: '+8%', color: '#4CAF50' },
-          { icon: <Casino sx={{ fontSize: 30 }} />, value: data.stats.totalGames, label: 'Games Played', change: '+15%', color: '#FF9800' },
-          { icon: <AccountBalance sx={{ fontSize: 30 }} />, value: formatCurrency(data.stats.totalRevenue), label: 'Total Revenue', change: '+20%', color: '#9C27B0' }
+          { 
+            icon: <AccountBalance sx={{ fontSize: 30 }} />, 
+            value: formatCurrency(data.stats.totalDeposits), 
+            label: 'Total Deposits', 
+            change: '+12%', 
+            color: '#2196F3',
+            trend: 'up'
+          },
+          { 
+            icon: <AccountBalanceWallet sx={{ fontSize: 30 }} />, 
+            value: formatCurrency(data.stats.totalWithdrawals), 
+            label: 'Total Withdrawals', 
+            change: '+8%', 
+            color: '#9C27B0',
+            trend: 'up'
+          },
+          { 
+            icon: <TrendingUp sx={{ fontSize: 30 }} />, 
+            value: formatCurrency(data.stats.netBalance), 
+            label: 'Net Balance', 
+            change: data.stats.netBalance >= 0 ? '+20%' : '-5%', 
+            color: data.stats.netBalance >= 0 ? '#4CAF50' : '#F44336',
+            trend: data.stats.netBalance >= 0 ? 'up' : 'down'
+          },
+          { 
+            icon: <CheckCircle sx={{ fontSize: 30 }} />, 
+            value: data.stats.totalCompleted, 
+            label: 'Completed', 
+            change: '+15%', 
+            color: '#4CAF50',
+            trend: 'up'
+          },
+          { 
+            icon: <PendingActions sx={{ fontSize: 30 }} />, 
+            value: data.stats.totalPending, 
+            label: 'Pending', 
+            change: '+3%', 
+            color: '#FF9800',
+            trend: 'up'
+          },
+          { 
+            icon: <Cancel sx={{ fontSize: 30 }} />, 
+            value: data.stats.totalFailed, 
+            label: 'Failed', 
+            change: '-2%', 
+            color: '#F44336',
+            trend: 'down'
+          }
         ].map((stat, index) => (
-          <Card key={index} sx={{ flex: 1, p: 3, background: `linear-gradient(145deg, ${stat.color}, ${stat.color}99)`, color: 'white', borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', minWidth: isMobile ? '100%' : 'auto' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>{stat.value}</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>{stat.label}</Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>{stat.change} from last period</Typography>
+          <Card key={index} sx={{ 
+            p: 2, 
+            background: `linear-gradient(145deg, ${stat.color}, ${stat.color}99)`, 
+            color: 'white', 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '120px'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5 }}>{stat.value}</Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.8rem' }}>{stat.label}</Typography>
               </Box>
-              {stat.icon}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                {stat.icon}
+                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                  {stat.trend === 'up' ? 
+                    <TrendingUp sx={{ fontSize: 16, mr: 0.5 }} /> : 
+                    <TrendingDown sx={{ fontSize: 16, mr: 0.5 }} />
+                  }
+                  <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
+                    {stat.change}
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
           </Card>
         ))}
       </Box>
 
-      {/* First Row: Revenue + Transaction Type */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 3, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}><AccountBalance sx={{ mr: 1 }} /> Weekly Revenue</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
-              <Typography variant="body2" sx={{ mx: 1 }}>{getWeekRangeText()}</Typography>
-              <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}><ChevronRight /></IconButton>
-            </Box>
+      {/* Transaction Status Chart - Full Width */}
+      <Card sx={{ p: 3, borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6">Transaction Status Distribution</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
+            <Typography variant="body2" sx={{ mx: 1, fontSize: '0.8rem' }}>{getWeekRangeText()}</Typography>
+            <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}><ChevronRight /></IconButton>
           </Box>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={weeklyRevenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip formatter={(value, name) => name === 'netBalance' ? [formatCurrency(Number(value)), 'Net Balance'] : [formatCurrency(Number(value)), name]} />
-                <Legend />
-                <Bar dataKey="deposit" fill="#4CAF50" name="Deposit" />
-                <Bar dataKey="withdrawal" fill="#F44336" name="Withdrawal" />
-                <Line type="monotone" dataKey="netBalance" stroke="#2196F3" name="Net Balance" strokeWidth={2} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
+        </Box>
+        <Box sx={{ height: isMobile ? 250 : 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={weeklyTransactionData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="completed" fill={STATUS_COLORS.completed} name="Completed" />
+              <Bar dataKey="pending" fill={STATUS_COLORS.pending} name="Pending" />
+              <Bar dataKey="failed" fill={STATUS_COLORS.failed} name="Failed" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+      </Card>
 
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}><Payment sx={{ mr: 1 }} /> Transaction Types</Typography>
-          <Box sx={{ height: 300 }}>
+      {/* Transaction Status Pie Chart */}
+      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3 }}>
+        <Card sx={{ 
+          flex: 1, 
+          p: 3, 
+          borderRadius: 2, 
+          boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Typography variant="h6" sx={{ mb: 3 }}>Transaction Status Overview</Typography>
+          <Box sx={{ height: isMobile ? 250 : 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-  data={transactionTypeData}
-  cx="50%"
-  cy="50%"
-  outerRadius={80}
-  fill="#8884d8"
-  dataKey="value"
-  label={({ name, percent }) =>
-    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-  }
-/>
-
+                  data={transactionStatusData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={isMobile ? 80 : 100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) =>
+                    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                >
+                  {transactionStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name.toLowerCase() as keyof typeof STATUS_COLORS]} />
+                  ))}
+                </Pie>
                 <Tooltip formatter={(value) => [value, 'Transactions']} />
               </PieChart>
             </ResponsiveContainer>
           </Box>
         </Card>
       </Box>
-
-      {/* Second Row: Games + Bet Count */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 3, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}><Casino sx={{ mr: 1 }} /> Weekly Games</Typography>
-            <Typography variant="body2">{getWeekRangeText()}</Typography>
-          </Box>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={weeklyGamesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip formatter={(value, name) => name === 'games' ? [value, 'Games'] : name === 'prizePool' ? [formatCurrency(Number(value)), 'Prize Pool'] : [formatCurrency(Number(value)), 'Earnings']} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="games" fill="#8884d8" name="Games" />
-                <Bar yAxisId="left" dataKey="prizePool" fill="#82ca9d" name="Prize Pool" />
-                <Line yAxisId="right" type="monotone" dataKey="earnings" stroke="#ff7300" name="Earnings" strokeWidth={2} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}><EmojiEvents sx={{ mr: 1 }} /> Bet Count</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={betCountData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="name" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-      </Box>
-
-      {/* Third Row: Users by Status + User Types */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>Users by Status</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={usersByStatusData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#82ca9d" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>User Types</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-  data={userTypeData}
-  cx="50%"
-  cy="50%"
-  outerRadius={80}
-  fill="#8884d8"
-  dataKey="value"
-  label={({ name, percent }) =>
-    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-  }
-/>
-
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-      </Box>
     </Box>
+    </div>
   );
 }

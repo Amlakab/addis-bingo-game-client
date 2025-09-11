@@ -333,20 +333,19 @@ export default function WalletPage() {
           </div>
         ) : step === 'payment' ? (
           <form onSubmit={handlePaymentSubmit}>
+
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input 
-                  type="number" 
-                  value={amount} 
-                  onChange={(e) => setAmount(e.target.value)} 
-                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                  placeholder="Enter amount" 
-                  min="1" 
-                  required 
-                />
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Full Name
+              </label>
+              <input 
+                type="text" 
+                value={userName} 
+                onChange={(e) => setUserName(e.target.value)} 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                placeholder="Enter your full name" 
+                required 
+              />
             </div>
 
             <div className="mb-4">
@@ -364,17 +363,19 @@ export default function WalletPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your Full Name
-              </label>
-              <input 
-                type="text" 
-                value={userName} 
-                onChange={(e) => setUserName(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                placeholder="Enter your full name" 
-                required 
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input 
+                  type="number" 
+                  value={amount} 
+                  onChange={(e) => setAmount(e.target.value)} 
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  placeholder="Enter amount" 
+                  min="1" 
+                  required 
+                />
+              </div>
             </div>
             
 
@@ -571,6 +572,35 @@ export default function WalletPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Account Holder Name
+              </label>
+              <input 
+                type="text" 
+                value={accountName} 
+                onChange={(e) => setAccountName(e.target.value)} 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                placeholder="Enter account holder name" 
+                required 
+              />
+            </div>
+
+             <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your {withdrawalMethod === 'telebirr' ? 'Phone Number' : 'Account Number'}
+              </label>
+              <input 
+                type="text" 
+                value={accountNumber} 
+                onChange={(e) => setAccountNumber(e.target.value)} 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                placeholder={withdrawalMethod === 'telebirr' ? 'Enter your phone number' : 'Enter your account number'} 
+                required 
+              />
+            </div>
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
               <div className="relative">
@@ -588,34 +618,7 @@ export default function WalletPage() {
               </div>
               <p className="text-sm text-gray-500 mt-1">Available: {formatCurrency(user!.wallet)} (Minimum: 100 ETB)</p>
             </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your {withdrawalMethod === 'telebirr' ? 'Phone Number' : 'Account Number'}
-              </label>
-              <input 
-                type="text" 
-                value={accountNumber} 
-                onChange={(e) => setAccountNumber(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
-                placeholder={withdrawalMethod === 'telebirr' ? 'Enter your phone number' : 'Enter your account number'} 
-                required 
-              />
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Holder Name
-              </label>
-              <input 
-                type="text" 
-                value={accountName} 
-                onChange={(e) => setAccountName(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
-                placeholder="Enter account holder name" 
-                required 
-              />
-            </div>
+            
 
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Withdrawal Method</label>

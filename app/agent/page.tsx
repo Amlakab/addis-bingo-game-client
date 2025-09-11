@@ -5,9 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 import { 
-  Users, Gamepad2, DollarSign, BarChart3, 
-  TrendingUp, TrendingDown, ArrowUp, ArrowDown,
-  ArrowRight
+  DollarSign, TrendingUp, TrendingDown, ArrowUp, ArrowDown,
+  ArrowRight, Clock, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
@@ -38,36 +37,20 @@ interface Transaction {
   createdAt: string;
 }
 
-interface GameHistory {
-  _id: string;
-  winnerId: {
-    _id: string;
-    phone: string;
-  };
-  winnerCard: number;
-  prizePool: number;
-  numberOfPlayers: number;
-  betAmount: number;
-  createdAt: string;
-}
-
 interface DashboardStats {
-  totalUsers: number;
-  activeUsers: number;
   totalTransactions: number;
-  totalRevenue: number;
-  totalGames: number;
+  pendingTransactions: number;
+  completedTransactions: number;
+  failedTransactions: number;
   todayEarnings: number;
-  userGrowth: number;
-  revenueGrowth: number;
-  gameGrowth: number;
+  transactionGrowth: number;
 }
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -78,7 +61,7 @@ export default function AdminDashboard() {
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'agent') {
       fetchDashboardData();
     }
   }, [user]);
@@ -87,92 +70,38 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       
-      // Fetch all data in parallel
-      const [usersRes, transactionsRes, gamesRes, gameHistoryRes] = await Promise.all([
-        api.get('/user'),
-        api.get('/transactions?limit=100'), // Get more to filter for recent
-        api.get('/games'),
-        api.get('/game/history')
-      ]);
-
-      const users: User[] = usersRes.data.data.users;
+      // Fetch transactions data
+      const transactionsRes = await api.get('/transactions?limit=100');
       const allTransactions: Transaction[] = transactionsRes.data.data;
-      const games = gamesRes.data.data;
-      const allGameHistory: GameHistory[] = gameHistoryRes.data;
       
       // Calculate stats
-      const totalUsers = users.length;
-      const activeUsers = users.filter(u => u.isActive).length;
       const totalTransactions = allTransactions.length;
-      const totalGames = games.length;
+      const pendingTransactions = allTransactions.filter(t => t.status === 'pending').length;
+      const completedTransactions = allTransactions.filter(t => t.status === 'completed').length;
+      const failedTransactions = allTransactions.filter(t => t.status === 'failed').length;
       
-      // Calculate total revenue (from game purchases and deposit fees)
-      const totalRevenue = allTransactions
-        .filter(t => t.status === 'completed')
-        .reduce((sum, t) => {
-          if (t.type === 'game_purchase') return sum + t.amount;
-          if (t.type === 'deposit') return sum + (t.amount * 0.02); // 2% fee
-          return sum;
-        }, 0);
-
-      // Calculate today's earnings
+      // Calculate today's earnings (only from completed transactions)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayEarnings = allTransactions
         .filter(t => t.status === 'completed' && new Date(t.createdAt) >= today)
-        .reduce((sum, t) => {
-          if (t.type === 'game_purchase') return sum + t.amount;
-          if (t.type === 'deposit') return sum + (t.amount * 0.02);
-          return sum;
-        }, 0);
+        .reduce((sum, t) => sum + t.amount, 0);
 
       // Get 5 most recent transactions
-      const recentTransactions = [...allTransactions]
+      const recent = [...allTransactions]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
-
-      // Get 5 most recent game history
-      const recentGameHistory = [...allGameHistory]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5);
-
-      // Prepare recent activities from both recent transactions and game history
-      const activities = [
-        ...recentTransactions.map(t => ({
-          id: t._id,
-          type: 'transaction',
-          user: t.userId?.phone || 'Unknown',
-          action: t.type,
-          amount: t.amount,
-          time: new Date(t.createdAt),
-          formattedTime: formatTimeDifference(new Date(t.createdAt))
-        })),
-        ...recentGameHistory.map(g => ({
-          id: g._id,
-          type: 'game',
-          user: g.winnerId?.phone || 'Unknown',
-          action: 'won_game',
-          amount: g.prizePool,
-          time: new Date(g.createdAt),
-          formattedTime: formatTimeDifference(new Date(g.createdAt))
-        }))
-      ]
-      .sort((a, b) => b.time.getTime() - a.time.getTime())
-      .slice(0, 5);
 
       setStatsData({
-        totalUsers,
-        activeUsers,
         totalTransactions,
-        totalRevenue,
-        totalGames,
+        pendingTransactions,
+        completedTransactions,
+        failedTransactions,
         todayEarnings,
-        userGrowth: calculateGrowth(users.length, 1000), // Example calculation
-        revenueGrowth: calculateGrowth(totalRevenue, 10000),
-        gameGrowth: calculateGrowth(totalGames, 50)
+        transactionGrowth: calculateGrowth(totalTransactions, 100) // Example calculation
       });
 
-      setRecentActivities(activities);
+      setRecentTransactions(recent);
       setError('');
     } catch (error: any) {
       setError('Failed to fetch dashboard data');
@@ -205,40 +134,29 @@ export default function AdminDashboard() {
     }
   };
 
-  const getActionLabel = (action: string) => {
-    switch (action) {
-      case 'deposit': return 'deposited';
-      case 'withdrawal': return 'withdrew';
-      case 'game_purchase': return 'played game';
-      case 'winning': return 'won';
-      case 'won_game': return 'won game';
-      default: return action;
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'completed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  const getActionColor = (action: string) => {
-    switch (action) {
-      case 'deposit':
-      case 'winning':
-      case 'won_game':
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'text-yellow-600';
+      case 'completed':
         return 'text-green-600';
-      case 'withdrawal':
+      case 'failed':
         return 'text-red-600';
       default:
         return 'text-gray-600';
-    }
-  };
-
-  const getActionSymbol = (action: string) => {
-    switch (action) {
-      case 'deposit':
-      case 'winning':
-      case 'won_game':
-        return '+';
-      case 'withdrawal':
-        return '-';
-      default:
-        return '';
     }
   };
 
@@ -250,8 +168,8 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user?.role !== 'admin') {
-    return <div className="text-center py-8 text-red-600">Access denied. Admin only.</div>;
+  if (user?.role !== 'agent') {
+    return <div className="text-center py-8 text-red-600">Access denied. Agent only.</div>;
   }
 
   if (error) {
@@ -264,109 +182,104 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
+      <h1 className="text-2xl font-bold mb-6">Agent Dashboard</h1>
       
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Users Card */}
-        <Link href="/admin/users">
+        {/* Total Transactions Card */}
+        <Link href="/admin/transactions">
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-3 bg-blue-100 rounded-full mr-4">
-                  <Users className="h-6 w-6 text-blue-600" />
+                  <DollarSign className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold">{statsData.totalUsers}</p>
+                  <p className="text-sm text-gray-600">Total Transactions</p>
+                  <p className="text-2xl font-bold">{statsData.totalTransactions}</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-gray-400" />
             </div>
             <div className="mt-4 flex items-center text-sm">
               <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">+{statsData.userGrowth}%</span>
+              <span className="text-green-600 font-medium">+{statsData.transactionGrowth}%</span>
               <span className="text-gray-500 ml-2">from last week</span>
             </div>
           </div>
         </Link>
         
-        {/* Total Games Card */}
-        <Link href="/admin/games">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-full mr-4">
-                  <Gamepad2 className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Games</p>
-                  <p className="text-2xl font-bold">{statsData.totalGames}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">+{statsData.gameGrowth}%</span>
-              <span className="text-gray-500 ml-2">from yesterday</span>
-            </div>
-          </div>
-        </Link>
-        
-        {/* Total Revenue Card */}
-        <Link href="/admin/transactions">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-full mr-4">
-                  <DollarSign className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(statsData.totalRevenue)}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
-            </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">+{statsData.revenueGrowth}%</span>
-              <span className="text-gray-500 ml-2">from last month</span>
-            </div>
-          </div>
-        </Link>
-        
-        {/* Today's Earnings Card */}
-        <Link href="/admin/game-history">
+        {/* Pending Transactions Card */}
+        <Link href="/admin/transactions?status=pending">
           <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-3 bg-yellow-100 rounded-full mr-4">
-                  <BarChart3 className="h-6 w-6 text-yellow-600" />
+                  <Clock className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Today's Earnings</p>
-                  <p className="text-2xl font-bold">{formatCurrency(statsData.todayEarnings)}</p>
+                  <p className="text-sm text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold">{statsData.pendingTransactions}</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-gray-500">Requires attention</span>
+            </div>
+          </div>
+        </Link>
+        
+        {/* Completed Transactions Card */}
+        <Link href="/admin/transactions?status=completed">
+          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-3 bg-green-100 rounded-full mr-4">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Completed</p>
+                  <p className="text-2xl font-bold">{statsData.completedTransactions}</p>
                 </div>
               </div>
               <ArrowRight className="h-5 w-5 text-gray-400" />
             </div>
             <div className="mt-4 flex items-center text-sm">
               <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">+15%</span>
-              <span className="text-gray-500 ml-2">from yesterday</span>
+              <span className="text-green-600 font-medium">Successfully processed</span>
+            </div>
+          </div>
+        </Link>
+        
+        {/* Failed Transactions Card */}
+        <Link href="/admin/transactions?status=failed">
+          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-3 bg-red-100 rounded-full mr-4">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Failed</p>
+                  <p className="text-2xl font-bold">{statsData.failedTransactions}</p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400" />
+            </div>
+            <div className="mt-4 flex items-center text-sm">
+              <span className="text-gray-500">Need resolution</span>
             </div>
           </div>
         </Link>
       </div>
       
-      {/* Recent Activities */}
+      {/* Recent Transactions */}
       <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Recent Activities</h2>
-          <Link href="/admin/activities" className="text-blue-600 hover:text-blue-800 text-sm">
-            View all activities
+          <h2 className="text-xl font-bold">Recent Transactions</h2>
+          <Link href="/admin/transactions" className="text-blue-600 hover:text-blue-800 text-sm">
+            View all transactions
           </Link>
         </div>
         <div className="overflow-x-auto">
@@ -374,31 +287,34 @@ export default function AdminDashboard() {
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {recentActivities.map((activity) => (
-                <tr key={activity.id} className="hover:bg-gray-50">
+              {recentTransactions.map((transaction) => (
+                <tr key={transaction._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {activity.user}
+                    {transaction.userId?.phone || 'Unknown'}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 capitalize">
-                    {getActionLabel(activity.action)}
+                    {transaction.type.replace('_', ' ')}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                    {formatCurrency(transaction.amount)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    {activity.amount ? (
-                      <span className={getActionColor(activity.action)}>
-                        {getActionSymbol(activity.action)}{formatCurrency(activity.amount)}
+                    <div className="flex items-center">
+                      {getStatusIcon(transaction.status)}
+                      <span className={`ml-1 ${getStatusColor(transaction.status)}`}>
+                        {transaction.status}
                       </span>
-                    ) : (
-                      <span className="text-gray-500">-</span>
-                    )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {activity.formattedTime}
+                    {formatTimeDifference(new Date(transaction.createdAt))}
                   </td>
                 </tr>
               ))}
