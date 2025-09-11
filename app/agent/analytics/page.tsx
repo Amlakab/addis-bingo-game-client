@@ -342,11 +342,18 @@ export default function AnalyticsPage() {
               <XAxis dataKey="date" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <Tooltip formatter={(value, name) => 
-                name === 'revenue' || name === 'deposit' || name === 'withdrawal' || name === 'netBalance' 
-                  ? [formatCurrency(Number(value)), name.charAt(0).toUpperCase() + name.slice(1)] 
-                  : [value, name.charAt(0).toUpperCase() + name.slice(1)]
-              } />
+              <Tooltip
+  formatter={(value, name) => {
+    const label = String(name);
+    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+
+    if (['revenue', 'deposit', 'withdrawal', 'netBalance'].includes(label)) {
+      return [formatCurrency(Number(value)), formattedLabel];
+    }
+    return [value, formattedLabel];
+  }}
+/>
+
               <Legend />
               <Bar yAxisId="left" dataKey="deposit" fill="#2196F3" name="Deposit" />
               <Bar yAxisId="left" dataKey="withdrawal" fill="#9C27B0" name="Withdrawal" />
