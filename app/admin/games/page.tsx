@@ -5,12 +5,13 @@ import { useState, useEffect } from 'react';
 import {
   Box, Typography, Card, CardContent, Button,
   TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Chip, Alert, Snackbar, CircularProgress
+  Chip, Alert, Snackbar, CircularProgress,
+  useTheme, useMediaQuery, IconButton
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Add, Edit, Delete, Search, Casino,
-  Numbers, AccessTime
+  Numbers, AccessTime, FilterList
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
@@ -22,6 +23,10 @@ interface Game {
 }
 
 export default function GamesPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -126,7 +131,7 @@ export default function GamesPage() {
   return (
     <Box
       sx={{
-        p: 3,
+        p: { xs: 2, sm: 3 },
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
       }}
@@ -137,9 +142,12 @@ export default function GamesPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+        <Box sx={{ mb: 3 }}>
+          <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
             Games Management
+          </Typography>
+          <Typography variant={isMobile ? "body2" : "body1"} color="text.secondary">
+            Create and manage game betting amounts
           </Typography>
         </Box>
       </motion.div>
@@ -152,53 +160,51 @@ export default function GamesPage() {
       >
         <Box
           sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 3,
-            mb: 4,
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gap: 2,
+            mb: 3,
           }}
         >
           {/* Total Games */}
           <Card
             sx={{
-              flex: { xs: '1 1 100%', sm: '1 1 48%' },
               background: 'linear-gradient(145deg, #2196F3, #21CBF3)',
               color: 'white',
-              borderRadius: 3,
-              boxShadow: '0 8px 16px rgba(33, 150, 243, 0.3)',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(33, 150, 243, 0.3)',
             }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Numbers sx={{ fontSize: { xs: 30, sm: 40 }, mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            <CardContent sx={{ p: 2, textAlign: 'center' }}>
+              <Numbers sx={{ fontSize: { xs: 24, sm: 30 }, mb: 1 }} />
+              <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold' }}>
                 {games.length}
               </Typography>
-              <Typography variant="h6">Total Games</Typography>
+              <Typography variant={isMobile ? "body2" : "body1"}>Total Games</Typography>
             </CardContent>
           </Card>
 
           {/* Total Bet Amount */}
           <Card
             sx={{
-              flex: { xs: '1 1 100%', sm: '1 1 48%' },
               background: 'linear-gradient(145deg, #4CAF50, #8BC34A)',
               color: 'white',
-              borderRadius: 3,
-              boxShadow: '0 8px 16px rgba(76, 175, 80, 0.3)',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(76, 175, 80, 0.3)',
             }}
           >
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Casino sx={{ fontSize: { xs: 30, sm: 40 }, mb: 1 }} />
-              <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+            <CardContent sx={{ p: 2, textAlign: 'center' }}>
+              <Casino sx={{ fontSize: { xs: 24, sm: 30 }, mb: 1 }} />
+              <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold' }}>
                 {totalPrizePool.toLocaleString()}
               </Typography>
-              <Typography variant="h6">Total Bet Amount</Typography>
+              <Typography variant={isMobile ? "body2" : "body1"}>Total Bet Amount</Typography>
             </CardContent>
           </Card>
         </Box>
       </motion.div>
 
-      {/* Search Bar */}
+      {/* Search and Action Bar */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -209,42 +215,45 @@ export default function GamesPage() {
             display: 'flex',
             flexDirection: { xs: 'column', sm: 'row' },
             gap: 2,
-            mb: 4,
-            alignItems: 'center',
+            mb: 3,
+            alignItems: { xs: 'stretch', sm: 'center' },
           }}
         >
           <TextField
             fullWidth
-            placeholder="Search games by bet amount or ID..."
+            size="small"
+            placeholder="Search games..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
-              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} />,
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2,
                 background: 'white',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               },
             }}
           />
           <Button
             variant="contained"
             onClick={() => handleOpenDialog()}
+            startIcon={<FiPlusCircle size={18} />}
             sx={{
               background: "linear-gradient(145deg, #3498db, #2980b9)",
               borderRadius: 2,
               px: 2,
               py: 1,
-              width: { xs: '100%', sm: 'auto' },
+              minWidth: 'auto',
+              whiteSpace: 'nowrap',
               boxShadow: "0 4px 8px rgba(52, 152, 219, 0.3)",
               "&:hover": {
                 background: "linear-gradient(145deg, #2980b9, #2471a3)",
               },
             }}
           >
-            <FiPlusCircle size={22} />
+            {isMobile ? 'Add' : 'Add Game'}
           </Button>
         </Box>
       </motion.div>
@@ -252,15 +261,20 @@ export default function GamesPage() {
       {/* Games List */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress size={60} sx={{ color: '#3498db' }} />
+          <CircularProgress size={isMobile ? 40 : 60} sx={{ color: '#3498db' }} />
         </Box>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}>
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' },
-              gap: 3,
+              gridTemplateColumns: { 
+                xs: '1fr', 
+                sm: 'repeat(2, 1fr)', 
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)'
+              },
+              gap: 2,
             }}
           >
             <AnimatePresence>
@@ -275,57 +289,66 @@ export default function GamesPage() {
                 >
                   <Card
                     sx={{
-                      borderRadius: 3,
-                      boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
+                      borderRadius: 2,
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
                       background: 'linear-gradient(145deg, #ffffff, #f8f9fa)',
                       display: 'flex',
                       flexDirection: 'column',
                       height: '100%',
                     }}
                   >
-                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                        <Chip icon={<Casino />} label={`${game.betAmount} BIRR`} color="primary" sx={{ fontWeight: 'bold' }} />
-                        <Chip icon={<AccessTime />} label={new Date(game.createdAt).toLocaleDateString()} variant="outlined" />
+                    <CardContent sx={{ flexGrow: 1, p: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Chip 
+                          icon={<Casino sx={{ fontSize: 16 }} />} 
+                          label={`${game.betAmount} BIRR`} 
+                          color="primary" 
+                          size={isMobile ? "small" : "medium"}
+                          sx={{ fontWeight: 'bold' }} 
+                        />
+                        <Chip 
+                          icon={<AccessTime sx={{ fontSize: 16 }} />} 
+                          label={new Date(game.createdAt).toLocaleDateString()} 
+                          variant="outlined" 
+                          size={isMobile ? "small" : "medium"}
+                        />
                       </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace' }}>
-                        ID: {game._id}
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                        ID: {game._id.slice(-8)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
                         Updated: {new Date(game.updatedAt).toLocaleDateString()}
                       </Typography>
                     </CardContent>
                     <Box sx={{ p: 2, pt: 0, display: 'flex', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Edit />}
+                      <IconButton
                         onClick={() => handleOpenDialog(game)}
-                        fullWidth
                         sx={{
+                          flex: 1,
                           borderRadius: 2,
-                          fontWeight: 'bold',
+                          border: '1px solid',
                           borderColor: '#3498db',
                           color: '#3498db',
                           '&:hover': { borderColor: '#2980b9', background: 'rgba(52,152,219,0.1)' },
                         }}
+                        title="Edit"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        startIcon={<Delete />}
+                        <Edit sx={{ fontSize: 18 }} />
+                      </IconButton>
+                      <IconButton
                         onClick={() => handleDelete(game._id)}
-                        fullWidth
                         sx={{
+                          flex: 1,
                           borderRadius: 2,
-                          fontWeight: 'bold',
+                          border: '1px solid',
                           borderColor: '#e74c3c',
                           color: '#e74c3c',
                           '&:hover': { borderColor: '#c0392b', background: 'rgba(231,76,60,0.1)' },
                         }}
+                        title="Delete"
                       >
-                        Delete
-                      </Button>
+                        <Delete sx={{ fontSize: 18 }} />
+                      </IconButton>
                     </Box>
                   </Card>
                 </motion.div>
@@ -334,8 +357,8 @@ export default function GamesPage() {
           </Box>
 
           {filteredGames.length === 0 && !loading && (
-            <Box sx={{ textAlign: 'center', mt: 4 }}>
-              <Typography variant="h6" color="text.secondary">
+            <Box sx={{ textAlign: 'center', mt: 4, p: 3 }}>
+              <Typography variant={isMobile ? "body1" : "h6"} color="text.secondary">
                 No games found. {searchTerm ? 'Try a different search.' : 'Create your first game!'}
               </Typography>
             </Box>
@@ -344,9 +367,15 @@ export default function GamesPage() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>
-          <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+          <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold' }}>
             {editingGame ? 'Edit Game' : 'Create New Game'}
           </Typography>
         </DialogTitle>
@@ -361,9 +390,10 @@ export default function GamesPage() {
             margin="normal"
             inputProps={{ min: 1, max: 10000 }}
             helperText="Enter a value between 1 and 10000"
+            sx={{ mt: 2 }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleCloseDialog} sx={{ borderRadius: 2 }}>
             Cancel
           </Button>
@@ -384,12 +414,12 @@ export default function GamesPage() {
 
       {/* Notifications */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
-        <Alert severity="error" onClose={() => setError('')}>
+        <Alert severity="error" onClose={() => setError('')} sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
           {error}
         </Alert>
       </Snackbar>
       <Snackbar open={!!success} autoHideDuration={6000} onClose={() => setSuccess('')}>
-        <Alert severity="success" onClose={() => setSuccess('')}>
+        <Alert severity="success" onClose={() => setSuccess('')} sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
           {success}
         </Alert>
       </Snackbar>

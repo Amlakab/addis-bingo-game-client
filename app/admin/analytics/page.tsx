@@ -61,6 +61,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
 export default function AnalyticsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,7 +241,9 @@ export default function AnalyticsPage() {
     const weekDates = getWeekDates();
     const startDate = new Date(weekDates[0]);
     const endDate = new Date(weekDates[6]);
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return isMobile 
+      ? `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+      : `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
   };
 
   if (loading) {
@@ -277,27 +280,45 @@ export default function AnalyticsPage() {
   const betCountData = getBetCountData();
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', display: 'flex', flexDirection: 'column', gap: 2 }}>
       {/* Header */}
       <Box>
         <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>Analytics Dashboard</Typography>
-        <Typography variant="body1" color="text.secondary">Comprehensive insights and performance metrics</Typography>
+        <Typography variant={isMobile ? "body2" : "body1"} color="text.secondary">Comprehensive insights and performance metrics</Typography>
       </Box>
 
       {/* Summary Stats */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, mb: 2 }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: { 
+          xs: '1fr', 
+          sm: 'repeat(2, 1fr)', 
+          md: 'repeat(4, 1fr)' 
+        }, 
+        gap: 2, 
+        mb: 2 
+      }}>
         {[
-          { icon: <People sx={{ fontSize: 30 }} />, value: data.stats.totalUsers, label: 'Total Users', change: '+12%', color: '#2196F3' },
-          { icon: <Payment sx={{ fontSize: 30 }} />, value: data.stats.totalTransactions, label: 'Transactions', change: '+8%', color: '#4CAF50' },
-          { icon: <Casino sx={{ fontSize: 30 }} />, value: data.stats.totalGames, label: 'Games Played', change: '+15%', color: '#FF9800' },
-          { icon: <AccountBalance sx={{ fontSize: 30 }} />, value: formatCurrency(data.stats.totalRevenue), label: 'Total Revenue', change: '+20%', color: '#9C27B0' }
+          { icon: <People sx={{ fontSize: { xs: 24, sm: 30 } }} />, value: data.stats.totalUsers, label: 'Total Users', change: '+12%', color: '#2196F3' },
+          { icon: <Payment sx={{ fontSize: { xs: 24, sm: 30 } }} />, value: data.stats.totalTransactions, label: 'Transactions', change: '+8%', color: '#4CAF50' },
+          { icon: <Casino sx={{ fontSize: { xs: 24, sm: 30 } }} />, value: data.stats.totalGames, label: 'Games Played', change: '+15%', color: '#FF9800' },
+          { icon: <AccountBalance sx={{ fontSize: { xs: 24, sm: 30 } }} />, value: formatCurrency(data.stats.totalRevenue), label: 'Total Revenue', change: '+20%', color: '#9C27B0' }
         ].map((stat, index) => (
-          <Card key={index} sx={{ flex: 1, p: 3, background: `linear-gradient(145deg, ${stat.color}, ${stat.color}99)`, color: 'white', borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', minWidth: isMobile ? '100%' : 'auto' }}>
+          <Card key={index} sx={{ 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            background: `linear-gradient(145deg, ${stat.color}, ${stat.color}99)`, 
+            color: 'white', 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Box>
-                <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>{stat.value}</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>{stat.label}</Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>{stat.change} from last period</Typography>
+                <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', mb: 0.5 }}>{stat.value}</Typography>
+                <Typography variant={isMobile ? "caption" : "body2"} sx={{ opacity: 0.9 }}>{stat.label}</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>{stat.change} from last period</Typography>
               </Box>
               {stat.icon}
             </Box>
@@ -305,136 +326,199 @@ export default function AnalyticsPage() {
         ))}
       </Box>
 
-      {/* First Row: Revenue + Transaction Type */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 3, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}><AccountBalance sx={{ mr: 1 }} /> Weekly Revenue</Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
-              <Typography variant="body2" sx={{ mx: 1 }}>{getWeekRangeText()}</Typography>
-              <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}><ChevronRight /></IconButton>
+      {/* Charts Container */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+        {/* First Row: Revenue + Transaction Type */}
+        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2, flex: 1 }}>
+          <Card sx={{ 
+            flex: 3, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)', 
+            display: 'flex', 
+            flexDirection: 'column' 
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ display: 'flex', alignItems: 'center' }}>
+                <AccountBalance sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} /> Weekly Revenue
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
+                <Typography variant="caption" sx={{ mx: 0.5, fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>{getWeekRangeText()}</Typography>
+                <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}><ChevronRight /></IconButton>
+              </Box>
             </Box>
-          </Box>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={weeklyRevenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip formatter={(value, name) => name === 'netBalance' ? [formatCurrency(Number(value)), 'Net Balance'] : [formatCurrency(Number(value)), name]} />
-                <Legend />
-                <Bar dataKey="deposit" fill="#4CAF50" name="Deposit" />
-                <Bar dataKey="withdrawal" fill="#F44336" name="Withdrawal" />
-                <Line type="monotone" dataKey="netBalance" stroke="#2196F3" name="Net Balance" strokeWidth={2} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
+            <Box sx={{ height: isMobile ? 250 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={weeklyRevenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={isMobile ? 10 : 12} />
+                  <YAxis fontSize={isMobile ? 10 : 12} />
+                  <Tooltip 
+                    formatter={(value, name) => name === 'netBalance' ? [formatCurrency(Number(value)), 'Net Balance'] : [formatCurrency(Number(value)), name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
+                  <Bar dataKey="deposit" fill="#4CAF50" name="Deposit" />
+                  <Bar dataKey="withdrawal" fill="#F44336" name="Withdrawal" />
+                  <Line type="monotone" dataKey="netBalance" stroke="#2196F3" name="Net Balance" strokeWidth={2} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
 
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}><Payment sx={{ mr: 1 }} /> Transaction Types</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-  data={transactionTypeData}
-  cx="50%"
-  cy="50%"
-  outerRadius={80}
-  fill="#8884d8"
-  dataKey="value"
-  label={({ name, percent }) =>
-    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-  }
-/>
+          <Card sx={{ 
+            flex: 1, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)', 
+            display: 'flex', 
+            flexDirection: 'column' 
+          }}>
+            <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              <Payment sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} /> Transaction Types
+            </Typography>
+            <Box sx={{ height: isMobile ? 200 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={transactionTypeData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={isMobile ? 60 : 80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      isMobile ? `${name}` : `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                    labelLine={!isMobile}
+                  >
+                    {transactionTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [value, 'Transactions']} />
+                  {!isMobile && <Legend />}
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+        </Box>
 
-                <Tooltip formatter={(value) => [value, 'Transactions']} />
-              </PieChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-      </Box>
+        {/* Second Row: Games + Bet Count */}
+        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2, flex: 1 }}>
+          <Card sx={{ 
+            flex: 3, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)', 
+            display: 'flex', 
+            flexDirection: 'column' 
+          }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Casino sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} /> Weekly Games
+              </Typography>
+              <Typography variant="caption" sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>{getWeekRangeText()}</Typography>
+            </Box>
+            <Box sx={{ height: isMobile ? 250 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={weeklyGamesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" fontSize={isMobile ? 10 : 12} />
+                  <YAxis yAxisId="left" fontSize={isMobile ? 10 : 12} />
+                  <YAxis yAxisId="right" orientation="right" fontSize={isMobile ? 10 : 12} />
+                  <Tooltip 
+                    formatter={(value, name) => name === 'games' ? [value, 'Games'] : name === 'prizePool' ? [formatCurrency(Number(value)), 'Prize Pool'] : [formatCurrency(Number(value)), 'Earnings']}
+                  />
+                  <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
+                  <Bar yAxisId="left" dataKey="games" fill="#8884d8" name="Games" />
+                  <Bar yAxisId="left" dataKey="prizePool" fill="#82ca9d" name="Prize Pool" />
+                  <Line yAxisId="right" type="monotone" dataKey="earnings" stroke="#ff7300" name="Earnings" strokeWidth={2} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
 
-      {/* Second Row: Games + Bet Count */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 3, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}><Casino sx={{ mr: 1 }} /> Weekly Games</Typography>
-            <Typography variant="body2">{getWeekRangeText()}</Typography>
-          </Box>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={weeklyGamesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip formatter={(value, name) => name === 'games' ? [value, 'Games'] : name === 'prizePool' ? [formatCurrency(Number(value)), 'Prize Pool'] : [formatCurrency(Number(value)), 'Earnings']} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="games" fill="#8884d8" name="Games" />
-                <Bar yAxisId="left" dataKey="prizePool" fill="#82ca9d" name="Prize Pool" />
-                <Line yAxisId="right" type="monotone" dataKey="earnings" stroke="#ff7300" name="Earnings" strokeWidth={2} />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
+          <Card sx={{ 
+            flex: 1, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)', 
+            display: 'flex', 
+            flexDirection: 'column' 
+          }}>
+            <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              <EmojiEvents sx={{ mr: 1, fontSize: { xs: 18, sm: 20 } }} /> Bet Count
+            </Typography>
+            <Box sx={{ height: isMobile ? 200 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart layout="vertical" data={betCountData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" fontSize={isMobile ? 10 : 12} />
+                  <YAxis type="category" dataKey="name" fontSize={isMobile ? 10 : 12} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+        </Box>
 
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}><EmojiEvents sx={{ mr: 1 }} /> Bet Count</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={betCountData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis type="category" dataKey="name" />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-      </Box>
+        {/* Third Row: Users by Status + User Types */}
+        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2, flex: 1 }}>
+          <Card sx={{ 
+            flex: 1, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)' 
+          }}>
+            <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2 }}>Users by Status</Typography>
+            <Box sx={{ height: isMobile ? 200 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={usersByStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" fontSize={isMobile ? 10 : 12} />
+                  <YAxis fontSize={isMobile ? 10 : 12} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
 
-      {/* Third Row: Users by Status + User Types */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3, flex: 1 }}>
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>Users by Status</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={usersByStatusData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="value" fill="#82ca9d" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
-
-        <Card sx={{ flex: 1, p: 3, borderRadius: 3, boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>User Types</Typography>
-          <Box sx={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-  data={userTypeData}
-  cx="50%"
-  cy="50%"
-  outerRadius={80}
-  fill="#8884d8"
-  dataKey="value"
-  label={({ name, percent }) =>
-    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
-  }
-/>
-
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </Box>
-        </Card>
+          <Card sx={{ 
+            flex: 1, 
+            p: { xs: 1.5, sm: 2, md: 3 }, 
+            borderRadius: 2, 
+            boxShadow: '0 4px 8px rgba(0,0,0,0.1)' 
+          }}>
+            <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2 }}>User Types</Typography>
+            <Box sx={{ height: isMobile ? 200 : 300 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={userTypeData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={isMobile ? 60 : 80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) =>
+                      isMobile ? `${name}` : `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    }
+                    labelLine={!isMobile}
+                  >
+                    {userTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  {!isMobile && <Legend />}
+                </PieChart>
+              </ResponsiveContainer>
+            </Box>
+          </Card>
+        </Box>
       </Box>
     </Box>
   );
