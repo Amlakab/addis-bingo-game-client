@@ -187,7 +187,7 @@ export default function AdminDashboard() {
       {/* Stats Grid - Responsive layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Total Transactions Card */}
-        <Link href="/admin/transactions">
+        <Link href="/agent/transactions">
           <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
         </Link>
         
         {/* Pending Transactions Card */}
-        <Link href="/admin/transactions?status=pending">
+        <Link href="/agent/transactions?status=pending">
           <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -231,7 +231,7 @@ export default function AdminDashboard() {
         </Link>
         
         {/* Completed Transactions Card */}
-        <Link href="/admin/transactions?status=completed">
+        <Link href="/agent/transactions?status=completed">
           <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
         </Link>
         
         {/* Failed Transactions Card */}
-        <Link href="/admin/transactions?status=failed">
+        <Link href="/agent/transactions?status=failed">
           <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
       <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg md:text-xl font-bold">Recent Transactions</h2>
-          <Link href="/admin/transactions" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
+          <Link href="/agent/transactions" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
             View all
           </Link>
         </div>
