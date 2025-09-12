@@ -25,7 +25,7 @@ const Navbar: React.FC = () => {
           {/* Logo + Name */}
           <Link href="/" className="flex items-center space-x-2">
             <Image
-              src="/Feta-Bingo-Logo-Design.ico"
+              src="/amlakie.jpg"
               alt="Feta Bingo Logo"
               width={40}
               height={40}
