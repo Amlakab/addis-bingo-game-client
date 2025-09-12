@@ -276,12 +276,10 @@ export default function AdminTransactionsPage() {
   const getTransactionLink = (transaction: TransactionType) => {
     if (!transaction.transactionId) return null;
     
-    // Check if transactionId is already a URL
     if (transaction.transactionId.startsWith('http')) {
       return transaction.transactionId;
     }
     
-    // Fallback to previous logic if transactionId is not a URL
     if (transaction.reference === 'cbe') {
       return `https://apps.cbe.com.et:100/?id=${transaction.transactionId}`;
     } else if (transaction.reference === 'telebirr') {
@@ -291,511 +289,223 @@ export default function AdminTransactionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans">
-      <h1 className="text-2xl font-bold mb-6">Transaction Management</h1>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 font-sans">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6">Transaction Management</h1>
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-full">
-                <Wallet className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-500">Total Deposits</p>
-                <p className="font-semibold">{stats.totalDeposits.toLocaleString()} ETB</p>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4 sm:mb-6">
+          <div className="bg-white p-4 rounded-lg shadow flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-full">
+              <Wallet className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Transactions</p>
+              <p className="text-lg font-semibold">{stats.totalTransactions}</p>
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-full">
-                <CreditCard className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-500">Total Withdrawals</p>
-                <p className="font-semibold">{stats.totalWithdrawals.toLocaleString()} ETB</p>
-              </div>
+          <div className="bg-white p-4 rounded-lg shadow flex items-center space-x-3">
+            <div className="p-2 bg-green-100 rounded-full">
+              <DollarSign className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Deposits</p>
+              <p className="text-lg font-semibold">{stats.totalDeposits}</p>
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-full">
-                <DollarSign className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-500">Pending Deposits</p>
-                <p className="font-semibold">{stats.pendingDeposits}</p>
-              </div>
+          <div className="bg-white p-4 rounded-lg shadow flex items-center space-x-3">
+            <div className="p-2 bg-purple-100 rounded-full">
+              <CreditCard className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Withdrawals</p>
+              <p className="text-lg font-semibold">{stats.totalWithdrawals}</p>
             </div>
           </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-full">
-                <DollarSign className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-gray-500">Pending Withdrawals</p>
-                <p className="font-semibold">{stats.pendingWithdrawals}</p>
-              </div>
+          <div className="bg-white p-4 rounded-lg shadow flex items-center space-x-3">
+            <div className="p-2 bg-orange-100 rounded-full">
+              <ExternalLink className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Pending Deposits</p>
+              <p className="text-lg font-semibold">{stats.pendingDeposits}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Type</label>
-            <select 
-              value={filters.type}
-              onChange={(e) => setFilters({...filters, type: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md font-sans"
-            >
-              <option value="">All Types</option>
-              <option value="deposit">Deposit</option>
-              <option value="withdrawal">Withdrawal</option>
-              <option value="game_purchase">Game Purchase</option>
-              <option value="winning">Winning</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Status</label>
-            <select 
-              value={filters.status}
-              onChange={(e) => setFilters({...filters, status: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md font-sans"
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Reference</label>
-            <select 
-              value={filters.reference}
-              onChange={(e) => setFilters({...filters, reference: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md font-sans"
-            >
-              <option value="">All References</option>
-              <option value="telebirr">Telebirr</option>
-              <option value="cbe">CBE</option>
-            </select>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Start Date</label>
-            <input 
-              type="date" 
-              value={filters.startDate}
-              onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md font-sans"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">End Date</label>
-            <input 
-              type="date" 
-              value={filters.endDate}
-              onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-              className="w-full p-2 border border-gray-300 rounded-md font-sans"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search transactions..."
-                value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
-                className="w-full pl-10 p-2 border border-gray-300 rounded-md font-sans"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex justify-end">
-          <button 
-            onClick={() => setFilters({
-              type: '',
-              status: '',
-              reference: '',
-              search: '',
-              startDate: '',
-              endDate: '',
-              page: 1
-            })}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-2 font-sans"
-          >
-            Clear Filters
-          </button>
-          <button 
-            onClick={fetchTransactions}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center font-sans"
-          >
-            <Filter className="h-4 w-4 mr-1" />
-            Apply Filters
-          </button>
-        </div>
+      <div className="bg-white p-4 rounded-lg shadow mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-2 sm:space-y-0">
+        <input
+          type="text"
+          placeholder="Search by phone, reference..."
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          value={filters.search}
+          onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+        />
+        <select
+          value={filters.type}
+          onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">All Types</option>
+          <option value="deposit">Deposit</option>
+          <option value="withdrawal">Withdrawal</option>
+          <option value="game_purchase">Game Purchase</option>
+          <option value="winning">Winning</option>
+        </select>
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
       </div>
 
-      {/* Transactions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                #
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                User
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Type
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Amount
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Status
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Reference
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Date
+              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {isLoading ? (
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Reference</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-sans">Actions</th>
+                <td colSpan={8} className="text-center py-4">Loading...</td>
               </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center font-sans">
-                    Loading transactions...
+            ) : transactions.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-4">No transactions found</td>
+              </tr>
+            ) : (
+              transactions.map((tx, idx) => (
+                <tr key={tx._id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 whitespace-nowrap">{idx + 1 + (pagination.current - 1) * 10}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{tx.userId.phone}</td>
+                  <td className="px-3 py-2 whitespace-nowrap"><TypeBadge type={tx.type} /></td>
+                  <td className="px-3 py-2 whitespace-nowrap">{tx.amount.toLocaleString()} ETB</td>
+                  <td className="px-3 py-2 whitespace-nowrap"><StatusBadge status={tx.status} /></td>
+                  <td className="px-3 py-2 whitespace-nowrap">{tx.reference}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{new Date(tx.createdAt).toLocaleDateString()}</td>
+                  <td className="px-3 py-2 whitespace-nowrap space-x-2">
+                    <button
+                      onClick={() => handleViewTransaction(tx)}
+                      className="p-1 rounded-md bg-blue-100 text-blue-600 hover:bg-blue-200"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center font-sans">
-                    No transactions found
-                  </td>
-                </tr>
-              ) : (
-                transactions.map((transaction) => (
-                  <tr key={transaction._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 font-sans">
-                          {transaction.userId.name || 'Unknown'}
-                        </div>
-                        <div className="text-sm text-gray-500 font-sans">
-                          {transaction.userId.phone}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <TypeBadge type={transaction.type} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-sans">
-                      {transaction.amount.toLocaleString()} ETB
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={transaction.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize font-sans">
-                      {transaction.reference}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-sans">
-                      {new Date(transaction.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button 
-                        onClick={() => handleViewTransaction(transaction)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        <Eye className="h-5 w-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* Pagination */}
-        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700 font-sans">
-                Showing <span className="font-medium">{(pagination.current - 1) * 10 + 1}</span> to{' '}
-                <span className="font-medium">{(pagination.current - 1) * 10 + pagination.count}</span> of{' '}
-                <span className="font-medium">{pagination.totalRecords}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button 
-                  onClick={() => setFilters({...filters, page: pagination.current - 1})}
-                  disabled={pagination.current === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 font-sans"
-                >
-                  Previous
-                </button>
-                <button 
-                  onClick={() => setFilters({...filters, page: pagination.current + 1})}
-                  disabled={pagination.current === pagination.total}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 font-sans"
-                >
-                  Next
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Transaction Modal */}
+      {/* Modal */}
       {showModal && selectedTransaction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-screen overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold font-sans">Transaction Details</h3>
-                <button 
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <XIcon className="h-6 w-6" />
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Basic Info Card */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Transaction Information</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Transaction ID</p>
-                      <p className="text-sm font-mono break-all">{selectedTransaction._id}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Type</p>
-                      <p className="font-medium capitalize font-sans">{selectedTransaction.type.replace('_', ' ')}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Status</p>
-                      <p className={`capitalize font-medium font-sans ${selectedTransaction.status === 'completed' ? 'text-green-500' : selectedTransaction.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
-                        {selectedTransaction.status}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Amount</p>
-                      <p className={`font-semibold font-sans ${selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
-                        {selectedTransaction.amount.toLocaleString()} ETB
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Reference</p>
-                      <p className="font-medium capitalize font-sans">{selectedTransaction.reference}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Method</p>
-                      <p className="font-medium capitalize font-sans">{selectedTransaction.method || selectedTransaction.reference}</p>
-                    </div>
-                  </div>
-                </div>
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-lg p-6 relative">
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-700"
+            >
+              <XIcon className="h-5 w-5" />
+            </button>
 
-                {/* User Info Card */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">User Information</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Name</p>
-                      <p className="font-medium font-sans">{selectedTransaction.userId.name || 'Unknown'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Phone</p>
-                      <p className="font-medium font-sans">{selectedTransaction.userId.phone}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">User ID</p>
-                      <p className="text-sm font-mono break-all">{selectedTransaction.userId._id}</p>
-                    </div>
-                  </div>
-                </div>
+            <h2 className="text-lg font-semibold mb-4">Transaction Details</h2>
 
-                {/* Timeline Card */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Timeline</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Created</p>
-                      <p className="text-sm font-sans">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Updated</p>
-                      <p className="text-sm font-sans">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Parties Card */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Parties Involved</h4>
-                  <div className="space-y-3">
-                    {selectedTransaction.senderPhone && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Sender Phone</p>
-                        <p className="text-sm font-sans">{selectedTransaction.senderPhone}</p>
-                        {selectedTransaction.senderName && (
-                          <p className="text-xs text-gray-500 font-sans">({selectedTransaction.senderName})</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedTransaction.receiverPhone && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Receiver Phone</p>
-                        <p className="text-sm font-sans">{selectedTransaction.receiverPhone}</p>
-                        {selectedTransaction.receiverName && (
-                          <p className="text-xs text-gray-500 font-sans">({selectedTransaction.receiverName})</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Additional Info Card */}
-                <div className="bg-gray-50 p-4 rounded-lg md:col-span-2">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Additional Information</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Description</p>
-                      <p className="text-sm font-sans">{selectedTransaction.description}</p>
-                    </div>
-                    {selectedTransaction.transactionId && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Transaction ID/Link</p>
-                        {getTransactionLink(selectedTransaction) ? (
-                          <a 
-                            href={getTransactionLink(selectedTransaction) as string}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center text-blue-600 hover:text-blue-800 text-sm break-all"
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1 flex-shrink-0" />
-                            {selectedTransaction.transactionId}
-                          </a>
-                        ) : (
-                          <p className="text-sm font-mono break-all">{selectedTransaction.transactionId}</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedTransaction.reason && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Reason</p>
-                        <p className="text-sm text-red-500 font-sans">{selectedTransaction.reason}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Action Buttons for Admin */}
-              {selectedTransaction.status === 'pending' && (
-                <div className="mt-6 border-t pt-4">
-                  {selectedTransaction.type === 'deposit' ? (
-                    <>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Deposit Actions</h4>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleAction('approve')}
-                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-sans"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Approve
-                        </button>
-                        <button 
-                          onClick={() => handleAction('reject')}
-                          className="flex items-center px-4 py-2 bg-red-600 text-white rounded-md font-sans"
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Reject
-                        </button>
-                      </div>
-                      
-                      {action === 'reject' && (
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Reason for rejection</label>
-                          <textarea 
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md font-sans"
-                            rows={3}
-                            placeholder="Enter reason for rejection"
-                          />
-                          <button 
-                            onClick={submitAction}
-                            className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md flex items-center font-sans"
-                          >
-                            <Send className="h-4 w-4 mr-1" />
-                            Submit Rejection
-                          </button>
-                        </div>
-                      )}
-                      
-                      {action === 'approve' && (
-                        <div className="mt-4">
-                          <p className="text-sm text-gray-600 mb-2 font-sans">Are you sure you want to approve this deposit?</p>
-                          <button 
-                            onClick={submitAction}
-                            className="px-4 py-2 bg-green-600 text-white rounded-md flex items-center font-sans"
-                          >
-                            <Check className="h-4 w-4 mr-1" />
-                            Confirm Approval
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : selectedTransaction.type === 'withdrawal' ? (
-                    <>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2 font-sans">Withdrawal Actions</h4>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleAction('complete')}
-                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md font-sans"
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Mark as Completed
-                        </button>
-                      </div>
-                      
-                      {action === 'complete' && (
-                        <div className="mt-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-sans">Transaction ID</label>
-                          <input 
-                            type="text" 
-                            value={transactionId}
-                            onChange={(e) => setTransactionId(e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded-md font-sans"
-                            placeholder="Enter transaction ID"
-                          />
-                          <button 
-                            onClick={submitAction}
-                            className="mt-2 px-4 py-2 bg-green-600 text-white rounded-md flex items-center font-sans"
-                          >
-                            <Send className="h-4 w-4 mr-1" />
-                            Confirm Completion
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : null}
-                </div>
+            <div className="space-y-2">
+              <p><strong>Type:</strong> {selectedTransaction.type}</p>
+              <p><strong>Amount:</strong> {selectedTransaction.amount.toLocaleString()} ETB</p>
+              <p><strong>Status:</strong> <StatusBadge status={selectedTransaction.status} /></p>
+              <p><strong>Reference:</strong> {selectedTransaction.reference}</p>
+              <p><strong>Date:</strong> {new Date(selectedTransaction.createdAt).toLocaleString()}</p>
+              {selectedTransaction.transactionId && (
+                <p>
+                  <strong>Transaction ID:</strong> {selectedTransaction.transactionId}{' '}
+                  {getTransactionLink(selectedTransaction) && (
+                    <a href={getTransactionLink(selectedTransaction) || '#'} target="_blank" className="text-blue-600 hover:underline ml-2">View</a>
+                  )}
+                </p>
               )}
             </div>
+
+            {/* Actions */}
+            {selectedTransaction.type === 'deposit' && selectedTransaction.status === 'pending' && (
+              <div className="mt-4 flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+                <button
+                  onClick={() => handleAction('approve')}
+                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleAction('reject')}
+                  className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+
+            {action === 'reject' && (
+              <input
+                type="text"
+                placeholder="Reason for rejection"
+                className="mt-2 w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            )}
+
+            {selectedTransaction.type === 'withdrawal' && selectedTransaction.status === 'pending' && (
+              <input
+                type="text"
+                placeholder="Transaction ID"
+                className="mt-2 w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+              />
+            )}
+
+            {(action || selectedTransaction.type === 'withdrawal') && (
+              <button
+                onClick={submitAction}
+                className="mt-3 w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Submit
+              </button>
+            )}
           </div>
         </div>
       )}
