@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Users, Gamepad2, DollarSign, BarChart3, 
   TrendingUp, TrendingDown, ArrowUp, ArrowDown,
-  ArrowRight
+  ArrowRight, Smartphone, Calendar, Clock
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
@@ -263,113 +263,143 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Total Users Card */}
         <Link href="/admin/users">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-full mr-4">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="p-2 md:p-3 bg-blue-100 rounded-full mr-3 md:mr-4">
+                  <Users className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold">{statsData.totalUsers}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Total Users</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.totalUsers}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">+{statsData.userGrowth}%</span>
-              <span className="text-gray-500 ml-2">from last week</span>
+              <span className="text-gray-500 ml-1 md:ml-2">from last week</span>
             </div>
           </div>
         </Link>
         
         {/* Total Games Card */}
         <Link href="/admin/games">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-full mr-4">
-                  <Gamepad2 className="h-6 w-6 text-green-600" />
+                <div className="p-2 md:p-3 bg-green-100 rounded-full mr-3 md:mr-4">
+                  <Gamepad2 className="h-4 w-4 md:h-6 md:w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Games</p>
-                  <p className="text-2xl font-bold">{statsData.totalGames}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Total Games</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.totalGames}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">+{statsData.gameGrowth}%</span>
-              <span className="text-gray-500 ml-2">from yesterday</span>
+              <span className="text-gray-500 ml-1 md:ml-2">from yesterday</span>
             </div>
           </div>
         </Link>
         
         {/* Total Revenue Card */}
         <Link href="/admin/transactions">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-full mr-4">
-                  <DollarSign className="h-6 w-6 text-purple-600" />
+                <div className="p-2 md:p-3 bg-purple-100 rounded-full mr-3 md:mr-4">
+                  <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(statsData.totalRevenue)}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Total Revenue</p>
+                  <p className="text-xl md:text-2xl font-bold">{formatCurrency(statsData.totalRevenue)}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">+{statsData.revenueGrowth}%</span>
-              <span className="text-gray-500 ml-2">from last month</span>
+              <span className="text-gray-500 ml-1 md:ml-2">from last month</span>
             </div>
           </div>
         </Link>
         
         {/* Today's Earnings Card */}
         <Link href="/admin/game-history">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-full mr-4">
-                  <BarChart3 className="h-6 w-6 text-yellow-600" />
+                <div className="p-2 md:p-3 bg-yellow-100 rounded-full mr-3 md:mr-4">
+                  <BarChart3 className="h-4 w-4 md:h-6 md:w-6 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Today's Earnings</p>
-                  <p className="text-2xl font-bold">{formatCurrency(statsData.todayEarnings)}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Today's Earnings</p>
+                  <p className="text-xl md:text-2xl font-bold">{formatCurrency(statsData.todayEarnings)}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">+15%</span>
-              <span className="text-gray-500 ml-2">from yesterday</span>
+              <span className="text-gray-500 ml-1 md:ml-2">from yesterday</span>
             </div>
           </div>
         </Link>
       </div>
       
       {/* Recent Activities */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+      <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Recent Activities</h2>
-          <Link href="/admin/activities" className="text-blue-600 hover:text-blue-800 text-sm">
+          <h2 className="text-lg md:text-xl font-bold">Recent Activities</h2>
+          <Link href="/admin/activities" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
             View all activities
           </Link>
         </div>
-        <div className="overflow-x-auto">
+        
+        {/* Mobile View - Cards */}
+        <div className="md:hidden space-y-3">
+          {recentActivities.map((activity) => (
+            <div key={activity.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-start mb-2">
+                <div className="font-medium text-sm">
+                  {activity.user}
+                </div>
+                <span className="text-xs text-gray-500">
+                  {activity.formattedTime}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 capitalize">
+                  {getActionLabel(activity.action)}
+                </span>
+                {activity.amount ? (
+                  <span className={getActionColor(activity.action) + " text-sm font-medium"}>
+                    {getActionSymbol(activity.action)}{formatCurrency(activity.amount)}
+                  </span>
+                ) : (
+                  <span className="text-gray-500 text-sm">-</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Desktop View - Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
