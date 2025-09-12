@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth';
 
 const Navbar: React.FC = () => {
@@ -20,10 +21,19 @@ const Navbar: React.FC = () => {
     <nav className="bg-blue-600 text-white shadow-lg fixed w-full z-10 m-0">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
-          <Link href="/" className="text-2xl font-bold">
-            Feta Bingo
-          </Link>
           
+          {/* Logo + Name */}
+          <Link href="/" className="flex items-center space-x-2">
+            <Image
+              src="/Feta-Bingo-Logo-Design.jpg"
+              alt="Feta Bingo Logo"
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
+            <span className="text-2xl font-bold">Feta Bingo</span>
+          </Link>
+
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-4">
             {user ? (
@@ -48,7 +58,7 @@ const Navbar: React.FC = () => {
                 <Link href="/about" className="hover:underline px-3">
                   About Us
                 </Link>
-                <Link href="/about" className="hover:underline px-3">
+                <Link href="/contact-us" className="hover:underline px-3">
                   Contact Us
                 </Link>
                 <button
@@ -87,11 +97,23 @@ const Navbar: React.FC = () => {
               aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               )}
