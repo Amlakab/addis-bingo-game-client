@@ -53,6 +53,7 @@ const METHOD_COLORS = {
 export default function AnalyticsPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
 
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,7 +194,9 @@ export default function AnalyticsPage() {
     const weekDates = getWeekDates();
     const startDate = new Date(weekDates[0]);
     const endDate = new Date(weekDates[6]);
-    return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+    return isMobile 
+      ? `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+      : `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
   };
 
   if (loading) {
@@ -227,23 +230,30 @@ export default function AnalyticsPage() {
   const transactionMethodData = getTransactionMethodData();
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ 
+      p: { xs: 1, sm: 2, md: 3 }, 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: { xs: 2, sm: 3 } 
+    }}>
       {/* Header */}
       <Box>
         <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>Transaction Analytics</Typography>
-        <Typography variant="body1" color="text.secondary">Comprehensive transaction insights and performance metrics</Typography>
+        <Typography variant={isMobile ? "body2" : "body1"} color="text.secondary">Comprehensive transaction insights and performance metrics</Typography>
       </Box>
 
-      {/* Summary Stats - 6 Cards */}
+      {/* Summary Stats - Responsive Grid */}
       <Box sx={{ 
         display: 'grid', 
-        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', 
-        gap: 2,
+        gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+        gap: { xs: 1.5, sm: 2 },
         mb: 2 
       }}>
         {[
           { 
-            icon: <AccountBalance sx={{ fontSize: 30 }} />, 
+            icon: <AccountBalance sx={{ fontSize: isMobile ? 24 : 30 }} />, 
             value: formatCurrency(data.stats.totalDeposits), 
             label: 'Total Deposits', 
             change: '+12%', 
@@ -251,7 +261,7 @@ export default function AnalyticsPage() {
             trend: 'up'
           },
           { 
-            icon: <AccountBalanceWallet sx={{ fontSize: 30 }} />, 
+            icon: <AccountBalanceWallet sx={{ fontSize: isMobile ? 24 : 30 }} />, 
             value: formatCurrency(data.stats.totalWithdrawals), 
             label: 'Total Withdrawals', 
             change: '+8%', 
@@ -259,7 +269,7 @@ export default function AnalyticsPage() {
             trend: 'up'
           },
           { 
-            icon: <TrendingUp sx={{ fontSize: 30 }} />, 
+            icon: <TrendingUp sx={{ fontSize: isMobile ? 24 : 30 }} />, 
             value: formatCurrency(data.stats.netBalance), 
             label: 'Net Balance', 
             change: data.stats.netBalance >= 0 ? '+20%' : '-5%', 
@@ -267,24 +277,24 @@ export default function AnalyticsPage() {
             trend: data.stats.netBalance >= 0 ? 'up' : 'down'
           },
           { 
-            icon: <CheckCircle sx={{ fontSize: 30 }} />, 
-            value: data.stats.totalCompleted, 
+            icon: <CheckCircle sx={{ fontSize: isMobile ? 24 : 30 }} />, 
+            value: data.stats.totalCompleted.toString(), 
             label: 'Completed', 
             change: '+15%', 
             color: '#4CAF50',
             trend: 'up'
           },
           { 
-            icon: <PendingActions sx={{ fontSize: 30 }} />, 
-            value: data.stats.totalPending, 
+            icon: <PendingActions sx={{ fontSize: isMobile ? 24 : 30 }} />, 
+            value: data.stats.totalPending.toString(), 
             label: 'Pending', 
             change: '+3%', 
             color: '#FF9800',
             trend: 'up'
           },
           { 
-            icon: <Cancel sx={{ fontSize: 30 }} />, 
-            value: data.stats.totalFailed, 
+            icon: <Cancel sx={{ fontSize: isMobile ? 24 : 30 }} />, 
+            value: data.stats.totalFailed.toString(), 
             label: 'Failed', 
             change: '-2%', 
             color: '#F44336',
@@ -292,7 +302,7 @@ export default function AnalyticsPage() {
           }
         ].map((stat, index) => (
           <Card key={index} sx={{ 
-            p: 2, 
+            p: { xs: 1.5, sm: 2 }, 
             background: `linear-gradient(145deg, ${stat.color}, ${stat.color}99)`, 
             color: 'white', 
             borderRadius: 2, 
@@ -300,22 +310,25 @@ export default function AnalyticsPage() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            minHeight: '120px',
-            gridColumn: isMobile && index >= 4 ? 'span 2' : 'auto'
+            minHeight: isMobile ? '100px' : '120px'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 0.5 }}>{stat.value}</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.8rem' }}>{stat.label}</Typography>
+                <Typography variant={isMobile ? "body1" : "h6"} sx={{ fontWeight: 'bold', mb: 0.5, fontSize: isMobile ? '0.9rem' : 'inherit' }}>
+                  {stat.value}
+                </Typography>
+                <Typography variant={isMobile ? "caption" : "body2"} sx={{ opacity: 0.9, fontSize: isMobile ? '0.7rem' : '0.8rem' }}>
+                  {stat.label}
+                </Typography>
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 {stat.icon}
                 <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
                   {stat.trend === 'up' ? 
-                    <TrendingUp sx={{ fontSize: 16, mr: 0.5 }} /> : 
-                    <TrendingDown sx={{ fontSize: 16, mr: 0.5 }} />
+                    <TrendingUp sx={{ fontSize: isMobile ? 14 : 16, mr: 0.5 }} /> : 
+                    <TrendingDown sx={{ fontSize: isMobile ? 14 : 16, mr: 0.5 }} />
                   }
-                  <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
+                  <Typography variant="caption" sx={{ opacity: 0.8, fontSize: isMobile ? '0.6rem' : '0.7rem' }}>
                     {stat.change}
                   </Typography>
                 </Box>
@@ -326,35 +339,42 @@ export default function AnalyticsPage() {
       </Box>
 
       {/* Revenue Chart */}
-      <Card sx={{ p: 3, borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6">Weekly Revenue & Transactions</Typography>
+      <Card sx={{ 
+        p: { xs: 2, sm: 3 }, 
+        borderRadius: 2, 
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)' 
+      }}>
+        <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', mb: 3, gap: isMobile ? 1 : 0 }}>
+          <Typography variant={isMobile ? "subtitle1" : "h6"}>Weekly Revenue & Transactions</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton onClick={() => navigateWeek('prev')} size="small"><ChevronLeft /></IconButton>
-            <Typography variant="body2" sx={{ mx: 1, fontSize: '0.8rem' }}>{getWeekRangeText()}</Typography>
-            <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}><ChevronRight /></IconButton>
+            <Typography variant="body2" sx={{ mx: 1, fontSize: isMobile ? '0.7rem' : '0.8rem' }}>
+              {getWeekRangeText()}
+            </Typography>
+            <IconButton onClick={() => navigateWeek('next')} size="small" disabled={currentWeekOffset === 0}>
+              <ChevronRight />
+            </IconButton>
           </Box>
         </Box>
         <Box sx={{ height: isMobile ? 250 : 400 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={weeklyRevenueData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <XAxis dataKey="date" fontSize={isMobile ? 10 : 12} />
+              <YAxis yAxisId="left" fontSize={isMobile ? 10 : 12} />
+              <YAxis yAxisId="right" orientation="right" fontSize={isMobile ? 10 : 12} />
               <Tooltip
-  formatter={(value, name) => {
-    const label = String(name);
-    const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+                formatter={(value, name) => {
+                  const label = String(name);
+                  const formattedLabel = label.charAt(0).toUpperCase() + label.slice(1);
 
-    if (['revenue', 'deposit', 'withdrawal', 'netBalance'].includes(label)) {
-      return [formatCurrency(Number(value)), formattedLabel];
-    }
-    return [value, formattedLabel];
-  }}
-/>
-
-              <Legend />
+                  if (['revenue', 'deposit', 'withdrawal', 'netBalance'].includes(label)) {
+                    return [formatCurrency(Number(value)), formattedLabel];
+                  }
+                  return [value, formattedLabel];
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: isMobile ? 10 : 20 }} />
               <Bar yAxisId="left" dataKey="deposit" fill="#2196F3" name="Deposit" />
               <Bar yAxisId="left" dataKey="withdrawal" fill="#9C27B0" name="Withdrawal" />
               <Bar yAxisId="left" dataKey="revenue" fill="#4CAF50" name="Revenue" />
@@ -364,39 +384,45 @@ export default function AnalyticsPage() {
         </Box>
       </Card>
 
-      {/* Status and Method Charts - Side by Side */}
-      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 3 }}>
+      {/* Status and Method Charts - Responsive Layout */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row', 
+        gap: { xs: 2, sm: 3 } 
+      }}>
         {/* Status Chart */}
         <Card sx={{ 
           flex: 1, 
-          p: 3, 
+          p: { xs: 2, sm: 3 }, 
           borderRadius: 2, 
           boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-            <Payment sx={{ mr: 1 }} /> Transaction Status
+          <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+            <Payment sx={{ mr: 1, fontSize: isMobile ? '1rem' : '1.25rem' }} /> Transaction Status
           </Typography>
-          <Box sx={{ height: isMobile ? 250 : 300 }}>
+          <Box sx={{ height: isMobile ? 200 : 300, mt: 'auto' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={transactionStatusData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 80 : 100}
+                  outerRadius={isMobile ? 60 : 100}
                   fill="#8884d8"
                   dataKey="value"
                   label={({ name, percent }) =>
-                    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    isMobile ? `${name}` : `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
+                  labelLine={!isMobile}
                 >
                   {transactionStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name.toLowerCase() as keyof typeof STATUS_COLORS]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [value, 'Transactions']} />
+                {!isMobile && <Legend />}
               </PieChart>
             </ResponsiveContainer>
           </Box>
@@ -405,28 +431,29 @@ export default function AnalyticsPage() {
         {/* Method Chart */}
         <Card sx={{ 
           flex: 1, 
-          p: 3, 
+          p: { xs: 2, sm: 3 }, 
           borderRadius: 2, 
           boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-            <AccountBalance sx={{ mr: 1 }} /> Payment Methods
+          <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+            <AccountBalance sx={{ mr: 1, fontSize: isMobile ? '1rem' : '1.25rem' }} /> Payment Methods
           </Typography>
-          <Box sx={{ height: isMobile ? 250 : 300 }}>
+          <Box sx={{ height: isMobile ? 200 : 300, mt: 'auto' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={transactionMethodData}
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 80 : 100}
+                  outerRadius={isMobile ? 60 : 100}
                   fill="#8884d8"
                   dataKey="value"
                   label={({ name, percent }) =>
-                    `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                    isMobile ? `${name}` : `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
+                  labelLine={!isMobile}
                 >
                   {transactionMethodData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={
@@ -435,6 +462,7 @@ export default function AnalyticsPage() {
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [value, 'Transactions']} />
+                {!isMobile && <Legend />}
               </PieChart>
             </ResponsiveContainer>
           </Box>

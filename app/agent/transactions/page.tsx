@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import api from '@/app/utils/api';
 import Swal from 'sweetalert2';
+import { method } from 'lodash';
 
 type TransactionType = {
   _id: string;
@@ -81,7 +82,7 @@ export default function AdminTransactionsPage() {
   const [filters, setFilters] = useState({
     type: '',
     status: '',
-    reference: '',
+    method: '',
     search: '',
     startDate: '',
     endDate: '',
@@ -131,7 +132,7 @@ export default function AdminTransactionsPage() {
       
       if (filters.type) params.append('type', filters.type);
       if (filters.status) params.append('status', filters.status);
-      if (filters.reference) params.append('reference', filters.reference);
+      if (filters.method) params.append('method', filters.method);
       if (filters.search) params.append('search', filters.search);
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
@@ -382,13 +383,13 @@ export default function AdminTransactionsPage() {
           </div>
           
           <div>
-            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 font-sans">Reference</label>
+            <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 font-sans">Payment Method</label>
             <select 
-              value={filters.reference}
-              onChange={(e) => setFilters({...filters, reference: e.target.value})}
+              value={filters.method}
+              onChange={(e) => setFilters({...filters, method: e.target.value})}
               className="w-full p-2 text-xs md:text-sm border border-gray-300 rounded-md font-sans"
             >
-              <option value="">All References</option>
+              <option value="">All Methods</option>
               <option value="telebirr">Telebirr</option>
               <option value="cbe">CBE</option>
             </select>
@@ -436,7 +437,7 @@ export default function AdminTransactionsPage() {
             onClick={() => setFilters({
               type: '',
               status: '',
-              reference: '',
+              method: '',
               search: '',
               startDate: '',
               endDate: '',
