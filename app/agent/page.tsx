@@ -181,50 +181,50 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div>
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-6">Agent Dashboard</h1>
       
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Stats Grid - Responsive layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
         {/* Total Transactions Card */}
         <Link href="/admin/transactions">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-full mr-4">
-                  <DollarSign className="h-6 w-6 text-blue-600" />
+                <div className="p-2 md:p-3 bg-blue-100 rounded-full mr-3 md:mr-4">
+                  <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Total Transactions</p>
-                  <p className="text-2xl font-bold">{statsData.totalTransactions}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Total Transactions</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.totalTransactions}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">+{statsData.transactionGrowth}%</span>
-              <span className="text-gray-500 ml-2">from last week</span>
+              <span className="text-gray-500 ml-1 md:ml-2">from last week</span>
             </div>
           </div>
         </Link>
         
         {/* Pending Transactions Card */}
         <Link href="/admin/transactions?status=pending">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-full mr-4">
-                  <Clock className="h-6 w-6 text-yellow-600" />
+                <div className="p-2 md:p-3 bg-yellow-100 rounded-full mr-3 md:mr-4">
+                  <Clock className="h-4 w-4 md:h-6 md:w-6 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold">{statsData.pendingTransactions}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Pending</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.pendingTransactions}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
+            <div className="mt-3 md:mt-4 text-xs md:text-sm">
               <span className="text-gray-500">Requires attention</span>
             </div>
           </div>
@@ -232,21 +232,21 @@ export default function AdminDashboard() {
         
         {/* Completed Transactions Card */}
         <Link href="/admin/transactions?status=completed">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-full mr-4">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+                <div className="p-2 md:p-3 bg-green-100 rounded-full mr-3 md:mr-4">
+                  <CheckCircle className="h-4 w-4 md:h-6 md:w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold">{statsData.completedTransactions}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Completed</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.completedTransactions}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
+            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
+              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
               <span className="text-green-600 font-medium">Successfully processed</span>
             </div>
           </div>
@@ -254,20 +254,20 @@ export default function AdminDashboard() {
         
         {/* Failed Transactions Card */}
         <Link href="/admin/transactions?status=failed">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <div className="p-3 bg-red-100 rounded-full mr-4">
-                  <XCircle className="h-6 w-6 text-red-600" />
+                <div className="p-2 md:p-3 bg-red-100 rounded-full mr-3 md:mr-4">
+                  <XCircle className="h-4 w-4 md:h-6 md:w-6 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold">{statsData.failedTransactions}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Failed</p>
+                  <p className="text-xl md:text-2xl font-bold">{statsData.failedTransactions}</p>
                 </div>
               </div>
-              <ArrowRight className="h-5 w-5 text-gray-400" />
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
-            <div className="mt-4 flex items-center text-sm">
+            <div className="mt-3 md:mt-4 text-xs md:text-sm">
               <span className="text-gray-500">Need resolution</span>
             </div>
           </div>
@@ -275,15 +275,46 @@ export default function AdminDashboard() {
       </div>
       
       {/* Recent Transactions */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+      <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Recent Transactions</h2>
-          <Link href="/admin/transactions" className="text-blue-600 hover:text-blue-800 text-sm">
-            View all transactions
+          <h2 className="text-lg md:text-xl font-bold">Recent Transactions</h2>
+          <Link href="/admin/transactions" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
+            View all
           </Link>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          {/* Mobile view - cards for small screens */}
+          <div className="md:hidden space-y-4">
+            {recentTransactions.map((transaction) => (
+              <div key={transaction._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="font-medium text-sm">
+                    {transaction.userId?.phone || 'Unknown'}
+                  </div>
+                  <div className="flex items-center">
+                    {getStatusIcon(transaction.status)}
+                    <span className={`ml-1 text-xs ${getStatusColor(transaction.status)}`}>
+                      {transaction.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-gray-600 capitalize">
+                    {transaction.type.replace('_', ' ')}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {formatCurrency(transaction.amount)}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {formatTimeDifference(new Date(transaction.createdAt))}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Desktop view - table for larger screens */}
+          <table className="hidden md:table min-w-full divide-y divide-gray-200">
             <thead>
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
