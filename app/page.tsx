@@ -18,18 +18,18 @@ const FloatingElements = () => {
   if (!isClient) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" style={{ top: '64px' }}>
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {elements.map((element, index) => (
         <motion.div
           key={index}
           className="absolute text-2xl opacity-20"
           initial={{
-            x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000),
-            y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight - 64 : 500),
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
           }}
           animate={{
-            y: [null, Math.random() * (typeof window !== 'undefined' ? window.innerHeight - 64 : 500)],
-            x: [null, Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1000)],
+            y: [null, Math.random() * window.innerHeight],
+            x: [null, Math.random() * window.innerWidth],
             rotate: [0, 360],
           }}
           transition={{
@@ -58,7 +58,7 @@ const ConfettiBurst = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-10" style={{ top: '64px' }}>
+    <div className="fixed inset-0 pointer-events-none z-10">
       {[...Array(50)].map((_, i) => (
         <motion.div
           key={i}
@@ -172,206 +172,213 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen overflow-hidden relative">
-      <Navbar />
-      <div className="px-4 py-2 mx-auto max-w-7xl">
+    <div className="min-h-screen overflow-hidden relative bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+      {/* Navbar with fixed positioning and proper z-index */}
+      <div className="fixed top-0 left-0 w-full z-50">
+        <Navbar />
+      </div>
+      
+      {/* Main content with padding to account for fixed navbar */}
+      <div className="pt-16"> {/* This padding pushes content below the fixed navbar */}
         <FloatingElements />
         {showConfetti && <ConfettiBurst />}
         <RocketAnimation />
         
-        {/* Hero Section */}
-        <section className="text-center mb-12 pb-24 pt-20 relative z-10">
-          <motion.h1 
-            className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            Welcome to Feta Bingo
-          </motion.h1>
-          
-          <motion.p 
-            className="text-xl mb-8 text-gray-700"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-          >
-            Play Bingo, win real money, and have fun!
-          </motion.p>
-          
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            {user ? (
-              <div className="space-x-4">
-                <Link
-                  href="/game/lobby"
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                Play Now
-                </Link>
-                <Link
-                  href="/user/dashboard"
-                  className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                My Dashboard
-                </Link>
-              </div>
-            ) : (
-              <div className="space-x-4">
-                <Link
-                  href="/auth/register"
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                Get Started
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                Login
-                </Link>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Floating coins animation */}
-          <motion.div
-            className="absolute top-20 right-10 text-3xl"
-            animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            💰
-          </motion.div>
-          <motion.div
-            className="absolute top-40 left-10 text-3xl"
-            animate={{ y: [0, -15, 0], rotate: [0, -15, 15, 0] }}
-            transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-          >
-            🎯
-          </motion.div>
-        </section>
-
-        {/* Winning Celebration Section */}
-        <motion.section 
-          className="text-center mt-16 p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 1.2 }}
-        >
-          <motion.h2 
-            className="text-3xl font-bold mb-4"
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            🎉 Congratulations! 🎉
-          </motion.h2>
-          <p className="text-lg mb-4">Join thousands of winners today!</p>
-          <motion.div
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="text-4xl"
-          >
-            🏆
-          </motion.div>
-        </motion.section>
-
-        {/* Floating action button */}
-        <motion.div
-          className="fixed bottom-8 right-8 z-50"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 1.5 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <Link
-            href={user ? "/game/lobby" : "/auth/register"}
-            className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
-          >
-            🎲
-          </Link>
-        </motion.div>
-
-        {/* Features Section */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
-          <AnimatedCard
-            emoji="🎯"
-            title="Easy to Play"
-            description="Simple rules, exciting gameplay. Anyone can play and win!"
-            delay={0.1}
-          />
-          <AnimatedCard
-            emoji="💰"
-            title="Win Real Money"
-            description="Deposit, play, and withdraw your winnings easily."
-            delay={0.3}
-          />
-          <AnimatedCard
-            emoji="⚡"
-            title="Fast Payouts"
-            description="Get your winnings quickly through secure payment methods."
-            delay={0.5}
-          />
-        </section>
-
-        {/* How to Play Section */}
-        <section className="bg-blue-50 p-8 rounded-lg relative z-10 overflow-hidden">
-          <motion.div
-            className="absolute -top-10 -right-10 text-6xl opacity-10"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          >
-            🎰
-          </motion.div>
-          <motion.div
-            className="absolute -bottom-5 -left-5 text-6xl opacity-10"
-            animate={{ rotate: -360 }}
-            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          >
-            🎲
-          </motion.div>
-
-          <motion.h2 
-            className="text-2xl font-bold mb-4 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            How to Play
-          </motion.h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10">
-            <AnimatedStep number={1} title="Register" description="Create your account with your phone number" delay={0.1} />
-            <AnimatedStep number={2} title="Deposit" description="Add funds to your wallet securely" delay={0.3} />
-            <AnimatedStep number={3} title="Play" description="Choose a game and buy your Bingo cards" delay={0.5} />
-            <AnimatedStep number={4} title="Win" description="Complete patterns and claim your prizes" delay={0.7} />
-          </div>
-
-          <motion.div 
-            className="mt-6 text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.9 }}
-          >
-            <Link
-              href="/howtoplay"
-              className="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+        <div className="container mx-auto px-4 py-2">
+          {/* Hero Section */}
+          <section className="text-center mb-12 pb-24 pt-12 relative z-10">
+            <motion.h1 
+              className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
             >
-              See More
-              <motion.span
-                animate={{ x: [0, 5, 0] }}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="ml-2"
+              Welcome to Feta Bingo
+            </motion.h1>
+            
+            <motion.p 
+              className="text-xl mb-8 text-gray-700"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              Play Bingo, win real money, and have fun!
+            </motion.p>
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
+              {user ? (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/game/lobby"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Play Now
+                  </Link>
+                  <Link
+                    href="/user/dashboard"
+                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    My Dashboard
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/auth/register"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Get Started
+                  </Link>
+                  <Link
+                    href="/auth/login"
+                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Login
+                  </Link>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Floating coins animation */}
+            <motion.div
+              className="absolute top-20 right-10 text-3xl"
+              animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              💰
+            </motion.div>
+            <motion.div
+              className="absolute top-40 left-10 text-3xl"
+              animate={{ y: [0, -15, 0], rotate: [0, -15, 15, 0] }}
+              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+            >
+              🎯
+            </motion.div>
+          </section>
+
+          {/* Features Section */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
+            <AnimatedCard
+              emoji="🎯"
+              title="Easy to Play"
+              description="Simple rules, exciting gameplay. Anyone can play and win!"
+              delay={0.1}
+            />
+            <AnimatedCard
+              emoji="💰"
+              title="Win Real Money"
+              description="Deposit, play, and withdraw your winnings easily."
+              delay={0.3}
+            />
+            <AnimatedCard
+              emoji="⚡"
+              title="Fast Payouts"
+              description="Get your winnings quickly through secure payment methods."
+              delay={0.5}
+            />
+          </section>
+
+          {/* How to Play Section */}
+          <section className="bg-blue-50 p-8 rounded-lg relative z-10 overflow-hidden mb-12">
+            <motion.div
+              className="absolute -top-10 -right-10 text-6xl opacity-10"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            >
+              🎰
+            </motion.div>
+            <motion.div
+              className="absolute -bottom-5 -left-5 text-6xl opacity-10"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            >
+              🎲
+            </motion.div>
+
+            <motion.h2 
+              className="text-2xl font-bold mb-4 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              How to Play
+            </motion.h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative z-10">
+              <AnimatedStep number={1} title="Register" description="Create your account with your phone number" delay={0.1} />
+              <AnimatedStep number={2} title="Deposit" description="Add funds to your wallet securely" delay={0.3} />
+              <AnimatedStep number={3} title="Play" description="Choose a game and buy your Bingo cards" delay={0.5} />
+              <AnimatedStep number={4} title="Win" description="Complete patterns and claim your prizes" delay={0.7} />
+            </div>
+
+            <motion.div 
+              className="mt-6 text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.9 }}
+            >
+              <Link
+                href="/howtoplay"
+                className="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                →
-              </motion.span>
-            </Link>
-          </motion.div>
-        </section>
+                See More
+                <motion.span
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="ml-2"
+                >
+                  →
+                </motion.span>
+              </Link>
+            </motion.div>
+          </section>
+
+          {/* Winning Celebration Section */}
+          <motion.section 
+            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+          >
+            <motion.h2 
+              className="text-3xl font-bold mb-4"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              🎉 Congratulations! 🎉
+            </motion.h2>
+            <p className="text-lg mb-4">Join thousands of winners today!</p>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-4xl"
+            >
+              🏆
+            </motion.div>
+          </motion.section>
+        </div>
       </div>
+
+      {/* Floating action button for quick play */}
+      <motion.div
+        className="fixed bottom-8 right-8 z-50"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 1.5 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <Link
+          href={user ? "/game/lobby" : "/auth/register"}
+          className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
+        >
+          🎲
+        </Link>
+      </motion.div>
     </div>
   );
 }
