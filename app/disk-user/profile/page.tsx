@@ -92,7 +92,7 @@ export default function ProfilePage() {
 
     setIsChangingPassword(true);
     try {
-      const response = await api.put('/users/change-password', {
+      const response = await api.put('/user/change-password', {
         userId: user?._id,
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword

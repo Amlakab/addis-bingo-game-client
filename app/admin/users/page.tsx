@@ -91,7 +91,7 @@ const UsersPage = () => {
   const [formData, setFormData] = useState({
     phone: '',
     password: '',
-    role: 'user' as 'user' | 'agent' | 'admin',
+    role: 'user' as 'user' | 'disk-user' | 'agent' | 'admin',
     wallet: 0
   });
 
@@ -201,7 +201,7 @@ const UsersPage = () => {
     }
 
     try {
-      await api.put('/users/change-password', {
+      await api.put('/user/change-password', {
         userId: selectedUser._id,
         currentPassword: '', // Admin can change password without current password
         newPassword: editFormData.newPassword
