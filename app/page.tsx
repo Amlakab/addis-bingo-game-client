@@ -6,10 +6,18 @@ import Navbar from '@/components/ui/Navbar';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
-// Floating elements component - FIXED VERSION
+// Enhanced Floating elements component with many more elements
 const FloatingElements = () => {
   const [isClient, setIsClient] = useState(false);
-  const elements = ['🎯', '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️'];
+  
+  // Many more floating elements with variety
+  const elements = [
+    '🎯', '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️',
+    '🎨', '🚀', '🌈', '🔥', '💎', '🌠', '🎪', '🎭', '🎫', '🎮',
+    '👑', '💍', '📱', '💻', '🕹️', '🎯', '🎪', '🎡', '🎢', '🎠',
+    '📀', '💿', '📱', '⌚', '💾', '📞', '☎️', '📟', '📠', '🔋',
+    '💡', '🔦', '🕯️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '🌡️', '🧨'
+  ];
 
   useEffect(() => {
     setIsClient(true);
@@ -22,18 +30,21 @@ const FloatingElements = () => {
       {elements.map((element, index) => (
         <motion.div
           key={index}
-          className="absolute text-2xl opacity-20"
+          className="absolute text-2xl opacity-15"
           initial={{
             x: Math.random() * window.innerWidth,
             y: Math.random() * window.innerHeight,
+            rotate: Math.random() * 360,
+            scale: Math.random() * 0.5 + 0.5,
           }}
           animate={{
             y: [null, Math.random() * window.innerHeight],
             x: [null, Math.random() * window.innerWidth],
-            rotate: [0, 360],
+            rotate: [0, Math.random() * 720 - 360],
+            scale: [1, Math.random() * 0.3 + 0.7, 1],
           }}
           transition={{
-            duration: Math.random() * 10 + 10,
+            duration: Math.random() * 15 + 15,
             repeat: Infinity,
             repeatType: "reverse",
             ease: "linear"
@@ -46,7 +57,7 @@ const FloatingElements = () => {
   );
 };
 
-// Confetti burst component
+// Enhanced Confetti burst component with more particles
 const ConfettiBurst = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -59,7 +70,7 @@ const ConfettiBurst = () => {
 
   return (
     <div className="fixed inset-0 pointer-events-none z-10">
-      {[...Array(50)].map((_, i) => (
+      {[...Array(100)].map((_, i) => (
         <motion.div
           key={i}
           className="absolute text-2xl"
@@ -68,27 +79,29 @@ const ConfettiBurst = () => {
             y: '50vh',
             opacity: 1,
             scale: 0,
-          }}
-          animate={{
-            x: `calc(50vw + ${Math.random() * 600 - 300}px)`,
-            y: `calc(50vh + ${Math.random() * 600 - 300}px)`,
-            opacity: 0,
-            scale: 1,
             rotate: Math.random() * 360,
           }}
+          animate={{
+            x: `calc(50vw + ${Math.random() * 1000 - 500}px)`,
+            y: `calc(50vh + ${Math.random() * 1000 - 500}px)`,
+            opacity: 0,
+            scale: Math.random() * 1.5 + 0.5,
+            rotate: Math.random() * 720,
+          }}
           transition={{
-            duration: 2,
-            ease: "easeOut"
+            duration: Math.random() * 3 + 2,
+            ease: "easeOut",
+            delay: Math.random() * 1,
           }}
         >
-          {['🎉', '✨', '⭐', '🎊', '💫'][i % 5]}
+          {['🎉', '✨', '⭐', '🎊', '💫', '🔥', '🌈', '🚀', '💎', '🎯'][i % 10]}
         </motion.div>
       ))}
     </div>
   );
 };
 
-// Rocket animation component
+// Multiple Rocket animations
 const RocketAnimation = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -100,21 +113,43 @@ const RocketAnimation = () => {
   if (!isVisible) return null;
 
   return (
-    <motion.div
-      className="fixed bottom-0 left-1/4 text-4xl z-20"
-      initial={{ y: 100, opacity: 0 }}
-      animate={{ y: -1000, opacity: 1 }}
-      transition={{ duration: 3, ease: "easeOut" }}
-    >
-      🚀
+    <>
+      {/* Main rocket */}
       <motion.div
-        className="absolute left-0 text-xl"
-        animate={{ opacity: [0, 1, 0] }}
-        transition={{ duration: 0.5, repeat: Infinity }}
+        className="fixed bottom-0 left-1/4 text-4xl z-20"
+        initial={{ y: 100, opacity: 0, x: -50 }}
+        animate={{ y: -1000, opacity: 1, x: 0 }}
+        transition={{ duration: 4, ease: "easeOut" }}
       >
-        ✨
+        🚀
+        <motion.div
+          className="absolute left-0 text-xl"
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 0.5, repeat: Infinity }}
+        >
+          ✨
+        </motion.div>
       </motion.div>
-    </motion.div>
+
+      {/* Additional smaller rockets */}
+      <motion.div
+        className="fixed bottom-0 left-1/3 text-3xl z-20"
+        initial={{ y: 150, opacity: 0, x: -30 }}
+        animate={{ y: -800, opacity: 1, x: 20 }}
+        transition={{ duration: 5, ease: "easeOut", delay: 1 }}
+      >
+        🚀
+      </motion.div>
+
+      <motion.div
+        className="fixed bottom-0 left-2/3 text-2xl z-20"
+        initial={{ y: 200, opacity: 0, x: 30 }}
+        animate={{ y: -600, opacity: 1, x: -20 }}
+        transition={{ duration: 6, ease: "easeOut", delay: 2 }}
+      >
+        🚀
+      </motion.div>
+    </>
   );
 };
 
@@ -129,8 +164,8 @@ const AnimatedCard = ({ emoji, title, description, delay }: { emoji: string; tit
   >
     <motion.div
       className="text-4xl mb-4"
-      animate={{ scale: [1, 1.2, 1] }}
-      transition={{ duration: 2, repeat: Infinity }}
+      animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
+      transition={{ duration: 3, repeat: Infinity }}
     >
       {emoji}
     </motion.div>
@@ -150,7 +185,7 @@ const AnimatedStep = ({ number, title, description, delay }: { number: number; t
   >
     <motion.div
       className="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2"
-      animate={{ rotate: [0, 360] }}
+      animate={{ rotate: [0, 360], scale: [1, 1.1, 1] }}
       transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
     >
       <span className="text-xl font-bold">{number}</span>
@@ -160,6 +195,45 @@ const AnimatedStep = ({ number, title, description, delay }: { number: number; t
   </motion.div>
 );
 
+// Additional background particles component
+const BackgroundParticles = () => {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) return null;
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+      {[...Array(30)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: Math.random() * 20 + 5,
+            height: Math.random() * 20 + 5,
+            background: `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 0.1 + 0.05})`,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+          }}
+          animate={{
+            y: [0, Math.random() * 100 - 50, 0],
+            x: [0, Math.random() * 100 - 50, 0],
+            scale: [1, Math.random() * 0.5 + 0.5, 1],
+          }}
+          transition={{
+            duration: Math.random() * 10 + 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
   const { user } = useAuth();
   const [showConfetti, setShowConfetti] = useState(false);
@@ -167,23 +241,27 @@ export default function Home() {
   useEffect(() => {
     // Show confetti on load
     setShowConfetti(true);
-    const timer = setTimeout(() => setShowConfetti(false), 3000);
+    const timer = setTimeout(() => setShowConfetti(false), 5000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
     <div className="min-h-screen overflow-hidden relative bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+      {/* Enhanced background elements */}
+      <BackgroundParticles />
+      <FloatingElements />
+      
       {/* Navbar with fixed positioning and proper z-index */}
       <div className="fixed top-0 left-0 w-full z-50">
         <Navbar />
       </div>
       
+      {/* Confetti and rockets */}
+      {showConfetti && <ConfettiBurst />}
+      <RocketAnimation />
+      
       {/* Main content with padding to account for fixed navbar */}
-      <div className="pt-16"> {/* This padding pushes content below the fixed navbar */}
-        <FloatingElements />
-        {showConfetti && <ConfettiBurst />}
-        <RocketAnimation />
-        
+      <div className="pt-16">
         <div className="container mx-auto px-4 py-2">
           {/* Hero Section */}
           <section className="text-center mb-12 pb-24 pt-12 relative z-10">
@@ -206,59 +284,43 @@ export default function Home() {
             </motion.p>
             
             <motion.div
-          initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
-          {user ? (
-            <div className="space-x-4">
-              <Link
-                href="/game/lobby"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              Play Now
-              </Link>
-              <Link
-                href="/user/dashboard"
-                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              My Dashboard
-              </Link>
-            </div>
-          ) : (
-            <div className="space-x-4">
-              <Link
-                href="/auth/register"
-                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              Get Started
-              </Link>
-              <Link
-                href="/auth/login"
-                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-              >
-              Login
-              </Link>
-            </div>
-          )}
-        </motion.div>
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
+              {user ? (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/game/lobby"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Play Now
+                  </Link>
+                  <Link
+                    href="/user/dashboard"
+                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    My Dashboard
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/auth/register"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Get Started
+                  </Link>
+                  <Link
+                    href="/auth/login"
+                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                  >
+                    Login
+                  </Link>
+                </div>
+              )}
+            </motion.div>
 
-            {/* Floating coins animation */}
-            <motion.div
-              className="absolute top-20 right-10 text-3xl"
-              animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity }}
-            >
-              💰
-            </motion.div>
-            <motion.div
-              className="absolute top-40 left-10 text-3xl"
-              animate={{ y: [0, -15, 0], rotate: [0, -15, 15, 0] }}
-              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-            >
-              🎯
-            </motion.div>
-          </section>
             {/* Winning Celebration Section */}
           <motion.section 
             className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
@@ -282,6 +344,38 @@ export default function Home() {
               🏆
             </motion.div>
           </motion.section>
+
+            {/* Floating coins animation */}
+            <motion.div
+              className="absolute top-20 right-10 text-3xl"
+              animate={{ y: [0, -20, 0], rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              💰
+            </motion.div>
+            <motion.div
+              className="absolute top-40 left-10 text-3xl"
+              animate={{ y: [0, -15, 0], rotate: [0, -15, 15, 0] }}
+              transition={{ duration: 4, repeat: Infinity, delay: 1 }}
+            >
+              🎯
+            </motion.div>
+            {/* Additional floating elements */}
+            <motion.div
+              className="absolute top-60 right-1/4 text-2xl"
+              animate={{ y: [0, -25, 0], rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 5, repeat: Infinity, delay: 0.5 }}
+            >
+              ⭐
+            </motion.div>
+            <motion.div
+              className="absolute top-80 left-1/4 text-2xl"
+              animate={{ y: [0, -30, 0], rotate: [0, -20, 20, 0] }}
+              transition={{ duration: 6, repeat: Infinity, delay: 0.7 }}
+            >
+              🎲
+            </motion.div>
+          </section>
 
           {/* Features Section */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
@@ -374,7 +468,7 @@ export default function Home() {
         whileTap={{ scale: 0.9 }}
       >
         <Link
-          href={user ? "/game/lobby" : "/auth/register"}
+          href={user ? "/user/dashboard" : "/auth/register"}
           className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
         >
           🎲
@@ -383,4 +477,3 @@ export default function Home() {
     </div>
   );
 }
-
