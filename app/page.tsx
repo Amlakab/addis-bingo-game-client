@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +13,7 @@ const FloatingElements = () => {
   
   // Many more floating elements with variety
   const elements = [
-    '🎯', '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️',
+    '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️',
     '🎨', '🚀', '🌈', '🔥', '💎', '🌠', '🎪', '🎭', '🎫', '🎮',
     '👑', '💍', '📱', '💻', '🕹️', '🎯', '🎪', '🎡', '🎢', '🎠',
     '📀', '💿', '📱', '⌚', '💾', '📞', '☎️', '📟', '📠', '🔋',
@@ -94,7 +95,7 @@ const ConfettiBurst = () => {
             delay: Math.random() * 1,
           }}
         >
-          {['🎉', '✨', '⭐', '🎊', '💫', '🔥', '🌈', '🚀', '💎', '🎯'][i % 10]}
+          {['🎉', '✨', '⭐', '🎊', '💫', '🔥', '🌈', '🚀', '💎'][i % 10]}
         </motion.div>
       ))}
     </div>
@@ -284,42 +285,42 @@ export default function Home() {
             </motion.p>
             
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-            >
-              {user ? (
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/game/lobby"
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Play Now
-                  </Link>
-                  <Link
-                    href="/user/dashboard"
-                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    My Dashboard
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/auth/register"
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Get Started
-                  </Link>
-                  <Link
-                    href="/auth/login"
-                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Login
-                  </Link>
-                </div>
-              )}
-            </motion.div>
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          {user ? (
+            <div className="space-x-4">
+              <Link
+                href="/user/lobby"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Play Now
+              </Link>
+              <Link
+                href="/user/dashboard"
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              My Dashboard
+              </Link>
+            </div>
+          ) : (
+            <div className="space-x-4">
+              <Link
+                href="/auth/register"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Get Started
+              </Link>
+              <Link
+                href="/auth/login"
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Login
+              </Link>
+            </div>
+          )}
+        </motion.div>
 
             {/* Winning Celebration Section */}
           <motion.section 
@@ -468,7 +469,7 @@ export default function Home() {
         whileTap={{ scale: 0.9 }}
       >
         <Link
-          href={user ? "/user/dashboard" : "/auth/register"}
+          href={user ? "/user/lobby" : "/auth/register"}
           className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
         >
           🎲
