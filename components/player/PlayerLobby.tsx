@@ -139,7 +139,7 @@ const PlayerLobby = ({
     } else {
       // Auto-start game when timer reaches 0 if there are players
       // This will trigger the onStartGame which should update session status
-      if (playerCount > 1) {
+      if (playerCount > 2) {
         handleDirectToGame();
        //onStartGame(selectedPlayers, betAmount);
       } else if (playerCount === 0 && onBackToLobby) {
@@ -669,14 +669,14 @@ const PlayerLobby = ({
           <Button
             variant="contained"
             color={
-              playerCount > 1
+              playerCount > 2
                 ? 'success'
                 : selectedPlayers.length === 0
                 ? 'primary'
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 1) {
+              if (playerCount > 2) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
@@ -693,7 +693,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {playerCount > 1
+            {playerCount > 2
               ? language === 'am'
                 ? 'ጨዋታ ጀምር'
                 : 'Play'

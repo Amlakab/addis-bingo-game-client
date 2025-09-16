@@ -823,7 +823,7 @@ const BetSelectionPage = ({
         </motion.div>
 
         {/* Test Game Section */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.5 }}
@@ -857,7 +857,7 @@ const BetSelectionPage = ({
               {language === "am" ? "ፈትሽ" : "Test"}
             </Button>
           </Box>
-        </motion.div>
+        </motion.div> */}
       </Box>
     </motion.div>
   );
