@@ -102,7 +102,7 @@ export default function UserDashboard() {
       });
       
       // Update user wallet to 0
-      await api.put('/user/wallet', {
+      await api.put('/user/update-wallet', {
         userId: user?._id,
         amount: 0 // Subtract the entire amount to make it 0
       });

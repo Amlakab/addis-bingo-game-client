@@ -206,42 +206,42 @@ export default function Home() {
             </motion.p>
             
             <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-            >
-              {user ? (
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/game/lobby"
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Play Now
-                  </Link>
-                  <Link
-                    href="/user/dashboard"
-                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    My Dashboard
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/auth/register"
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Get Started
-                  </Link>
-                  <Link
-                    href="/auth/login"
-                    className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
-                  >
-                    Login
-                  </Link>
-                </div>
-              )}
-            </motion.div>
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+        >
+          {user ? (
+            <div className="space-x-4">
+              <Link
+                href="/game/lobby"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Play Now
+              </Link>
+              <Link
+                href="/user/dashboard"
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              My Dashboard
+              </Link>
+            </div>
+          ) : (
+            <div className="space-x-4">
+              <Link
+                href="/auth/register"
+                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Get Started
+              </Link>
+              <Link
+                href="/auth/login"
+                className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+              Login
+              </Link>
+            </div>
+          )}
+        </motion.div>
 
             {/* Floating coins animation */}
             <motion.div
@@ -259,6 +259,29 @@ export default function Home() {
               🎯
             </motion.div>
           </section>
+            {/* Winning Celebration Section */}
+          <motion.section 
+            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+          >
+            <motion.h2 
+              className="text-3xl font-bold mb-4"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              🎉 Congratulations! 🎉
+            </motion.h2>
+            <p className="text-lg mb-4">Join thousands of winners today!</p>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-4xl"
+            >
+              🏆
+            </motion.div>
+          </motion.section>
 
           {/* Features Section */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
@@ -337,29 +360,7 @@ export default function Home() {
             </motion.div>
           </section>
 
-          {/* Winning Celebration Section */}
-          <motion.section 
-            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
-          >
-            <motion.h2 
-              className="text-3xl font-bold mb-4"
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              🎉 Congratulations! 🎉
-            </motion.h2>
-            <p className="text-lg mb-4">Join thousands of winners today!</p>
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-4xl"
-            >
-              🏆
-            </motion.div>
-          </motion.section>
+          
         </div>
       </div>
 
@@ -382,3 +383,4 @@ export default function Home() {
     </div>
   );
 }
+
