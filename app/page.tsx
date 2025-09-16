@@ -175,11 +175,10 @@ export default function Home() {
 
   return (
     <div className="container mx-0 px-1 py-2 min-h-screen overflow-hidden relative">
+      <Navbar />
       <FloatingElements />
       {showConfetti && <ConfettiBurst />}
       <RocketAnimation />
-      
-      <Navbar />
       
       {/* Hero Section */}
       <section className="text-center mb-12 pb-24 pt-20 relative z-10">
