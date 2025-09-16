@@ -175,7 +175,7 @@ export default function AdminTransactionsPage() {
     if (!selectedTransaction) return;
 
     try {
-      if (selectedTransaction.type === 'deposit') {
+      if (selectedTransaction.type === 'deposit' || selectedTransaction.type === 'game_purchase') {
         if (action === 'approve') {
           const result = await showConfirmation(
             'Approve Deposit',
@@ -656,7 +656,7 @@ export default function AdminTransactionsPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 font-sans">Amount</p>
-                      <p className={`font-semibold text-sm md:text-base font-sans ${selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
+                      <p className={`font-semibold text-sm md:text-base font-sans ${selectedTransaction.type === 'deposit' ||  selectedTransaction.type === 'game_purchase' ? 'text-green-600' : 'text-red-600'}`}>
                         {selectedTransaction.amount.toLocaleString()} ETB
                       </p>
                     </div>
@@ -769,7 +769,7 @@ export default function AdminTransactionsPage() {
               {/* Action Buttons for Admin */}
               {selectedTransaction.status === 'pending' && (
                 <div className="mt-4 md:mt-6 border-t pt-4">
-                  {selectedTransaction.type === 'deposit' ? (
+                  {selectedTransaction.type === 'deposit' || selectedTransaction.type === 'game_purchase' ? (
                     <>
                       <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Deposit Actions</h4>
                       <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
