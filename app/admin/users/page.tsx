@@ -9,21 +9,22 @@ import {
   useTheme, useMediaQuery, Pagination,
   MenuItem, Select, FormControl, InputLabel,
   IconButton, Dialog, DialogTitle, DialogContent,
-  DialogActions, Button, Collapse
+  DialogActions, Button, Collapse, Tabs, Tab
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
   AccountBalance, People, Block, CheckCircle,
   PersonAdd, Refresh, Delete, Lock, LockOpen,
   AccountBalanceWallet, TrendingUp, EmojiEvents,
-  FilterList, ExpandMore, ExpandLess, Visibility
+  FilterList, ExpandMore, ExpandLess, Visibility,
+  Edit
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
 interface User {
   _id: string;
   phone: string;
-  role: 'user' | 'agent' | 'admin';
+  role: 'user' | 'disk-user' | 'agent' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
@@ -80,16 +81,24 @@ const UsersPage = () => {
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [editTab, setEditTab] = useState<'wallet' | 'password'>('wallet');
 
-  // Form state
+  // Form states
   const [formData, setFormData] = useState({
     phone: '',
     password: '',
     role: 'user' as 'user' | 'agent' | 'admin',
     wallet: 0
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    walletAmount: 0,
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -165,6 +174,57 @@ const UsersPage = () => {
     }
   };
 
+  const handleUpdateWallet = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await api.put('/user/wallet', {
+        userId: selectedUser._id,
+        amount: editFormData.walletAmount
+      });
+      setSuccess('Wallet updated successfully');
+      setOpenEditDialog(false);
+      setEditFormData({ walletAmount: 0, newPassword: '', confirmPassword: '' });
+      fetchUsers();
+      fetchStats();
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to update wallet');
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!selectedUser) return;
+
+    if (editFormData.newPassword !== editFormData.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    try {
+      await api.put('/users/change-password', {
+        userId: selectedUser._id,
+        currentPassword: '', // Admin can change password without current password
+        newPassword: editFormData.newPassword
+      });
+      setSuccess('Password updated successfully');
+      setOpenEditDialog(false);
+      setEditFormData({ walletAmount: 0, newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to update password');
+    }
+  };
+
+  const handleOpenEditDialog = (user: User) => {
+    setSelectedUser(user);
+    setEditFormData({
+      walletAmount: 0,
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setEditTab('wallet');
+    setOpenEditDialog(true);
+  };
+
   const handleFilterChange = (field: string, value: string | number) => {
     setFilters(prev => ({
       ...prev,
@@ -179,6 +239,10 @@ const UsersPage = () => {
 
   const handleFormChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleEditFormChange = (field: string, value: string | number) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const resetFilters = () => {
@@ -536,6 +600,13 @@ const UsersPage = () => {
                           
                           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>
                             <IconButton
+                              color="primary"
+                              onClick={() => handleOpenEditDialog(user)}
+                              size="small"
+                            >
+                              <Edit />
+                            </IconButton>
+                            <IconButton
                               color={user.isActive ? 'error' : 'success'}
                               onClick={() => handleStatusUpdate(user._id, !user.isActive)}
                               size="small"
@@ -618,6 +689,13 @@ const UsersPage = () => {
                           </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', gap: 1 }}>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleOpenEditDialog(user)}
+                                size="small"
+                              >
+                                <Edit />
+                              </IconButton>
                               <IconButton
                                 color={user.isActive ? 'error' : 'success'}
                                 onClick={() => handleStatusUpdate(user._id, !user.isActive)}
@@ -709,9 +787,10 @@ const UsersPage = () => {
               <Select
                 value={formData.role}
                 label="Role"
-                onChange={(e) => handleFormChange('role', e.target.value as 'user' | 'agent' | 'admin')}
+                onChange={(e) => handleFormChange('role', e.target.value as 'user' | 'disk-user' | 'agent' | 'admin')}
               >
                 <MenuItem value="user">User</MenuItem>
+                <MenuItem value="disk-user">Disktop User</MenuItem>
                 <MenuItem value="agent">Agent</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>
@@ -734,6 +813,96 @@ const UsersPage = () => {
             disabled={!formData.phone || !formData.password}
           >
             Create User
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog 
+        open={openEditDialog} 
+        onClose={() => setOpenEditDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle>
+          Edit User - {selectedUser?.phone}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
+            <Tabs
+              value={editTab}
+              onChange={(_, newValue) => setEditTab(newValue)}
+              sx={{ mb: 2 }}
+            >
+              <Tab 
+                icon={<AccountBalanceWallet />} 
+                label="Wallet" 
+                value="wallet" 
+                sx={{ minWidth: 'auto' }}
+              />
+              <Tab 
+                icon={<Lock />} 
+                label="Password" 
+                value="password" 
+                sx={{ minWidth: 'auto' }}
+              />
+            </Tabs>
+
+            {editTab === 'wallet' && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Current Wallet: {formatCurrency(selectedUser?.wallet || 0)}
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Wallet Amount"
+                  type="number"
+                  value={editFormData.walletAmount}
+                  onChange={(e) => handleEditFormChange('walletAmount', parseFloat(e.target.value) || 0)}
+                  placeholder="Enter amount to add/subtract"
+                  helperText="Positive number to add, negative number to subtract"
+                  inputProps={{ step: "0.01" }}
+                />
+              </Box>
+            )}
+
+            {editTab === 'password' && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="New Password"
+                  type="password"
+                  value={editFormData.newPassword}
+                  onChange={(e) => handleEditFormChange('newPassword', e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                />
+                <TextField
+                  fullWidth
+                  label="Confirm Password"
+                  type="password"
+                  value={editFormData.confirmPassword}
+                  onChange={(e) => handleEditFormChange('confirmPassword', e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                />
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
+          <Button 
+            onClick={editTab === 'wallet' ? handleUpdateWallet : handleUpdatePassword}
+            variant="contained"
+            disabled={
+              editTab === 'wallet' ? editFormData.walletAmount === 0 :
+              editTab === 'password' ? !editFormData.newPassword || !editFormData.confirmPassword
+              : true
+            }
+          >
+            {editTab === 'wallet' ? 'Update Wallet' : 'Update Password'}
           </Button>
         </DialogActions>
       </Dialog>

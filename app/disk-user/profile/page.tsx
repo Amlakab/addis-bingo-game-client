@@ -12,7 +12,6 @@ import {
   Shield, 
   Calendar, 
   Wallet, 
-  TrendingUp, 
   CreditCard, 
   Edit,
   Lock,
@@ -25,7 +24,7 @@ import api from '@/app/utils/api';
 type UserType = {
   _id: string;
   phone: string;
-  role: 'user' | 'agent' | 'admin';
+  role: 'user' |'disk-user' | 'agent' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
@@ -35,21 +34,9 @@ type UserType = {
   updatedAt: string;
 };
 
-type GameHistory = {
-  _id: string;
-  winnerId: string;
-  winnerCard: number;
-  prizePool: number;
-  numberOfPlayers: number;
-  betAmount: number;
-  createdAt: string;
-};
-
 export default function ProfilePage() {
   const [user, setUser] = useState<UserType | null>(null);
-  const [gameHistory, setGameHistory] = useState<GameHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'profile' | 'wallet'>('profile');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -74,25 +61,10 @@ export default function ProfilePage() {
 
         const res = await api.get(`/user/${parsedUser._id}`);
         setUser(res.data.data);
-        
-        // Fetch game history after user data is loaded
-        await fetchGameHistory(res.data.data._id);
       } catch (error) {
         console.error('Failed to fetch user:', error);
       } finally {
         setIsLoading(false);
-      }
-    };
-
-    const fetchGameHistory = async (userId: string) => {
-      try {
-        setStatsLoading(true);
-        const response = await api.get(`/game/history/user/${userId}`);
-        setGameHistory(response.data);
-      } catch (error) {
-        console.error('Failed to fetch game history:', error);
-      } finally {
-        setStatsLoading(false);
       }
     };
 
@@ -145,36 +117,6 @@ export default function ProfilePage() {
       setIsChangingPassword(false);
     }
   };
-
-  // Calculate statistics from game history
-  const calculateStats = () => {
-    if (gameHistory.length === 0) {
-      return {
-        gamesPlayed: 0,
-        gamesWon: 0,
-        winRate: 0,
-        averageEarnings: 0
-      };
-    }
-
-    const gamesPlayed = gameHistory.length;
-    const gamesWon = gameHistory.length;
-    const winRate = gamesPlayed > 0 ? (gamesWon / gamesPlayed) * 100 : 0;
-    
-    const totalEarnings = gameHistory
-      .reduce((sum, game) => sum + game.prizePool, 0);
-    
-    const averageEarnings = gamesWon > 0 ? totalEarnings / gamesWon : 0;
-
-    return {
-      gamesPlayed,
-      gamesWon,
-      winRate,
-      averageEarnings
-    };
-  };
-
-  const stats = calculateStats();
 
   if (!user && !isLoading) return <p className="text-center mt-10 text-gray-500">User not found</p>;
   if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
@@ -433,84 +375,6 @@ export default function ProfilePage() {
           {activeTab === 'profile' && <ProfileInfo key="profile" />}
           {activeTab === 'wallet' && <WalletSummary key="wallet" />}
         </AnimatePresence>
-
-        {/* Performance Overview with Real Data */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ delay: 0.2 }}
-          className="bg-white p-6 rounded-lg shadow-md"
-        >
-          <h2 className="text-xl font-bold mb-4 flex items-center">
-            <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
-            Performance Overview
-          </h2>
-          
-          {statsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Loading statistics...</p>
-            </div>
-          ) : gameHistory.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No games played yet</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-blue-600 mb-1">Games Played</p>
-                <p className="font-semibold">{stats.gamesPlayed}</p>
-              </div>
-              <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-green-600 mb-1">Games Won</p>
-                <p className="font-semibold">{stats.gamesWon}</p>
-              </div>
-              <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-yellow-600 mb-1">Win Rate</p>
-                <p className="font-semibold">{stats.winRate.toFixed(1)}%</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-purple-600 mb-1">Avg. Earnings</p>
-                <p className="font-semibold">{formatCurrency(stats.averageEarnings)}</p>
-              </div>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Recent Games Section */}
-        {gameHistory.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ delay: 0.3 }}
-            className="bg-white p-6 rounded-lg shadow-md"
-          >
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <Calendar className="mr-2 h-5 w-5 text-blue-600" />
-              Recent Games
-            </h2>
-            
-            <div className="space-y-3">
-              {gameHistory.slice(0, 5).map((game) => (
-                <div key={game._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium">Bet: {formatCurrency(game.betAmount)}</p>
-                    <p className="text-sm text-gray-600">
-                      {new Date(game.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-semibold 'text-green-600' : 'text-green-600'}`}>
-                      {game.winnerId === user?._id ? `Won: ${formatCurrency(game.prizePool)}` : 'Won'}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {game.numberOfPlayers} players
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
       </div>
 
       <MobileNavigation />
