@@ -178,7 +178,7 @@ const UsersPage = () => {
     if (!selectedUser) return;
 
     try {
-      await api.put('/user/wallet', {
+      await api.put('/user/update-wallet', {
         userId: selectedUser._id,
         amount: editFormData.walletAmount
       });

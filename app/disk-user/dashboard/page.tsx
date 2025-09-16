@@ -115,6 +115,8 @@ export default function UserDashboard() {
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
       setShowWalletDialog(false);
+      router.refresh();
+      
     } catch (error) {
       console.error('Error updating wallet:', error);
     }
