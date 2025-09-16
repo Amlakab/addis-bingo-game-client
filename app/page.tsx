@@ -322,29 +322,6 @@ export default function Home() {
           )}
         </motion.div>
 
-            {/* Winning Celebration Section */}
-          <motion.section 
-            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
-          >
-            <motion.h2 
-              className="text-3xl font-bold mb-4"
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              🎉 Congratulations! 🎉
-            </motion.h2>
-            <p className="text-lg mb-4">Join thousands of winners today!</p>
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-4xl"
-            >
-              🏆
-            </motion.div>
-          </motion.section>
 
             {/* Floating coins animation */}
             <motion.div
@@ -377,6 +354,30 @@ export default function Home() {
               🎲
             </motion.div>
           </section>
+
+             {/* Winning Celebration Section */}
+          <motion.section 
+            className="text-center p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10 mb-12"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+          >
+            <motion.h2 
+              className="text-3xl font-bold mb-4"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              🎉 Congratulations! 🎉
+            </motion.h2>
+            <p className="text-lg mb-4">Join thousands of winners today!</p>
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-4xl"
+            >
+              🏆
+            </motion.div>
+          </motion.section>
 
           {/* Features Section */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
