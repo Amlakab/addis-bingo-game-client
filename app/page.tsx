@@ -1,15 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth, AuthProvider } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import Navbar from '@/components/ui/Navbar';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
-// Floating elements component
+// Floating elements component - FIXED VERSION
 const FloatingElements = () => {
+  const [isClient, setIsClient] = useState(false);
   const elements = ['🎯', '💰', '⭐', '🎲', '🏆', '🎰', '♠️', '♥️', '♦️', '♣️'];
-  
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return null; // Don't render anything during SSR
+  }
+
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
       {elements.map((element, index) => (
