@@ -15,9 +15,7 @@ const FloatingElements = () => {
     setIsClient(true);
   }, []);
 
-  if (!isClient) {
-    return null; // Don't render anything during SSR
-  }
+  if (!isClient) return null;
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -254,9 +252,10 @@ export default function Home() {
           🎯
         </motion.div>
       </section>
-{/* Winning Celebration Section */}
+
+      {/* Winning Celebration Section */}
       <motion.section 
-        className="text-center mt-16 p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white"
+        className="text-center mt-16 p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white relative z-10"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8, delay: 1.2 }}
@@ -278,7 +277,7 @@ export default function Home() {
         </motion.div>
       </motion.section>
 
-      {/* Floating action button for quick play */}
+      {/* Floating action button */}
       <motion.div
         className="fixed bottom-8 right-8 z-50"
         initial={{ scale: 0, opacity: 0 }}
@@ -288,12 +287,13 @@ export default function Home() {
         whileTap={{ scale: 0.9 }}
       >
         <Link
-          href={user ? "/game/lobby" : "/auth/register"}
+          href={user ? "/user/dashboard" : "/auth/register"}
           className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
         >
           🎲
         </Link>
       </motion.div>
+
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
         <AnimatedCard
@@ -302,14 +302,12 @@ export default function Home() {
           description="Simple rules, exciting gameplay. Anyone can play and win!"
           delay={0.1}
         />
-        
         <AnimatedCard
           emoji="💰"
           title="Win Real Money"
           description="Deposit, play, and withdraw your winnings easily."
           delay={0.3}
         />
-        
         <AnimatedCard
           emoji="⚡"
           title="Fast Payouts"
@@ -318,10 +316,8 @@ export default function Home() {
         />
       </section>
 
-
       {/* How to Play Section */}
       <section className="bg-blue-50 p-8 rounded-lg relative z-10 overflow-hidden">
-        {/* Background decorative elements */}
         <motion.div
           className="absolute -top-10 -right-10 text-6xl opacity-10"
           animate={{ rotate: 360 }}
@@ -353,7 +349,6 @@ export default function Home() {
           <AnimatedStep number={4} title="Win" description="Complete patterns and claim your prizes" delay={0.7} />
         </div>
 
-        {/* See More Button */}
         <motion.div 
           className="mt-6 text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -375,8 +370,6 @@ export default function Home() {
           </Link>
         </motion.div>
       </section>
-
-      
     </div>
   );
 }
