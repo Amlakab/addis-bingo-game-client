@@ -102,7 +102,7 @@ export default function UserDashboard() {
       });
       
       // Update user wallet to 0
-      await axios.put(`${BASE_URL}/user/wallet`, {
+      await api.put(`/user/wallet`, {
         userId: user?._id,
         amount: -userWallet // Subtract the entire amount to make it 0
       });

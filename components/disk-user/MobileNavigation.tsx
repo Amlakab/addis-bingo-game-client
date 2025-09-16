@@ -11,7 +11,7 @@ import { Home, Play, Wallet, History, User } from 'lucide-react';
 const navigationItems = [
   {
     name: 'Home',
-    href: '/dik-user/dashboard',
+    href: '/disk-user/dashboard',
     icon: Home
   },
   {
