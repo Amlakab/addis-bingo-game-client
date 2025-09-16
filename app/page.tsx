@@ -212,13 +212,13 @@ export default function Home() {
                 href="/game/lobby"
                 className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                🎮 Play Now
+              Play Now
               </Link>
               <Link
                 href="/user/dashboard"
                 className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                📊 My Dashboard
+              My Dashboard
               </Link>
             </div>
           ) : (
@@ -227,13 +227,13 @@ export default function Home() {
                 href="/auth/register"
                 className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                🚀 Get Started
+              Get Started
               </Link>
               <Link
                 href="/auth/login"
                 className="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                🔑 Login
+              Login
               </Link>
             </div>
           )}
