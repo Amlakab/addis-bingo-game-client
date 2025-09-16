@@ -255,7 +255,46 @@ export default function Home() {
           🎯
         </motion.div>
       </section>
+{/* Winning Celebration Section */}
+      <motion.section 
+        className="text-center mt-16 p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, delay: 1.2 }}
+      >
+        <motion.h2 
+          className="text-3xl font-bold mb-4"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          🎉 Congratulations! 🎉
+        </motion.h2>
+        <p className="text-lg mb-4">Join thousands of winners today!</p>
+        <motion.div
+          animate={{ rotate: [0, 10, -10, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="text-4xl"
+        >
+          🏆
+        </motion.div>
+      </motion.section>
 
+      {/* Floating action button for quick play */}
+      <motion.div
+        className="fixed bottom-8 right-8 z-50"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.6, delay: 1.5 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <Link
+          href={user ? "/game/lobby" : "/auth/register"}
+          className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
+        >
+          🎲
+        </Link>
+      </motion.div>
       {/* Features Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 relative z-10">
         <AnimatedCard
@@ -279,6 +318,7 @@ export default function Home() {
           delay={0.5}
         />
       </section>
+
 
       {/* How to Play Section */}
       <section className="bg-blue-50 p-8 rounded-lg relative z-10 overflow-hidden">
@@ -337,46 +377,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Winning Celebration Section */}
-      <motion.section 
-        className="text-center mt-16 p-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg text-white"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, delay: 1.2 }}
-      >
-        <motion.h2 
-          className="text-3xl font-bold mb-4"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          🎉 Congratulations! 🎉
-        </motion.h2>
-        <p className="text-lg mb-4">Join thousands of winners today!</p>
-        <motion.div
-          animate={{ rotate: [0, 10, -10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="text-4xl"
-        >
-          🏆
-        </motion.div>
-      </motion.section>
-
-      {/* Floating action button for quick play */}
-      <motion.div
-        className="fixed bottom-8 right-8 z-50"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.6, delay: 1.5 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Link
-          href={user ? "/game/lobby" : "/auth/register"}
-          className="bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center text-2xl"
-        >
-          🎲
-        </Link>
-      </motion.div>
+      
     </div>
   );
 }
