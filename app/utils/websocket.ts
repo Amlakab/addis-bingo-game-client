@@ -34,7 +34,7 @@ class WebSocketService {
       const userId = userData?._id || 'anonymous';
 
       // Create Socket.io connection
-      this.socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001', {
+      this.socket = io(process.env.NEXT_PUBLIC_WS_URL || 'http://185.225.223.193:3001', {
         path: '/socket.io/',
         transports: ['websocket', 'polling'],
         auth: {
