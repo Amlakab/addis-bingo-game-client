@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Button, Box, Typography, Card, 
-  useTheme, useMediaQuery, Alert, Snackbar,
+  Button, Box, Typography, Card, CardContent, 
+  useTheme, useMediaQuery, Alert, Snackbar, TextField,
   IconButton, CircularProgress, Modal, Switch,
-  FormControlLabel, Select, MenuItem
+  FormControlLabel,Select, MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { checkWin } from '@/app/utils/gameLogic';
@@ -32,7 +32,8 @@ interface Winner {
 }
 
 interface GameEndData {
-  winners: { id: string; card: number }[];
+  betAmount: number; // Add this property
+  winners: { id: string; card: number; pattern: string }[];
   prizePool: number;
   split: number;
   totalWinners: number;
@@ -86,10 +87,16 @@ const GameInterface = ({
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [remainingNumbers, setRemainingNumbers] = useState<string[]>([]);
+  const [windowSize, setWindowSize] = useState({
+    width: 0,
+    height: 0,
+  });
+  const [gameStatusText, setGameStatusText] = useState('FETA BINGO');
   const [blockedPlayers, setBlockedPlayers] = useState<number[]>([]);
   const [recentNumbers, setRecentNumbers] = useState<string[]>([]);
   const [userMarkedNumbers, setUserMarkedNumbers] = useState<{[key: string]: boolean}>({});
+  const [cardMarkedNumbers, setCardMarkedNumbers] = useState<{[playerId: string]: {[number: string]: boolean}}>({});
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [prizePool, setPrizePool] = useState(0);
   const [numberOfPlayers, setNumberOfPlayers] = useState(0);
@@ -97,6 +104,7 @@ const GameInterface = ({
   const [showToast, setShowToast] = useState(false);
   const [loserMessage, setLoserMessage] = useState('');
   const [showGameOverModal, setShowGameOverModal] = useState(false);
+  const [gameOverWinner, setGameOverWinner] = useState<GameHistory | null>(null);
   const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const { user } = useAuth();
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
@@ -105,141 +113,308 @@ const GameInterface = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [lastProcessedNumber, setLastProcessedNumber] = useState<string>('');
-  const [isGameOver, setIsGameOver] = useState(false);
+  
+  // New state for countdown timer
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const numberCalledRef = useRef<string>('');
+  
+  // New state variables for game control
+  const [isGameEnding, setIsGameEnding] = useState(false);
+  const [announcedWinners, setAnnouncedWinners] = useState<Array<{winnerId: string, winnerCard: number, pattern: string}>>([]);
+  const [lastProcessedNumber, setLastProcessedNumber] = useState<string>('');
 
-  // Client-only setup
+  // Initialize component on client side only
   useEffect(() => {
     setIsClient(true);
+    
+    // Dynamically import browser-only modules
     const loadBrowserModules = async () => {
       try {
+        // Load voice service
         const voiceModule = await import('@/app/utils/voiceService');
         setVoiceService(voiceModule.voiceService);
+        
+        // Load WebSocket service
         const wsModule = await import('@/app/utils/websocket');
         setWebSocketService(wsModule.webSocketService);
       } catch (error) {
         console.error('Failed to load browser modules:', error);
       }
     };
+    
     loadBrowserModules();
   }, []);
 
-  // WebSocket connection state
+  // Setup WebSocket connection state
   useEffect(() => {
     if (!webSocketService) return;
-    const handleConnect = () => setIsConnected(true);
-    const handleDisconnect = () => setIsConnected(false);
+
+    const handleConnect = () => {
+      setIsConnected(true);
+      console.log('WebSocket connected');
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      console.log('WebSocket disconnected');
+    };
+
     webSocketService.on('connect', handleConnect);
     webSocketService.on('disconnect', handleDisconnect);
+
     return () => {
       webSocketService.off('connect', handleConnect);
       webSocketService.off('disconnect', handleDisconnect);
     };
   }, [webSocketService]);
 
-  // WebSocket listeners
+  // Setup WebSocket listeners when service is available
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
-    function handleWinnerDeclared(data: { betAmount: number; winnerId: string; winnerCard: number; timestamp: number }) {
-      if (data.betAmount !== bet) return;
-      setToastMessage(language === 'am'
-        ? `ተጫዋች ${data.winnerCard} አሸንፏል!`
-        : `Player ${data.winnerCard} wins!`);
-      setShowToast(true);
-      setIsCalling(false);
-      setIsGameOver(true);
-    }
+    const handleWebSocketConnected = () => {
+      setIsWebSocketConnected(true);
+      console.log('WebSocket connected in GameInterface');
+    };
 
-    function handleNumberCalled(data: { betAmount: number; number: string; calledNumbers: string[]; timestamp: number }) {
-      if (data.betAmount !== bet || isGameOver) return;
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      // Filter sessions for the current bet amount
+      const betSessions = sessions.filter(session => session.betAmount === bet);
+      
+      console.log('Bet sessions:', betSessions);
+      console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
+      
+      const activePlayers = betSessions.filter(
+        (session) => session.status !== "active"
+      ).length;
+
+      setNumberOfPlayers(activePlayers);
+      
+      // Calculate prize pool as 80% of total bets
+      const pool = activePlayers * bet * 0.8;
+      setPrizePool(pool);
+      
+      // Update game sessions
+      setGameSessions(betSessions);
+    };
+    
+    const handleGameEnding = (data: { betAmount: number }) => {
+      if (data.betAmount !== bet) return;
+      setIsGameEnding(true);
+      setIsCalling(false);
+    };
+
+    const handleGameEnded = (data: GameEndData) => {
+      if (data.betAmount !== bet) return;
+      
+      console.log('Game ended data received:', data);
+      setIsCalling(false);
+      setGameEnded(true);
+      
+      // Store game end data
+      setGameEndData(data);
+      
+      // Map winners to our state format
+      const formattedWinners: Winner[] = data.winners.map(winner => ({
+        id: winner.card,
+        userId: winner.id,
+        pattern: winner.pattern as WinPattern,
+        prize: data.split,
+        totalWinners: data.totalWinners
+      }));
+      
+      setWinners(formattedWinners);
+      
+      // Check if current user is among winners
+      const userWon = user && data.winners.some(winner => winner.id === user._id);
+      
+      if (userWon) {
+        // Show winner modal for winners
+        setTimeout(() => {
+          setShowWinnerModal(true);
+        }, 2000);
+      } else {
+        // Show game over modal for non-winners
+        setShowGameOverModal(true);
+      }
+    };
+
+    const handleNumberCalled = (data: { 
+      betAmount: number; 
+      number: string; 
+      calledNumbers: string[] 
+    }) => {
+      if (data.betAmount !== bet || isGameEnding) return;
+      
+      // Prevent processing the same number multiple times
       if (lastProcessedNumber === data.number) return;
+      
       setLastProcessedNumber(data.number);
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
+      
       if (soundOn && voiceService) {
         const langCode = language === 'am' ? 'am-ET' : 'en-US';
         voiceService.speak(data.number, langCode, 1);
       }
-    }
+    };
 
-    function handleGameEnded(data: GameEndData) {
-      setGameEndData(data);
-      setIsCalling(false);
-      setIsGameOver(true);
-      setWinners(data.winners.map(winner => ({
-        id: winner.card,
-        userId: winner.id,
-        pattern: 'row',
-        prize: data.split,
-        totalWinners: data.totalWinners
-      })));
-      const userWon = user && data.winners.some(winner => winner.id === user._id);
-      setTimeout(() => {
-        if (userWon) setShowWinnerModal(true);
-        else setShowGameOverModal(true);
-      }, 500);
-    }
+    const handleWinnerAnnounced = (data: {
+      betAmount: number;
+      winnerId: string;
+      winnerCard: number;
+      pattern: string;
+      message: string;
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      // Show toast for winner announcement
+      setToastMessage(data.message);
+      setShowToast(true);
+      
+      // Add to announced winners list
+      setAnnouncedWinners(prev => [...prev, {
+        winnerId: data.winnerId,
+        winnerCard: data.winnerCard,
+        pattern: data.pattern
+      }]);
+    };
 
-    webSocketService.on('number-called', handleNumberCalled);
-    webSocketService.on('winner-declared', handleWinnerDeclared);
+    const handleGameState = (data: { 
+      betAmount: number; 
+      calledNumbers: string[]; 
+      currentNumber: string 
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      setCalledNumbers(data.calledNumbers);
+      setCurrentNumber(data.currentNumber);
+    };
+
+    // Set up all event listeners
+    webSocketService.on('connected', handleWebSocketConnected);
+    webSocketService.on('sessions-updated', handleSessionsUpdate);
+    webSocketService.on('game-ending', handleGameEnding);
     webSocketService.on('game-ended', handleGameEnded);
+    webSocketService.on('number-called', handleNumberCalled);
+    webSocketService.on('winner-announced', handleWinnerAnnounced);
+    webSocketService.on('game-state', handleGameState);
+    
+    // Request initial session data
+    webSocketService.send('get-sessions', { betAmount: bet });
 
     return () => {
-      webSocketService.off('number-called', handleNumberCalled);
-      webSocketService.off('winner-declared', handleWinnerDeclared);
+      // Clean up event listeners
+      webSocketService.off('connected', handleWebSocketConnected);
+      webSocketService.off('sessions-updated', handleSessionsUpdate);
+      webSocketService.off('game-ending', handleGameEnding);
       webSocketService.off('game-ended', handleGameEnded);
+      webSocketService.off('number-called', handleNumberCalled);
+      webSocketService.off('winner-announced', handleWinnerAnnounced);
+      webSocketService.off('game-state', handleGameState);
     };
-  }, [webSocketService, bet, isGameOver, language, user, soundOn, voiceService, lastProcessedNumber]);
+  }, [isClient, webSocketService, bet, soundOn, voiceService, language, isGameEnding, user, lastProcessedNumber]);
 
-  // Window size for confetti
+  // Initialize and set up window size tracking
   useEffect(() => {
     if (!isClient) return;
-    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    // Set initial window size
     handleResize();
+
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, [isClient]);
 
-  // Sessions and countdown
+  // Fetch game sessions and setup countdown timer
   useEffect(() => {
     if (!isClient || !bet) return;
-    function handleSessionsUpdate(sessions: GameSession[]) {
-      const betSessions = sessions.filter(session => session.betAmount === bet);
-      if (betSessions.length > 0) {
-        const earliestSession = betSessions.reduce((earliest, session) => {
-          const sessionDate = new Date(session.createdAt);
-          return sessionDate < earliest ? sessionDate : earliest;
-        }, new Date(betSessions[0].createdAt));
-        const currentDate = new Date();
-        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
-        const remainingTime = Math.max(0, 46 - timeDifference);
-        setCountdown(remainingTime);
-        if (remainingTime > 0) startCountdown(remainingTime);
-        else startGame();
+
+    // Function to handle sessions update from WebSocket
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      if (sessions.length > 0) {
+        // Filter sessions for the current bet amount
+        const betSessions = sessions.filter(session => session.betAmount === bet);
+        
+        if (betSessions.length > 0) {
+          // Get the earliest createdAt from all sessions
+          const earliestSession = betSessions.reduce((earliest, session) => {
+            const sessionDate = new Date(session.createdAt);
+            return sessionDate < earliest ? sessionDate : earliest;
+          }, new Date(betSessions[0].createdAt));
+          
+          setSessionCreatedAt(earliestSession);
+          
+          // Calculate time difference
+          const currentDate = new Date();
+          const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
+          
+          // Calculate remaining time (52 seconds - time difference)
+          const remainingTime = Math.max(0, 46 - timeDifference);
+          setCountdown(remainingTime);
+          
+          // Start countdown if there's time left
+          if (remainingTime > 0) {
+            startCountdown(remainingTime);
+          } else {
+            // If time is already up, start the game immediately
+            startGame();
+          }
+        }
       }
-    }
+    };
+
+    // Set up WebSocket listener
     if (webSocketService) {
       webSocketService.on('sessions-updated', handleSessionsUpdate);
-      webSocketService.send('get-sessions', { betAmount: bet });
+      
+      // Request sessions for the current bet amount
+      webSocketService.send('get-sessions', {
+        betAmount: bet
+      });
     }
+
     return () => {
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-      if (webSocketService) webSocketService.off('sessions-updated', handleSessionsUpdate);
+      // Clean up interval and WebSocket listener
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      
+      if (webSocketService) {
+        webSocketService.off('sessions-updated', handleSessionsUpdate);
+      }
     };
   }, [isClient, bet, webSocketService]);
 
   const startCountdown = (initialTime: number) => {
     setCountdown(initialTime);
     setGameStarted(false);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+    
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+          // Time's up, start the game
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
           startGame();
           return 0;
         }
@@ -250,211 +425,301 @@ const GameInterface = ({
 
   const startGame = () => {
     setGameStarted(true);
+    
+    // Update game sessions status to playing via WebSocket
     if (webSocketService) {
-      webSocketService.send('update-session-status-by-bet', { betAmount: bet, status: 'playing' });
-      webSocketService.send('start-game', { betAmount: bet });
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('update-session-status-by-bet', {
+        betAmount: bet,
+        status: 'playing'
+      });
+      
+      // Then start the game on the server
+      webSocketService.send('start-game', {
+        betAmount: bet,
+        prizePool: numberOfPlayers * bet * 0.8
+      });
+    } else {
+      console.error('WebSocket service not available');
     }
   };
 
-  useEffect(() => {
-    if (calledNumbers.length > 0) {
-      setRecentNumbers(calledNumbers.slice(-3));
-    }
-  }, [calledNumbers]);
-
-  // Winner check
+  // Update the checkForWinner function to detect the specific winning pattern
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
-      return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` : `Player ${playerId} is not in the game`, playerId };
+      return {
+        isWinner: false,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
+          : `Player ${playerId} is not in the game`,
+        playerId
+      };
     }
+
     if (blockedPlayers.includes(playerId)) {
-      return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} ተገድቧል` : `Player ${playerId} is blocked`, playerId };
+      return {
+        isWinner: false,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} ተገድቧል` 
+          : `Player ${playerId} is blocked`,
+        playerId
+      };
     }
+
     const card = getCardById(playerId);
     const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+    const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
+
     for (const pattern of patterns) {
       const winningCells = getWinningPatternCells(card, pattern);
+      
       if (winningCells.length > 0) {
         return {
           isWinner: true,
           pattern,
-          message: language === 'am' ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` : `Player ${playerId} wins with ${pattern} pattern!`,
+          message: language === 'am' 
+            ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
+            : `Player ${playerId} wins with ${pattern} pattern!`,
           playerId,
           userId: player.userId
         };
       }
     }
-    return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} ገና አላሸነፈም` : `Player ${playerId} has not won yet`, playerId };
+
+    return {
+      isWinner: false,
+      message: language === 'am' 
+        ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
+        : `Player ${playerId} has not won yet`,
+      playerId
+    };
   };
 
   const handleBingo = async (playerId: number) => {
-    if (isGameOver) return;
-    const result = checkForWinner(playerId);
-    if (result.isWinner) {
-      setIsCalling(false);
-      setIsGameOver(true);
-      if (webSocketService) {
-        webSocketService.send('declare-winner', {
-          betAmount: bet,
-          winnerId: result.userId,
-          winnerCard: playerId
-        });
-      }
-      setToastMessage(language === 'am' ? `ተጫዋች ${playerId} አሸንፏል!` : `Player ${playerId} wins!`);
+    if (isGameEnding) {
+      // Don't process bingo if game is already ending
+      setToastMessage(language === 'am' 
+        ? 'ጨዋታው እየተጠናቀቀ ነው፣ አዲስ BINGO ሊጠቀሱ አይችሉም' 
+        : 'Game is ending, cannot claim new BINGO');
       setShowToast(true);
-      if (soundOn && voiceService) {
-        const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak(toastMessage, langCode, 1);
+      return;
+    }
+    
+    const result = checkForWinner(playerId);
+    
+    if (result.isWinner) {
+      try {
+        // Notify server about the winner
+        if (webSocketService) {
+          webSocketService.send('end-game', {
+            betAmount: bet,
+            winnerId: result.userId,
+            winnerCard: playerId,
+            pattern: result.pattern
+          });
+        }
+        
+        // Show immediate feedback to user
+        const winMessage = language === 'am' 
+          ? `BINGO ተጠቅሰዋል! ውጤቱን ይጠብቁ...` 
+          : `BINGO claimed! Waiting for results...`;
+        setToastMessage(winMessage);
+        setShowToast(true);
+        
+      } catch (error) {
+        console.error('Error claiming BINGO:', error);
+        setToastMessage(language === 'am' 
+          ? 'የBINGO ማጣቀሻ አልተሳካም' 
+          : 'Failed to claim BINGO');
+        setShowToast(true);
       }
     } else {
-      if (webSocketService) {
-        webSocketService.send('update-session-status', {
-          cardNumber: playerId,
-          betAmount: bet,
-          status: 'playing'
-        });
+      // Handle incorrect BINGO claim
+      try {
+        if (webSocketService) {
+          webSocketService.send('update-session-status', {
+            cardNumber: playerId,
+            betAmount: bet,
+            status: 'blocked'
+          });
+        }
+        
+        setBlockedPlayers([...blockedPlayers, playerId]);
+        setLoserMessage(result.message);
+        setLoserCardId(playerId);
+        setShowLoserModal(true);
+        
+        if (soundOn && voiceService) {
+          const langCode = language === 'am' ? 'am-ET' : 'en-US';
+          voiceService.speak(
+            language === 'am' 
+              ? 'ምንም አሸናፊ አልተገኘም!' 
+              : 'No winner found!', 
+            langCode, 
+            1
+          );
+        }
+      } catch (error) {
+        console.error('Error blocking player:', error);
       }
-      setBlockedPlayers([...blockedPlayers, playerId]);
-      setLoserMessage(result.message);
-      setLoserCardId(playerId);
-      setShowLoserModal(true);
-      if (soundOn && voiceService) {
-        const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak(language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', langCode, 1);
-      }
-      setTimeout(() => setIsCalling(true), 3000);
     }
   };
 
+  // Add this handler function to your component
   const handleBackToLobbyWithRefund = async () => {
     try {
-      if (!user) return;
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      // Send refund request via WebSocket
       if (webSocketService) {
-        webSocketService.send('refund-wallet', { betAmount: bet, userId: user._id });
-        webSocketService.once('wallet-updated', () => onBackToPlayerLobby());
-        webSocketService.once('error', () => onBackToPlayerLobby());
+        webSocketService.send('refund-wallet', {
+          betAmount: bet,
+          userId: user._id
+        });
+        
+        // Listen for wallet update confirmation
+        webSocketService.once('wallet-updated', (newBalance: number) => {
+          console.log('Wallet updated successfully:', newBalance);
+          // Proceed to go back to lobby
+          onBackToPlayerLobby();
+        });
+        
+        // Handle any errors
+        webSocketService.once('error', (error: { message: string }) => {
+          console.error('Refund error:', error.message);
+          // Still go back to lobby even if refund fails
+        });
+      } else {
+        console.error('WebSocket service not available');
       }
     } catch (error) {
-      onBackToPlayerLobby();
+      console.error('Error processing refund:', error);
     }
   };
 
   const getPatternName = (pattern: WinPattern) => {
     if (language === 'am') {
-      return { 'row': 'ረድፍ', 'column': 'አምድ', 'diagonal': 'ዲያግናል', 'corners': 'ማዕዘኖች' }[pattern] || pattern;
+      return {
+        'row': 'ረድፍ',
+        'column': 'አምድ',
+        'diagonal': 'ዲያግናል',
+        'corners': 'ማዕዘኖች'
+      }[pattern] || pattern;
     }
     return pattern;
   };
 
   const toggleUserMark = (number: string) => {
-    setUserMarkedNumbers(prev => ({ ...prev, [number]: !prev[number] }));
+    setUserMarkedNumbers(prev => ({
+      ...prev,
+      [number]: !prev[number]
+    }));
   };
 
+  // Function to transpose the card for display
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
-    for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) transposed[i][j] = card[j][i];
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        transposed[i][j] = card[j][i];
+      }
+    }
     return transposed;
   };
 
-  const getUserCards = () => user ? players.filter(player => player.userId === user._id) : [];
+  // Get user's cards (filtered by user ID from localStorage)
+  const getUserCards = () => {
+    if (!user) return [];
+    return players.filter(player => player.userId === user._id);
+  };
+
   const userCards = getUserCards();
 
-  const isNumberCalled = (number: number, letter: string) => calledNumbers.includes(`${letter}-${number}`);
-
+  // Check if a number is called (for card display)
+  const isNumberCalled = (number: number, letter: string) => {
+    const fullNumber = `${letter}-${number}`;
+    return calledNumbers.includes(fullNumber);
+  };
 
   // Get winning pattern cells for highlighting
   const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
     const cells: {row: number, col: number}[] = [];
-    const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-    const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
-    const lastLetter = lastCalledNumber?.split('-')[0] || '';
-    
-    // Check if the last called number is in this card
-    const lastNumColIndex = "BINGO".indexOf(lastLetter);
-    const lastNumRowIndex = lastNumColIndex !== -1 ? card[lastNumColIndex]?.indexOf(lastNum) : -1;
-    
-    if (lastNumRowIndex === -1) {
-      return cells; // Last called number not in this card
-    }
     
     if (pattern === 'row') {
-      // Check if the row containing the last called number is a winning row
-      const rowIndex = lastNumRowIndex;
-      let isWinningRow = true;
-      
-      for (let col = 0; col < 5; col++) {
-        const number = card[col][rowIndex];
-        const letter = "BINGO"[col];
-        if (!isNumberCalled(number, letter)) {
-          isWinningRow = false;
-          break;
-        }
-      }
-      
-      if (isWinningRow) {
+      // Check all rows
+      for (let row = 0; row < 5; row++) {
+        let isWinningRow = true;
         for (let col = 0; col < 5; col++) {
-          cells.push({row: rowIndex, col});
+          const number = card[col][row];
+          const letter = "BINGO"[col];
+          if (!isNumberCalled(number, letter)) {
+            isWinningRow = false;
+            break;
+          }
+        }
+        if (isWinningRow) {
+          for (let col = 0; col < 5; col++) {
+            cells.push({row, col});
+          }
+          return cells;
         }
       }
     } else if (pattern === 'column') {
-      // Check if the column containing the last called number is a winning column
-      const colIndex = lastNumColIndex;
-      let isWinningCol = true;
-      
-      for (let row = 0; row < 5; row++) {
-        const number = card[colIndex][row];
-        const letter = "BINGO"[colIndex];
-        if (!isNumberCalled(number, letter)) {
-          isWinningCol = false;
-          break;
-        }
-      }
-      
-      if (isWinningCol) {
+      // Check all columns
+      for (let col = 0; col < 5; col++) {
+        let isWinningCol = true;
         for (let row = 0; row < 5; row++) {
-          cells.push({row, col: colIndex});
+          const number = card[col][row];
+          const letter = "BINGO"[col];
+          if (!isNumberCalled(number, letter)) {
+            isWinningCol = false;
+            break;
+          }
+        }
+        if (isWinningCol) {
+          for (let row = 0; row < 5; row++) {
+            cells.push({row, col});
+          }
+          return cells;
         }
       }
     } else if (pattern === 'diagonal') {
       // Check main diagonal
-      if (lastNumColIndex === lastNumRowIndex) {
-        let isWinningDiagonal = true;
-        
+      let isWinningDiagonal = true;
+      for (let i = 0; i < 5; i++) {
+        const number = card[i][i];
+        const letter = "BINGO"[i];
+        if (!isNumberCalled(number, letter)) {
+          isWinningDiagonal = false;
+          break;
+        }
+      }
+      if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
-          const number = card[i][i];
-          const letter = "BINGO"[i];
-          if (!isNumberCalled(number, letter)) {
-            isWinningDiagonal = false;
-            break;
-          }
+          cells.push({row: i, col: i});
         }
-        
-        if (isWinningDiagonal) {
-          for (let i = 0; i < 5; i++) {
-            cells.push({row: i, col: i});
-          }
-        }
+        return cells;
       }
       
       // Check anti-diagonal
-      if (lastNumColIndex === 4 - lastNumRowIndex) {
-        let isWinningDiagonal = true;
-        
+      isWinningDiagonal = true;
+      for (let i = 0; i < 5; i++) {
+        const number = card[i][4 - i];
+        const letter = "BINGO"[i];
+        if (!isNumberCalled(number, letter)) {
+          isWinningDiagonal = false;
+          break;
+        }
+      }
+      if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
-          const number = card[i][4 - i];
-          const letter = "BINGO"[i];
-          if (!isNumberCalled(number, letter)) {
-            isWinningDiagonal = false;
-            break;
-          }
+          cells.push({row: 4 - i, col: i});
         }
-        
-        if (isWinningDiagonal) {
-          for (let i = 0; i < 5; i++) {
-            cells.push({row: 4 - i, col: i});
-          }
-        }
+        return cells;
       }
     } else if (pattern === 'corners') {
       // Check corners
@@ -463,31 +728,39 @@ const GameInterface = ({
         {row: 4, col: 0}, {row: 4, col: 4}
       ];
       
-      // Check if the last called number is a corner
-      const isLastCalledCorner = corners.some(corner => 
-        corner.row === lastNumRowIndex && corner.col === lastNumColIndex
-      );
+      let isWinningCorners = true;
+      for (const corner of corners) {
+        const number = card[corner.col][corner.row];
+        const letter = "BINGO"[corner.col];
+        if (!isNumberCalled(number, letter)) {
+          isWinningCorners = false;
+          break;
+        }
+      }
       
-      if (isLastCalledCorner) {
-        let isWinningCorners = true;
-        
-        for (const corner of corners) {
-          const number = card[corner.col][corner.row];
-          const letter = "BINGO"[corner.col];
-          if (!isNumberCalled(number, letter)) {
-            isWinningCorners = false;
-            break;
-          }
-        }
-        
-        if (isWinningCorners) {
-          cells.push(...corners);
-        }
+      if (isWinningCorners) {
+        return corners;
       }
     }
     
     return cells;
   };
+
+  // Add a new useEffect to handle game ending state
+  useEffect(() => {
+    if (isGameEnding) {
+      // Disable BINGO buttons when game is ending
+      setIsCalling(false);
+    }
+  }, [isGameEnding]);
+
+  useEffect(() => {
+    // Update recent numbers when calledNumbers changes
+    if (calledNumbers.length > 0) {
+      const recent = calledNumbers.slice(-3);
+      setRecentNumbers(recent);
+    }
+  }, [calledNumbers]);
 
   if (!isClient) {
     return (
@@ -1049,7 +1322,7 @@ const GameInterface = ({
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted || isGameOver}
+                      disabled={isBlocked || !gameStarted || isGameEnding}
                       fullWidth
                       size="small"
                       sx={{ fontSize: '0.8rem' }}
@@ -1668,16 +1941,16 @@ const GameInterface = ({
                   px: 3,
                   fontWeight: 'bold',
                   background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-                  boxShadow: '0 2px 8px rgba(255, 105, 135,  0.3)',
-            borderRadius: 2
-          }}
-        >
-          {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
-        </Button>
-      </motion.div>
-    </Box>
-  </>
-</Modal>
+                  boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)',
+                  borderRadius: 2
+                }}
+              >
+                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+              </Button>
+            </motion.div>
+          </Box>
+        </>
+      </Modal>
     </Box>
   );
 };
