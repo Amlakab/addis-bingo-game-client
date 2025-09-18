@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Button, Box, Typography, Card, 
-  useTheme, useMediaQuery, Alert, Snackbar,
+  Button, Box, Typography, Card, CardContent, 
+  useTheme, useMediaQuery, Alert, Snackbar, TextField,
   IconButton, CircularProgress, Modal, Switch,
-  FormControlLabel, Select, MenuItem
+  FormControlLabel,Select, MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import { checkWin } from '@/app/utils/gameLogic';
 import { getCardById } from '@/app/utils/generateCards';
 import Confetti from 'react-confetti';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '@/lib/auth';
+import api from '@/app/utils/api';
+import { debounce } from 'lodash';
 
 type WinPattern = 'row' | 'column' | 'diagonal' | 'corners';
 
@@ -29,7 +32,7 @@ interface Winner {
 }
 
 interface GameEndData {
-  winners: { userId: string; card: number; prize: number }[];
+  winners: { id: string; card: number }[];
   prizePool: number;
   split: number;
   totalWinners: number;
@@ -44,12 +47,17 @@ interface GameSession {
   createdAt: string;
 }
 
-interface WinnerAnnouncement {
-  betAmount: number;
-  winnerId: string;
+interface GameHistory {
+  _id: string;
+  winnerId: {
+    _id: string;
+    phone: string;
+  };
   winnerCard: number;
-  message: string;
-  timestamp: Date;
+  prizePool: number;
+  numberOfPlayers: number;
+  betAmount: number;
+  createdAt: Date;
 }
 
 interface GameInterfaceProps {
@@ -60,8 +68,6 @@ interface GameInterfaceProps {
   language: 'en' | 'am';
   earningsPercentage?: number;
   setLanguage?: (lang: 'en' | 'am') => void;
-  webSocketService: any;
-  voiceService: any;
 }
 
 const GameInterface = ({ 
@@ -70,8 +76,8 @@ const GameInterface = ({
   onGameEnd,
   onBackToPlayerLobby,
   language = 'en',
-  webSocketService,
-  voiceService
+  earningsPercentage = 20,
+  setLanguage
 }: GameInterfaceProps) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
@@ -80,10 +86,16 @@ const GameInterface = ({
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [remainingNumbers, setRemainingNumbers] = useState<string[]>([]);
+  const [windowSize, setWindowSize] = useState({
+    width: 0,
+    height: 0,
+  });
+  const [gameStatusText, setGameStatusText] = useState('FETA BINGO');
   const [blockedPlayers, setBlockedPlayers] = useState<number[]>([]);
   const [recentNumbers, setRecentNumbers] = useState<string[]>([]);
   const [userMarkedNumbers, setUserMarkedNumbers] = useState<{[key: string]: boolean}>({});
+  const [cardMarkedNumbers, setCardMarkedNumbers] = useState<{[playerId: string]: {[number: string]: boolean}}>({});
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [prizePool, setPrizePool] = useState(0);
   const [numberOfPlayers, setNumberOfPlayers] = useState(0);
@@ -91,40 +103,128 @@ const GameInterface = ({
   const [showToast, setShowToast] = useState(false);
   const [loserMessage, setLoserMessage] = useState('');
   const [showGameOverModal, setShowGameOverModal] = useState(false);
+  const [gameOverWinner, setGameOverWinner] = useState<GameHistory | null>(null);
   const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const { user } = useAuth();
-  const [gameEnded, setGameEnded] = useState(false);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [voiceService, setVoiceService] = useState<any>(null);
+  const [webSocketService, setWebSocketService] = useState<any>(null);
+  const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  
+  // New state for countdown timer
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
-  const [announcedWinners, setAnnouncedWinners] = useState<WinnerAnnouncement[]>([]);
-
+  const [gameEnded, setGameEnded] = useState(false);
+  const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const numberCalledRef = useRef<string>('');
 
-  // Initialize window size
+  // Initialize component on client side only
   useEffect(() => {
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    setIsClient(true);
+    
+    // Dynamically import browser-only modules
+    const loadBrowserModules = async () => {
+      try {
+        // Load voice service
+        const voiceModule = await import('@/app/utils/voiceService');
+        setVoiceService(voiceModule.voiceService);
+        
+        // Load WebSocket service
+        const wsModule = await import('@/app/utils/websocket');
+        setWebSocketService(wsModule.webSocketService);
+      } catch (error) {
+        console.error('Failed to load browser modules:', error);
+      }
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    
+    loadBrowserModules();
   }, []);
 
-  // WebSocket listeners
+  // Setup WebSocket connection state
   useEffect(() => {
     if (!webSocketService) return;
 
-    const handleSessionsUpdate = (sessions: GameSession[]) => {
-      const betSessions = sessions.filter(session => session.betAmount === bet);
-      const activePlayers = betSessions.filter(session => session.status !== "active").length;
-      setNumberOfPlayers(activePlayers);
-      setPrizePool(activePlayers * bet * 0.8);
-      setGameSessions(betSessions);
+    const handleConnect = () => {
+      setIsConnected(true);
+      console.log('WebSocket connected');
     };
 
-    const handleNumberCalled = (data: { betAmount: number; number: string; calledNumbers: string[] }) => {
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      console.log('WebSocket disconnected');
+    };
+
+    webSocketService.on('connect', handleConnect);
+    webSocketService.on('disconnect', handleDisconnect);
+
+    return () => {
+      webSocketService.off('connect', handleConnect);
+      webSocketService.off('disconnect', handleDisconnect);
+    };
+  }, [webSocketService]);
+
+  // Setup WebSocket listeners when service is available - RUNS ONLY ONCE
+  useEffect(() => {
+    if (!isClient || !webSocketService) return;
+
+    const setupWebSocketListeners = () => {
+      webSocketService.on('connected', handleWebSocketConnected);
+      webSocketService.on('sessions-updated', handleSessionsUpdate);
+      webSocketService.on('game-ended', handleGameEnded);
+      webSocketService.on('number-called', handleNumberCalled);
+      webSocketService.on('game-state', handleGameState);
+      
+      // Request initial session data
+      webSocketService.send('get-sessions', { betAmount: bet });
+    };
+
+    setupWebSocketListeners();
+
+    return () => {
+      if (webSocketService) {
+        webSocketService.off('connected', handleWebSocketConnected);
+        webSocketService.off('sessions-updated', handleSessionsUpdate);
+        webSocketService.off('game-ended', handleGameEnded);
+        webSocketService.off('number-called', handleNumberCalled);
+        webSocketService.off('game-state', handleGameState);
+      }
+    };
+  }, [isClient, webSocketService]); // Removed bet from dependencies
+
+  // Setup WebSocket listeners for server-side number calling when game starts
+  useEffect(() => {
+    if (!isClient || !webSocketService || !gameStarted) return;
+
+    // Request game state when component mounts or game starts
+    webSocketService.send('get-game-state', { betAmount: bet });
+    
+    // Start the game on the server if it's not already running
+    webSocketService.send('start-game', { betAmount: bet });
+    
+    return () => {
+      // Cleanup: Stop the game when component unmounts or game ends
+      if (webSocketService && bet) {
+        webSocketService.send('stop-game', { betAmount: bet });
+      }
+    };
+  }, [isClient, webSocketService, gameStarted, bet]);
+
+  // Handler for server-called numbers with debouncing and duplicate prevention
+  const handleNumberCalled = useCallback(
+    debounce((data: { 
+      betAmount: number; 
+      number: string; 
+      calledNumbers: string[] 
+    }) => {
       if (data.betAmount !== bet) return;
+      
+      // Prevent processing the same number multiple times
+      if (numberCalledRef.current === data.number) return;
+      
+      numberCalledRef.current = data.number;
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
       
@@ -132,97 +232,118 @@ const GameInterface = ({
         const langCode = language === 'am' ? 'am-ET' : 'en-US';
         voiceService.speak(data.number, langCode, 1);
       }
+    }, 100), // 100ms debounce
+    [bet, soundOn, voiceService, language]
+  );
+
+  // Handler for game state updates
+  const handleGameState = (data: { 
+    betAmount: number; 
+    calledNumbers: string[]; 
+    currentNumber: string 
+  }) => {
+    if (data.betAmount !== bet) return;
+    
+    setCalledNumbers(data.calledNumbers);
+    setCurrentNumber(data.currentNumber);
+  };
+
+  // Initialize and set up window size tracking
+  useEffect(() => {
+    if (!isClient) return;
+
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
     };
 
-    const handleWinnerAnnouncement = (data: WinnerAnnouncement) => {
-      if (data.betAmount !== bet) return;
-      
-      setAnnouncedWinners(prev => [...prev, data]);
-      setToastMessage(data.message);
-      setShowToast(true);
-      
-      if (soundOn && voiceService) {
-        const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak(data.message, langCode, 1);
+    // Set initial window size
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isClient]);
+
+  // Fetch game sessions and setup countdown timer
+  useEffect(() => {
+    if (!isClient || !bet) return;
+
+    // Function to handle sessions update from WebSocket
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      if (sessions.length > 0) {
+        // Filter sessions for the current bet amount
+        const betSessions = sessions.filter(session => session.betAmount === bet);
+        
+        if (betSessions.length > 0) {
+          // Get the earliest createdAt from all sessions
+          const earliestSession = betSessions.reduce((earliest, session) => {
+            const sessionDate = new Date(session.createdAt);
+            return sessionDate < earliest ? sessionDate : earliest;
+          }, new Date(betSessions[0].createdAt));
+          
+          setSessionCreatedAt(earliestSession);
+          
+          // Calculate time difference
+          const currentDate = new Date();
+          const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
+          
+          // Calculate remaining time (52 seconds - time difference)
+          const remainingTime = Math.max(0, 46 - timeDifference);
+          setCountdown(remainingTime);
+          
+          // Start countdown if there's time left
+          if (remainingTime > 0) {
+            startCountdown(remainingTime);
+          } else {
+            // If time is already up, start the game immediately
+            startGame();
+          }
+        }
       }
     };
 
-    const handleGameEnded = (data: GameEndData) => {
-      setGameEnded(true);
-      setGameEndData(data);
+    // Set up WebSocket listener
+    if (webSocketService) {
+      webSocketService.on('sessions-updated', handleSessionsUpdate);
       
-      const formattedWinners: Winner[] = data.winners.map(winner => ({
-        id: winner.card,
-        userId: winner.userId,
-        pattern: 'row',
-        prize: winner.prize,
-        totalWinners: data.totalWinners
-      }));
-      
-      setWinners(formattedWinners);
-      
-      const userWon = user && data.winners.some(winner => winner.userId === user._id);
-      if (userWon) {
-        setTimeout(() => setShowWinnerModal(true), 1000);
-      } else {
-        setShowGameOverModal(true);
-      }
-    };
-
-    const handleGameState = (data: { betAmount: number; calledNumbers: string[]; currentNumber: string }) => {
-      if (data.betAmount !== bet) return;
-      setCalledNumbers(data.calledNumbers);
-      setCurrentNumber(data.currentNumber);
-    };
-
-    // Setup listeners
-    webSocketService.on('sessions-updated', handleSessionsUpdate);
-    webSocketService.on('number-called', handleNumberCalled);
-    webSocketService.on('winner-announcement', handleWinnerAnnouncement);
-    webSocketService.on('game-ended', handleGameEnded);
-    webSocketService.on('game-state', handleGameState);
-
-    // Request initial data
-    webSocketService.send('get-sessions', { betAmount: bet });
+      // Request sessions for the current bet amount
+      webSocketService.send('get-sessions', {
+        betAmount: bet
+      });
+    }
 
     return () => {
-      webSocketService.off('sessions-updated', handleSessionsUpdate);
-      webSocketService.off('number-called', handleNumberCalled);
-      webSocketService.off('winner-announcement', handleWinnerAnnouncement);
-      webSocketService.off('game-ended', handleGameEnded);
-      webSocketService.off('game-state', handleGameState);
-    };
-  }, [webSocketService, bet, soundOn, voiceService, language, user]);
-
-  // Start game when countdown ends
-  useEffect(() => {
-    if (gameSessions.length > 0) {
-      const earliestSession = gameSessions.reduce((earliest, session) => {
-        const sessionDate = new Date(session.createdAt);
-        return sessionDate < earliest ? sessionDate : earliest;
-      }, new Date(gameSessions[0].createdAt));
-      
-      const currentDate = new Date();
-      const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
-      const remainingTime = Math.max(0, 46 - timeDifference);
-      
-      setCountdown(remainingTime);
-      if (remainingTime > 0) {
-        startCountdown(remainingTime);
-      } else {
-        startGame();
+      // Clean up interval and WebSocket listener
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
       }
-    }
-  }, [gameSessions]);
+      
+      if (webSocketService) {
+        webSocketService.off('sessions-updated', handleSessionsUpdate);
+      }
+    };
+  }, [isClient, bet, webSocketService]);
 
   const startCountdown = (initialTime: number) => {
     setCountdown(initialTime);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    setGameStarted(false);
+    
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
     
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+          // Time's up, start the game
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
           startGame();
           return 0;
         }
@@ -233,78 +354,299 @@ const GameInterface = ({
 
   const startGame = () => {
     setGameStarted(true);
-    webSocketService.send('update-session-status-by-bet', { betAmount: bet, status: 'playing' });
+    
+    // Update game sessions status to playing via WebSocket
+    if (webSocketService) {
+      // First update all sessions with this bet amount to 'playing' status
+      webSocketService.send('update-session-status-by-bet', {
+        betAmount: bet,
+        status: 'playing'
+      });
+    } else {
+      console.error('WebSocket service not available');
+    }
   };
 
+  const handleWebSocketConnected = () => {
+    setIsWebSocketConnected(true);
+    console.log('WebSocket connected in GameInterface');
+  };
+
+  const handleSessionsUpdate = (sessions: GameSession[]) => {
+    // Filter sessions for the current bet amount
+    const betSessions = sessions.filter(session => session.betAmount === bet);
+    
+    console.log('Bet sessions:', betSessions);
+    console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
+    
+    const activePlayers = betSessions.filter(
+      (session) => session.status !== "active"
+    ).length;
+
+    setNumberOfPlayers(activePlayers);
+    
+    // Calculate prize pool as 80% of total bets
+    const pool = activePlayers * bet * 0.8;
+    setPrizePool(pool);
+    
+    // Update game sessions
+    setGameSessions(betSessions);
+  };
+  
+  const handleGameEnded = (data: GameEndData) => {
+  console.log('Game ended data received:', data);
+    // Stop calling numbers
+  setIsCalling(false);
+
+  // Store game end data
+  setGameEndData(data);
+  
+  // Map winners to our state format
+  const formattedWinners: Winner[] = data.winners.map(winner => ({
+    id: winner.card,
+    userId: winner.id,
+    pattern: 'row', // Default pattern, will be determined later
+    prize: data.split,
+    totalWinners: data.totalWinners
+  }));
+  
+  setWinners(formattedWinners);
+  
+  // Check if current user is among winners
+  const userWon = user && data.winners.some(winner => winner.id === user._id);
+  
+  if (userWon) {
+    // Show winner modal for winners
+    setTimeout(() => {
+      setShowWinnerModal(true);
+    }, 2000);
+  } else {
+    // Show game over modal for non-winners
+    setShowGameOverModal(true);
+  }
+  
+};
+
   useEffect(() => {
+    // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
-      setRecentNumbers(calledNumbers.slice(-3));
+      const recent = calledNumbers.slice(-3);
+      setRecentNumbers(recent);
     }
   }, [calledNumbers]);
 
-  const checkForWinner = (playerId: number) => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) return { isWinner: false, message: 'Player not found', playerId };
-    if (blockedPlayers.includes(playerId)) return { isWinner: false, message: 'Player blocked', playerId };
+// Update the checkForWinner function to detect the specific winning pattern
+const checkForWinner = (playerId: number) => {
+  const player = players.find(p => p.id === playerId);
+  if (!player) {
+    return {
+      isWinner: false,
+      message: language === 'am' 
+        ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
+        : `Player ${playerId} is not in the game`,
+      playerId
+    };
+  }
 
-    const card = getCardById(playerId);
-    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+  if (blockedPlayers.includes(playerId)) {
+    return {
+      isWinner: false,
+      message: language === 'am' 
+        ? `ተጫዋች ${playerId} ተገድቧል` 
+        : `Player ${playerId} is blocked`,
+      playerId
+    };
+  }
 
-    for (const pattern of patterns) {
-      const winningCells = getWinningPatternCells(card, pattern);
-      if (winningCells.length > 0) {
-        return {
-          isWinner: true,
-          pattern,
-          message: `Player ${playerId} wins with ${pattern} pattern!`,
-          playerId,
-          userId: player.userId
-        };
-      }
+  const card = getCardById(playerId);
+  const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
+
+  for (const pattern of patterns) {
+    const winningCells = getWinningPatternCells(card, pattern);
+    
+    if (winningCells.length > 0) {
+      return {
+        isWinner: true,
+        pattern,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
+          : `Player ${playerId} wins with ${pattern} pattern!`,
+        playerId,
+        userId: player.userId
+      };
     }
+  }
 
-    return { isWinner: false, message: 'No winning pattern', playerId };
+  return {
+    isWinner: false,
+    message: language === 'am' 
+      ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
+      : `Player ${playerId} has not won yet`,
+    playerId
   };
+};
 
   const handleBingo = async (playerId: number) => {
-    if (gameEnded) {
-      setToastMessage('Game already ended!');
+   // Stop calling numbers
+    setGameEnded(true);
+  const result = checkForWinner(playerId);
+  
+  if (result.isWinner) {
+    try {
+
+      setIsCalling(false);
+      const prizeAmount = numberOfPlayers * bet * 0.8; // 80% of total bets
+      
+      // Show toast message for all users
+      const winMessage = language === 'am' 
+        ? `ተጫዋች ${playerId} አሸንፏል!` 
+        : `Player ${playerId} wins!`;
+      setToastMessage(winMessage);
       setShowToast(true);
-      return;
-    }
-
-    const result = checkForWinner(playerId);
-    
-    if (result.isWinner) {
-      const prizeAmount = numberOfPlayers * bet * 0.8;
-      webSocketService.send('end-game', {
-        betAmount: bet,
-        winnerId: result.userId!,
+      
+      // Create game history
+      await api.post('/game/history', {
+        winnerId: result.userId,
         winnerCard: playerId,
-        prizePool: prizeAmount
+        prizePool: prizeAmount,
+        numberOfPlayers: numberOfPlayers,
+        betAmount: bet
       });
-
+      
+      // End game via WebSocket - server will handle multiple winners
+      if (webSocketService) {
+        webSocketService.send('end-game', {
+          betAmount: bet,
+          winnerId: result.userId,
+          winnerCard: playerId,
+          prizePool: prizeAmount
+        });
+        
+        // Listen for game-ended broadcast (instead of private winner-notification)
+        webSocketService.once('game-ended', (data: GameEndData) => {
+          console.log('Game ended data received:', data);
+          
+          // Map winners to our state format
+          const formattedWinners: Winner[] = data.winners.map(winner => ({
+            id: winner.card,
+            userId: winner.id,
+            pattern: 'row', // Default pattern
+            prize: data.split,
+            totalWinners: data.totalWinners
+          }));
+          
+          setWinners(formattedWinners);
+          setGameEndData(data);
+          
+          // Show winner modal after 1 second
+          setTimeout(() => {
+            setShowWinnerModal(true);
+          }, 1000);
+        });
+      }
+      
       if (soundOn && voiceService) {
         const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak(`Player ${playerId} wins!`, langCode, 1);
+        voiceService.speak(winMessage, langCode, 1);
       }
-    } else {
+    } catch (error) {
+      console.error('Error ending game:', error);
+    }
+  } else {
+    // Show loser modal with card status
+    try {
+      // Update game session status to blocked via WebSocket
+      if (webSocketService) {
+        webSocketService.send('update-session-status', {
+          cardNumber: playerId,
+          betAmount: bet,
+          status: 'playing' // Keep as playing to allow re-attempt
+        });
+      }
+      
       setBlockedPlayers([...blockedPlayers, playerId]);
       setLoserMessage(result.message);
       setLoserCardId(playerId);
       setShowLoserModal(true);
-
+      
       if (soundOn && voiceService) {
         const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak('No winner found!', langCode, 1);
+        voiceService.speak(
+          language === 'am' 
+            ? 'ምንም አሸናፊ አልተገኘም!' 
+            : 'No winner found!', 
+          langCode, 
+          1
+        );
       }
+      
+      // Resume game after 3 seconds
+      setTimeout(() => {
+        setIsCalling(true);
+      }, 3000);
+    } catch (error) {
+      console.error('Error blocking player:', error);
     }
+  }
+};
+
+  // Add this handler function to your component
+const handleBackToLobbyWithRefund = async () => {
+  try {
+    if (!user) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    // Send refund request via WebSocket
+    if (webSocketService) {
+      webSocketService.send('refund-wallet', {
+        betAmount: bet,
+        userId: user._id
+      });
+      
+      // Listen for wallet update confirmation
+      webSocketService.once('wallet-updated', (newBalance: number) => {
+        console.log('Wallet updated successfully:', newBalance);
+        // Proceed to go back to lobby
+        onBackToPlayerLobby();
+      });
+      
+      // Handle any errors
+      webSocketService.once('error', (error: { message: string }) => {
+        console.error('Refund error:', error.message);
+        // Still go back to lobby even if refund fails
+      });
+    } else {
+      console.error('WebSocket service not available');
+    }
+  } catch (error) {
+    console.error('Error processing refund:', error);
+  }
+};
+
+
+  const getPatternName = (pattern: WinPattern) => {
+    if (language === 'am') {
+      return {
+        'row': 'ረድፍ',
+        'column': 'አምድ',
+        'diagonal': 'ዲያግናል',
+        'corners': 'ማዕዘኖች'
+      }[pattern] || pattern;
+    }
+    return pattern;
   };
 
   const toggleUserMark = (number: string) => {
-    setUserMarkedNumbers(prev => ({ ...prev, [number]: !prev[number] }));
+    setUserMarkedNumbers(prev => ({
+      ...prev,
+      [number]: !prev[number]
+    }));
   };
 
+  // Function to transpose the card for display
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
     for (let i = 0; i < 5; i++) {
@@ -315,52 +657,79 @@ const GameInterface = ({
     return transposed;
   };
 
+  // Get user's cards (filtered by user ID from localStorage)
   const getUserCards = () => {
     if (!user) return [];
     return players.filter(player => player.userId === user._id);
   };
 
+  const userCards = getUserCards();
+
+  // Check if a number is called (for card display)
   const isNumberCalled = (number: number, letter: string) => {
-    return calledNumbers.includes(`${letter}-${number}`);
+    const fullNumber = `${letter}-${number}`;
+    return calledNumbers.includes(fullNumber);
   };
 
-  const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
-    const cells: {row: number, col: number}[] = [];
+  // Get winning pattern cells for highlighting
+// Update the getWinningPatternCells function to properly identify the winning pattern
+const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
+  const cells: {row: number, col: number}[] = [];
+  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
+  const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
+  const lastLetter = lastCalledNumber?.split('-')[0] || '';
+  
+  // Check if the last called number is in this card
+  const lastNumColIndex = "BINGO".indexOf(lastLetter);
+  const lastNumRowIndex = lastNumColIndex !== -1 ? card[lastNumColIndex]?.indexOf(lastNum) : -1;
+  
+  if (lastNumRowIndex === -1) {
+    return cells; // Last called number not in this card
+  }
+  
+  if (pattern === 'row') {
+    // Check if the row containing the last called number is a winning row
+    const rowIndex = lastNumRowIndex;
+    let isWinningRow = true;
     
-    if (pattern === 'row') {
-      for (let row = 0; row < 5; row++) {
-        let isWinningRow = true;
-        for (let col = 0; col < 5; col++) {
-          const number = card[col][row];
-          const letter = "BINGO"[col];
-          if (!isNumberCalled(number, letter)) {
-            isWinningRow = false;
-            break;
-          }
-        }
-        if (isWinningRow) {
-          for (let col = 0; col < 5; col++) cells.push({row, col});
-          break;
-        }
+    for (let col = 0; col < 5; col++) {
+      const number = card[col][rowIndex];
+      const letter = "BINGO"[col];
+      if (!isNumberCalled(number, letter)) {
+        isWinningRow = false;
+        break;
       }
-    } else if (pattern === 'column') {
+    }
+    
+    if (isWinningRow) {
       for (let col = 0; col < 5; col++) {
-        let isWinningCol = true;
-        for (let row = 0; row < 5; row++) {
-          const number = card[col][row];
-          const letter = "BINGO"[col];
-          if (!isNumberCalled(number, letter)) {
-            isWinningCol = false;
-            break;
-          }
-        }
-        if (isWinningCol) {
-          for (let row = 0; row < 5; row++) cells.push({row, col});
-          break;
-        }
+        cells.push({row: rowIndex, col});
       }
-    } else if (pattern === 'diagonal') {
+    }
+  } else if (pattern === 'column') {
+    // Check if the column containing the last called number is a winning column
+    const colIndex = lastNumColIndex;
+    let isWinningCol = true;
+    
+    for (let row = 0; row < 5; row++) {
+      const number = card[colIndex][row];
+      const letter = "BINGO"[colIndex];
+      if (!isNumberCalled(number, letter)) {
+        isWinningCol = false;
+        break;
+      }
+    }
+    
+    if (isWinningCol) {
+      for (let row = 0; row < 5; row++) {
+        cells.push({row, col: colIndex});
+      }
+    }
+  } else if (pattern === 'diagonal') {
+    // Check main diagonal
+    if (lastNumColIndex === lastNumRowIndex) {
       let isWinningDiagonal = true;
+      
       for (let i = 0; i < 5; i++) {
         const number = card[i][i];
         const letter = "BINGO"[i];
@@ -369,11 +738,18 @@ const GameInterface = ({
           break;
         }
       }
-      if (isWinningDiagonal) {
-        for (let i = 0; i < 5; i++) cells.push({row: i, col: i});
-      }
       
-      isWinningDiagonal = true;
+      if (isWinningDiagonal) {
+        for (let i = 0; i < 5; i++) {
+          cells.push({row: i, col: i});
+        }
+      }
+    }
+    
+    // Check anti-diagonal
+    if (lastNumColIndex === 4 - lastNumRowIndex) {
+      let isWinningDiagonal = true;
+      
       for (let i = 0; i < 5; i++) {
         const number = card[i][4 - i];
         const letter = "BINGO"[i];
@@ -382,12 +758,28 @@ const GameInterface = ({
           break;
         }
       }
+      
       if (isWinningDiagonal) {
-        for (let i = 0; i < 5; i++) cells.push({row: 4 - i, col: i});
+        for (let i = 0; i < 5; i++) {
+          cells.push({row: 4 - i, col: i});
+        }
       }
-    } else if (pattern === 'corners') {
-      const corners = [{row: 0, col: 0}, {row: 0, col: 4}, {row: 4, col: 0}, {row: 4, col: 4}];
+    }
+  } else if (pattern === 'corners') {
+    // Check corners
+    const corners = [
+      {row: 0, col: 0}, {row: 0, col: 4},
+      {row: 4, col: 0}, {row: 4, col: 4}
+    ];
+    
+    // Check if the last called number is a corner
+    const isLastCalledCorner = corners.some(corner => 
+      corner.row === lastNumRowIndex && corner.col === lastNumColIndex
+    );
+    
+    if (isLastCalledCorner) {
       let isWinningCorners = true;
+      
       for (const corner of corners) {
         const number = card[corner.col][corner.row];
         const letter = "BINGO"[corner.col];
@@ -396,69 +788,323 @@ const GameInterface = ({
           break;
         }
       }
-      if (isWinningCorners) cells.push(...corners);
+      
+      if (isWinningCorners) {
+        cells.push(...corners);
+      }
     }
-    
-    return cells;
-  };
+  }
+  
+  return cells;
+};
 
-  const userCards = getUserCards();
+  if (!isClient) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+      }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Winner Card Component
+const WinnerCard = ({ winner, isCurrentUser, language }: { 
+  winner: Winner; 
+  isCurrentUser: boolean;
+  language: 'en' | 'am';
+}) => {
+  const card = getCardById(winner.id);
+  const winningCells = getWinningPatternCells(card, winner.pattern);
 
   return (
-    <Box sx={{ p: 1, textAlign: 'center', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)', minHeight: '40vh', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Game Info Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 0.5, minHeight: "8vh", background: 'rgba(255,255,255,0.8)', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', mb: 1, flexWrap: 'wrap' }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Box sx={{ 
+        background: isCurrentUser 
+          ? 'rgba(255,215,0,0.15)' 
+          : 'rgba(255,255,255,0.1)',
+        borderRadius: 2,
+        p: 2,
+        border: isCurrentUser ? '2px solid gold' : '1px solid rgba(255,255,255,0.2)',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ 
+            color: isCurrentUser ? 'gold' : 'white',
+            fontWeight: 'bold'
+          }}>
+            {language === 'am' ? 'ካርድ' : 'Card'} #{winner.id}
+            {isCurrentUser && ` (${language === 'am' ? 'የእርስዎ' : 'Yours'})`}
+          </Typography>
+          
+          {winner.prize && (
+            <Box sx={{ 
+              background: 'rgba(76,175,80,0.3)',
+              borderRadius: 2,
+              px: 2,
+              py: 1
+            }}>
+              <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                {winner.prize.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        <Typography variant="body2" sx={{ 
+          color: '#a1c4fd',
+          mb: 2,
+          fontStyle: 'italic'
+        }}>
+          {language === 'am' 
+            ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
+            : `Won with ${winner.pattern} pattern!`}
+        </Typography>
         
+        {/* Winner Card Grid */}
+<Box sx={{ 
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, 1fr)',
+  gap: 0.3,
+  mb: 1,
+  p: 1,
+  background: 'rgba(255,255,255,0.9)',
+  borderRadius: 1,
+  position: 'relative'
+}}>
+  {/* BINGO Header */}
+  {["B", "I", "N", "G", "O"].map((letter, idx) => (
+    <Box key={letter} sx={{
+      p: 0.3,
+      backgroundColor: 'primary.main',
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: '0.7rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '4px 4px 0 0'
+    }}>
+      {letter}
+    </Box>
+  ))}
+  
+  {/* Card numbers with winning pattern highlight */}
+  {transposeCard(card).map((row, rowIdx) => (
+    row.map((num, colIdx) => {
+      const letter = "BINGO"[colIdx];
+      const isCalled = isNumberCalled(num, letter);
+      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+      const isLastCalled = currentNumber === `${letter}-${num}`;
+      
+      return (
+        <motion.div
+          key={`${rowIdx}-${colIdx}`}
+          animate={isLastCalled ? { 
+            scale: [1, 1.2, 1],
+            backgroundColor: [
+              'rgba(76,175,80,0.3)', 
+              'rgba(255,215,0,0.6)', 
+              'rgba(76,175,80,0.3)'
+            ]
+          } : {}}
+          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
+          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+        >
+          <Box
+            sx={{
+              p: 0.3,
+              border: isWinningCell 
+                ? '2px solid #ff5722' 
+                : '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: 
+                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                isCalled
+                  ? 'rgba(76,175,80,0.3)' 
+                  : 'rgba(255,255,255,0.7)',
+              color: isWinningCell ? '#ff5722' : 'text.primary',
+              fontWeight: isWinningCell ? 'bold' : 'normal',
+              fontSize: '0.7rem',
+              width: '100%',
+              height: '100%',
+              minHeight: 22,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '2px',
+              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.6)' : 'none',
+              position: 'relative'
+            }}
+          >
+            {num === 0 ? (language === 'am' ? '*' : '*') : num}
+            {isWinningCell && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -2,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  backgroundColor: '#ff5722',
+                  boxShadow: '0 0 4px rgba(255,87,34,0.8)'
+                }}
+              />
+            )}
+          </Box>
+        </motion.div>
+      );
+    })
+  ))}
+</Box>
+      </Box>
+    </motion.div>
+  );
+};
+
+  return (
+    <Box sx={{ 
+      p: 1, 
+      textAlign: 'center',
+      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      minHeight: '40vh',
+      display: 'flex',
+      flexDirection: 'column'
+    }}>
+      {/* Game Info Header */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        p: 0.5,
+        minHeight: "8vh",
+        background: 'rgba(255,255,255,0.8)',
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+        mb: 1,
+        flexWrap: 'wrap'
+      }}>
         {!gameStarted ? (
+          // Show countdown timer before game starts
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Time Left</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>{countdown}s</Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
+              {countdown}s
+            </Typography>
           </Box>
         ) : (
+          // Show current number and called numbers after game starts
           <>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Current</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>{currentNumber || "-"}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
+                {currentNumber || "-"}
+              </Typography>
             </Box>
             
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Called</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{calledNumbers.length}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {calledNumbers.length}
+              </Typography>
             </Box>
           </>
         )}
         
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Players</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>{numberOfPlayers}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+            {language === 'am' ? 'ተጫዋቾች' : 'Players'}
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+            {numberOfPlayers}
+          </Typography>
         </Box>
         
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Prize Pool</Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.2rem' }}>{prizePool.toFixed(0)} Birr</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+            {language === 'am' ? 'ደራሽ' : 'Derash'}
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.2rem' }}>
+            {prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+          </Typography>
         </Box>
       </Box>
 
-      {/* Main Content */}
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'row' }, flex: 1, gap: 0.5, minHeight: '25vh', overflow: 'hidden' }}>
-        
+      {/* Main Content - Two Columns Layout */}
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: { xs: 'row' },
+        flex: 1,
+        gap: 0.5,
+        minHeight: '25vh',
+        overflow: 'hidden'
+      }}>
         {/* Left Side - Number Grid */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', p: 0.5, background: 'rgba(255,255,255,0.7)', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', overflow: 'auto', minHeight: '25vh', minWidth: 0 }}>
-          
+        <Box sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 0.5,
+          background: 'rgba(255,255,255,0.7)',
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          overflow: 'auto',
+          minHeight: '25vh',
+          minWidth: 0
+        }}>
           {/* BINGO Header */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.5, mb: 1 }}>
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(5, 1fr)', 
+            gap: 0.5, 
+            mb: 1 
+          }}>
             {['B', 'I', 'N', 'G', 'O'].map(letter => (
-              <Box key={letter} sx={{ p: 0.5, backgroundColor: 'primary.main', color: 'white', fontWeight: 'bold', textAlign: 'center', borderRadius: 1, fontSize: '0.9rem' }}>
+              <Box key={letter} sx={{
+                p: 0.5,
+                backgroundColor: 'primary.main',
+                color: 'white',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                borderRadius: 1,
+                fontSize: '0.9rem'
+              }}>
                 {letter}
               </Box>
             ))}
           </Box>
 
-          {/* Number Grid */}
-          <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gridAutoRows: 'minmax(30px, auto)', gap: 0.5, overflow: 'auto', p: 0.5 }}>
+          {/* Number Grid - Fixed to show numbers in correct columns */}
+          <Box sx={{ 
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, 1fr)',
+            gridAutoRows: 'minmax(30px, auto)',
+            gap: 0.5,
+            overflow: 'auto',
+            p: 0.5
+          }}>
             {['B', 'I', 'N', 'G', 'O'].map((letter, colIndex) => {
-              const ranges = [{ min: 1, max: 15 }, { min: 16, max: 30 }, { min: 31, max: 45 }, { min: 46, max: 60 }, { min: 61, max: 75 }];
+              const ranges = [
+                { min: 1, max: 15 },
+                { min: 16, max: 30 },
+                { min: 31, max: 45 },
+                { min: 46, max: 60 },
+                { min: 61, max: 75 }
+              ];
               
               return (
                 <Box key={letter} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -468,8 +1114,31 @@ const GameInterface = ({
                     const isCalled = calledNumbers.includes(fullNumber);
                     
                     return (
-                      <motion.div key={num} whileHover={{ scale: 1.05 }}>
-                        <Box sx={{ width: '100%', height: '100%', minHeight: 29, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: isCalled ? 'linear-gradient(145deg, #4CAF50, #8BC34A)' : 'linear-gradient(145deg, #ffffff, #e0e0e0)', color: isCalled ? 'white' : 'text.primary', fontWeight: 'bold', fontSize: '0.8rem', transition: 'all 0.2s ease', border: isCalled ? '1px solid #2E7D32' : '1px solid #e0e0e0' }}>
+                      <motion.div
+                        key={num}
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            minHeight: 29,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            background: isCalled 
+                              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+                              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+                            color: isCalled ? 'white' : 'text.primary',
+                            fontWeight: 'bold',
+                            fontSize: '0.8rem',
+                            transition: 'all 0.2s ease',
+                            border: isCalled 
+                              ? '1px solid #2E7D32'
+                              : '1px solid #e0e0e0',
+                          }}
+                        >
                           {num}
                         </Box>
                       </motion.div>
@@ -480,19 +1149,54 @@ const GameInterface = ({
             })}
           </Box>
           
-          {!gameStarted && (
-            <Button variant="contained" color="error" onClick={() => webSocketService.send('refund-wallet', { betAmount: bet, userId: user?._id })} fullWidth size="small" sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}>
-              Clear Card
-            </Button>
-          )}
-          
+            {!gameStarted && (
+              <Button 
+                variant="contained" 
+                color="error"
+                onClick={handleBackToLobbyWithRefund}
+                fullWidth
+                size="small"
+                sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}
+              >
+                {language === 'am' ? 'ካችሮችን አጥፋ' : 'Clear Card'}
+              </Button>
+            )}
           {/* Recent Numbers */}
           {gameStarted && (
-            <Box sx={{ p: 1, background: 'rgba(255,255,255,0.9)', borderRadius: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.1)', mt: 1, minHeight: '3vh' }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>Recent Numbers</Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ 
+              p: 1,
+              background: 'rgba(255,255,255,0.9)',
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              mt: 1,
+              minHeight: '3vh'
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
+                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap'
+              }}>
                 {recentNumbers.map((num, index) => (
-                  <Box key={index} sx={{ px: 1, py: 1, backgroundColor: 'orange', color: 'white', borderRadius: 2, fontWeight: 'bold', fontSize: '0.7rem', minWidth: 15, minHeight: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                  <Box 
+                    key={index}
+                    sx={{
+                      px: 1,
+                      py: 1,
+                      backgroundColor: 'orange',
+                      color: 'white',
+                      borderRadius: 2,
+                      fontWeight: 'bold',
+                      fontSize: '0.7rem',
+                      minWidth: 15,
+                      minHeight: 2,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  >
                     {num}
                   </Box>
                 ))}
@@ -502,42 +1206,111 @@ const GameInterface = ({
         </Box>
 
         {/* Right Side - Controls and Cards */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, minHeight: '25vh' }}>
-          
+        <Box sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+          minHeight: '25vh',
+        }}>
           {/* Controls */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <FormControlLabel control={<Switch checked={soundOn} onChange={() => setSoundOn(!soundOn)} color="primary" size="small" />} label={<Typography variant="body2" sx={{ fontSize: '0.95rem' }}>{soundOn ? 'Sound on' : 'Sound Off'}</Typography>} />
-            <Select value={language} onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')} size="small" sx={{ minWidth: 40, fontSize: '0.7rem' }}>
-              <MenuItem value="en">EN</MenuItem>
-              <MenuItem value="am">AM</MenuItem>
-            </Select>
-          </Box>
+          
+            {/* Language Selection */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FormControlLabel
+              control={
+                <Switch
+                  checked={soundOn}
+                  onChange={() => setSoundOn(!soundOn)}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
+                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound SSOff')}
+                </Typography>
+                
+              }
+              
+            />
+              <Select
+                value={language}
+                onChange={(e) => setLanguage && setLanguage(e.target.value)}
+                size="small"
+                sx={{ minWidth: 40, fontSize: '0.7rem' }}
+              >
+                <MenuItem value="en">EN</MenuItem>
+                <MenuItem value="am">AM</MenuItem>
+              </Select>
+            </Box>
 
           {/* User Cards */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 0.5, background: 'rgba(255,255,255,0.5)', borderRadius: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', gap: 1, minHeight: '25vh' }}>
-            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>Your Cards</Typography>
+          <Box sx={{ 
+            flex: 1,
+            overflow: 'auto',
+            p: 0.5,
+            background: 'rgba(255,255,255,0.5)',
+            borderRadius: 2,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            minHeight: '25vh'
+          }}>
+            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+              {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}
+            </Typography>
             
             {userCards.length === 0 ? (
-              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>No cards selected</Typography>
+              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
+                {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
+              </Typography>
             ) : (
               userCards.map(player => {
                 const card = getCardById(player.id);
                 const isBlocked = blockedPlayers.includes(player.id);
                 
                 return (
-                  <Card key={player.id} sx={{ p: 1, background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)', border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0', borderRadius: 2 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>Card #{player.id}{isBlocked && ' (Blocked)'}</Typography>
+                  <Card 
+                    key={player.id} 
+                    sx={{ 
+                      p: 1, 
+                      background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
+                      border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>
+                      {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
+                      {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
+                    </Typography>
                     
                     {/* BINGO Card */}
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.3, mb: 0.5 }}>
+                    <Box sx={{ 
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(5, 1fr)',
+                      gap: 0.3,
+                      mb: 0.5
+                    }}>
                       {/* BINGO Header */}
                       {["B", "I", "N", "G", "O"].map((letter, idx) => (
-                        <Box key={letter} sx={{ p: 0.3, backgroundColor: 'primary.main', color: 'white', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px 4px 0 0' }}>
+                        <Box key={letter} sx={{
+                          p: 0.3,
+                          backgroundColor: 'primary.main',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '4px 4px 0 0'
+                        }}>
                           {letter}
                         </Box>
                       ))}
                       
-                      {/* Card numbers */}
+                      {/* Card numbers (transposed) - Only show user marked numbers */}
                       {transposeCard(card).map((row, rowIdx) => (
                         row.map((num, colIdx) => {
                           const letter = "BINGO"[colIdx];
@@ -545,107 +1318,675 @@ const GameInterface = ({
                           const isUserMarked = userMarkedNumbers[fullNumber];
                           
                           return (
-                            <Box key={`${rowIdx}-${colIdx}`} onClick={() => toggleUserMark(fullNumber)} sx={{ p: 0.3, border: '1px solid rgba(0,0,0,0.1)', backgroundColor: (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' : isUserMarked ? 'rgba(255,152,0,0.5)' : 'rgba(255,255,255,0.7)', color: 'text.primary', fontWeight: 'normal', fontSize: '0.8rem', minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '2px', cursor: 'pointer', transition: 'all 0.2s ease', '&:hover': { backgroundColor: isUserMarked ? 'rgba(255,152,0,0.7)' : 'rgba(0,0,0,0.1)' } }}>
-                              {num === 0 ? '*' : num}
+                            <Box
+                              key={`${rowIdx}-${colIdx}`}
+                              onClick={() => toggleUserMark(fullNumber)}
+                              sx={{
+                                p: 0.3,
+                                border: '1px solid rgba(0,0,0,0.1)',
+                                backgroundColor: 
+                                  (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                                  isUserMarked
+                                    ? 'rgba(255,152,0,0.5)' // Orange for user marked
+                                    : 'rgba(255,255,255,0.7)',
+                                color: 'text.primary',
+                                fontWeight: 'normal',
+                                fontSize: '0.8rem',
+                                minHeight: 24,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '2px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: isUserMarked 
+                                    ? 'rgba(255,152,0,0.7)' 
+                                    : 'rgba(0,0,0,0.1)'
+                                }
+                              }}
+                            >
+                              {num === 0 ? (language === 'am' ? '*' : '*') : num}
                             </Box>
                           );
                         })
                       ))}
                     </Box>
                     
-                    {/* Bingo Button - NEVER DISABLED DURING GRACE PERIOD */}
-                    <Button variant="contained" color="success" onClick={() => handleBingo(player.id)} disabled={isBlocked || !gameStarted} fullWidth size="small" sx={{ fontSize: '0.8rem' }}>
+                    {/* Bingo Button */}
+                    <Button 
+                      variant="contained" 
+                      color="success"
+                      onClick={() => handleBingo(player.id)}
+                      disabled={isBlocked || !gameStarted}
+                      fullWidth
+                      size="small"
+                      sx={{ fontSize: '0.8rem' }}
+                    >
                       BINGO
                     </Button>
                   </Card>
                 );
               })
             )}
+            
+            {/* Clear Button (only shown before game starts) */}
           </Box>
         </Box>
       </Box>
 
       {/* Toast Message */}
-      <Snackbar open={showToast} autoHideDuration={2000} onClose={() => setShowToast(false)} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
-        <Alert severity="success" sx={{ width: '100%' }}>{toastMessage}</Alert>
+      <Snackbar
+        open={showToast}
+        autoHideDuration={2000}
+        onClose={() => setShowToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success" sx={{ width: '100%' }}>
+          {toastMessage}
+        </Alert>
       </Snackbar>
 
       {/* Winner Modal */}
-      <Modal open={showWinnerModal} onClose={() => { setShowWinnerModal(false); onGameEnd(); }}>
-        <>
-          <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={300} />
-          <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: 500, bgcolor: 'background.paper', boxShadow: 24, p: 3, borderRadius: 3, textAlign: 'center', border: '3px solid gold', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', maxHeight: '90vh', overflow: 'auto' }}>
-            <IconButton aria-label="close" onClick={() => { setShowWinnerModal(false); onGameEnd(); }} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}><CloseIcon /></IconButton>
-            
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.3 }}>
-              <Typography variant="h4" gutterBottom sx={{ color: 'gold', mb: 3, fontWeight: 'bold', textShadow: '0 0 5px rgba(255,215,0,0.7)' }}>🎉 CONGRATULATIONS! 🎉</Typography>
-            </motion.div>
+{/* Winner Modal */}
+<Modal open={showWinnerModal} onClose={() => {
+  setShowWinnerModal(false);
+  onGameEnd();
+}}>
+  <>
+    <Confetti
+      width={windowSize.width}
+      height={windowSize.height}
+      recycle={false}
+      numberOfPieces={300}
+    />
+    <Box sx={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '90%',
+      maxWidth: 500,
+      bgcolor: 'background.paper',
+      boxShadow: 24,
+      p: 3,
+      borderRadius: 3,
+      textAlign: 'center',
+      border: '3px solid gold',
+      background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+      maxHeight: '90vh',
+      overflow: 'auto'
+    }}>
+      <IconButton
+        aria-label="close"
+        onClick={() => {
+          setShowWinnerModal(false);
+          onGameEnd();
+        }}
+        sx={{
+          position: 'absolute',
+          right: 8,
+          top: 8,
+          color: 'white'
+        }}
+      >
+        <CloseIcon />
+      </IconButton>
+      
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Typography variant="h4" gutterBottom sx={{ 
+          color: 'gold',
+          mb: 3,
+          fontWeight: 'bold',
+          textShadow: '0 0 5px rgba(255,215,0,0.7)'
+        }}>
+          {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
+        </Typography>
+      </motion.div>
 
-            {gameEndData && (
-              <Box sx={{ background: 'rgba(255,215,0,0.2)', borderRadius: 2, p: 2, mb: 3, border: '2px solid gold' }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1 }}>Game Results</Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Box sx={{ textAlign: 'center', mb: 1 }}><Typography variant="body2" sx={{ color: '#a1c4fd' }}>Total Prize Pool</Typography><Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>{gameEndData.prizePool.toFixed(0)} Birr</Typography></Box>
-                  <Box sx={{ textAlign: 'center', mb: 1 }}><Typography variant="body2" sx={{ color: '#a1c4fd' }}>Winners</Typography><Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>{gameEndData.totalWinners}</Typography></Box>
-                  <Box sx={{ textAlign: 'center', mb: 1 }}><Typography variant="body2" sx={{ color: '#a1c4fd' }}>Each Gets</Typography><Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>{gameEndData.split.toFixed(0)} Birr</Typography></Box>
+      {/* Prize Information */}
+      {gameEndData && (
+        <Box sx={{ 
+          background: 'rgba(255,215,0,0.2)',
+          borderRadius: 2,
+          p: 2,
+          mb: 3,
+          border: '2px solid gold'
+        }}>
+          <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1 }}>
+            {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
+          </Typography>
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ textAlign: 'center', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ textAlign: 'center', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                {gameEndData.totalWinners}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ textAlign: 'center', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
+      {/* Winners List */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" sx={{ 
+          color: 'white',
+          mb: 2,
+          fontWeight: 'bold'
+        }}>
+          {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+        </Typography>
+        
+        {/* Separate current user's wins and other wins */}
+        {user && (
+          <>
+            {/* Current User's Wins */}
+            {winners.filter(winner => winner.userId === user._id).length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'gold',
+                  mb: 2,
+                  fontWeight: 'bold'
+                }}>
+                  {language === 'am' ? 'የእርስዎ አሸናፊ ካርዶች' : 'Your Winning Cards'}
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {winners
+                    .filter(winner => winner.userId === user._id)
+                    .map((winner, index) => (
+                      <WinnerCard 
+                        key={index}
+                        winner={winner}
+                        isCurrentUser={true}
+                        language={language}
+                      />
+                    ))}
                 </Box>
               </Box>
             )}
 
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" sx={{ color: 'white', mb: 2, fontWeight: 'bold' }}>Winners</Typography>
-              {user && winners.filter(winner => winner.userId === user._id).length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" sx={{ color: 'gold', mb: 2, fontWeight: 'bold' }}>Your Winning Cards</Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {winners.filter(winner => winner.userId === user._id).map((winner, index) => (
-                      <Box key={index} sx={{ background: 'rgba(255,215,0,0.15)', borderRadius: 2, p: 2, border: '2px solid gold', boxShadow: '0 4px 8px rgba(0,0,0,0.2)' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>Card #{winner.id} (Yours)</Typography>
-                          {winner.prize && <Box sx={{ background: 'rgba(76,175,80,0.3)', borderRadius: 2, px: 2, py: 1 }}><Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>{winner.prize.toFixed(0)} Birr</Typography></Box>}
-                        </Box>
-                        <Typography variant="body2" sx={{ color: '#a1c4fd', mb: 2, fontStyle: 'italic' }}>Won with {winner.pattern} pattern!</Typography>
-                      </Box>
+            {/* Other Winners */}
+            {winners.filter(winner => winner.userId !== user._id).length > 0 && (
+              <Box>
+                <Typography variant="h6" sx={{ 
+                  color: '#a1c4fd',
+                  mb: 2,
+                  fontWeight: 'bold'
+                }}>
+                  {language === 'am' ? 'ሌሎች አሸናፊዎች' : 'Other Winners'}
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {winners
+                    .filter(winner => winner.userId !== user._id)
+                    .map((winner, index) => (
+                      <WinnerCard 
+                        key={index}
+                        winner={winner}
+                        isCurrentUser={false}
+                        language={language}
+                      />
                     ))}
-                  </Box>
                 </Box>
-              )}
-            </Box>
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
 
-            <Button variant="contained" color="primary" onClick={() => { setShowWinnerModal(false); onGameEnd(); }} sx={{ mt: 2, px: 4, py: 1.5, fontWeight: 'bold', fontSize: '1.1rem', background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)', boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)', borderRadius: 2, '&:hover': { background: 'linear-gradient(45deg, #FE6B8B 40%, #FF8E53 100%)' } }}>
-              Return to Lobby
-            </Button>
-          </Box>
-        </>
-      </Modal>
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={() => {
+            setShowWinnerModal(false);
+            onGameEnd();
+          }}
+          sx={{ 
+            mt: 2,
+            px: 4,
+            py: 1.5,
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+            boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)',
+            borderRadius: 2,
+            '&:hover': {
+              background: 'linear-gradient(45deg, #FE6B8B 40%, #FF8E53 100%)',
+            }
+          }}
+        >
+          {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+        </Button>
+      </motion.div>
+    </Box>
+  </>
+</Modal>
 
-      {/* Loser Modal */}
+       {/* Loser Modal */}
       <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: 400, bgcolor: 'background.paper', boxShadow: 24, p: 2, borderRadius: 3, textAlign: 'center', border: '3px solid #f44336', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', maxHeight: '90vh', overflow: 'auto' }}>
-          <IconButton aria-label="close" onClick={() => setShowLoserModal(false)} sx={{ position: 'absolute', right: 4, top: 4, color: 'white' }}><CloseIcon fontSize="small" /></IconButton>
-          <Typography variant="h6" gutterBottom sx={{ color: '#f44336', mb: 2, fontWeight: 'bold' }}>Sorry!</Typography>
-          <Typography variant="body1" sx={{ color: 'white', mb: 2 }}>{loserMessage}</Typography>
-          <Button variant="contained" color="primary" onClick={() => { setShowLoserModal(false); onGameEnd(); }} sx={{ mt: 1, fontWeight: 'bold' }}>OK</Button>
-        </Box>
-      </Modal>
-
-      {/* Game Over Modal */}
-      <Modal open={showGameOverModal} onClose={() => { setShowGameOverModal(false); onGameEnd(); }}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: 400, bgcolor: 'background.paper', boxShadow: 24, p: 2, borderRadius: 3, textAlign: 'center', border: '3px solid gold', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', maxHeight: '90vh', overflow: 'auto' }}>
-          <IconButton aria-label="close" onClick={() => { setShowGameOverModal(false); onGameEnd(); }} sx={{ position: 'absolute', right: 4, top: 4, color: 'white' }}><CloseIcon fontSize="small" /></IconButton>
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ duration: 0.3 }}>
-            <Typography variant="h5" gutterBottom sx={{ color: 'gold', mb: 2, fontWeight: 'bold', textShadow: '0 0 5px rgba(255,215,0,0.7)' }}>🎉 GAME OVER! 🎉</Typography>
-          </motion.div>
-          {gameEndData && (
-            <Box sx={{ background: 'rgba(255,215,0,0.2)', borderRadius: 2, p: 1.5, mb: 2, border: '1px solid gold' }}>
-              <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>Total Prize Pool</Typography>
-              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>{gameEndData.prizePool.toFixed(0)} Birr</Typography>
-              {gameEndData.totalWinners > 1 && <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1 }}>Split among {gameEndData.totalWinners} winners</Typography>}
+        <Box sx={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: 400,
+          bgcolor: 'background.paper',
+          boxShadow: 24,
+          p: 2,
+          borderRadius: 3,
+          textAlign: 'center',
+          border: '3px solid #f44336',
+          background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+          maxHeight: '90vh',
+          overflow: 'auto'
+        }}>
+          <IconButton
+            aria-label="close"
+            onClick={() => setShowLoserModal(false)}
+            sx={{
+              position: 'absolute',
+              right: 4,
+              top: 4,
+              color: 'white'
+            }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+          
+          <Typography variant="h6" gutterBottom sx={{ 
+            color: '#f44336',
+            mb: 2,
+            fontWeight: 'bold'
+          }}>
+            {language === 'am' ? 'ይቅርታ!' : 'Sorry!'}
+          </Typography>
+          
+          <Typography variant="body1" sx={{ 
+            color: 'white',
+            mb: 2
+          }}>
+            {loserMessage}
+          </Typography>
+          
+          {loserCardId && (
+            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 0.3,
+              mb: 2,
+              p: 1,
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: 1
+            }}>
+              {/* BINGO Header */}
+              {["B", "I", "N", "G", "O"].map((letter, idx) => (
+                <Box key={letter} sx={{
+                  p: 0.3,
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '0.6rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px 4px 0 0'
+                }}>
+                  {letter}
+                </Box>
+              ))}
+              
+              {/* Card numbers with actual called numbers highlighted */}
+              {transposeCard(getCardById(loserCardId)).map((row, rowIdx) => (
+                row.map((num, colIdx) => {
+                  const letter = "BINGO"[colIdx];
+                  const isCalled = isNumberCalled(num, letter);
+                  
+                  return (
+                    <Box
+                      key={`${rowIdx}-${colIdx}`}
+                      sx={{
+                        p: 0.3,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        backgroundColor: 
+                          (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                          isCalled 
+                            ? 'rgba(76,175,80,0.7)' 
+                            : 'rgba(255,255,255,0.1)',
+                        color: isCalled ? 'white' : 'rgba(255,255,255,0.7)',
+                        fontWeight: isCalled ? 'bold' : 'normal',
+                        fontSize: '0.6rem',
+                        minHeight: 20,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                    </Box>
+                  );
+                })
+              ))}
             </Box>
           )}
-          <Button variant="contained" color="primary" onClick={() => { setShowGameOverModal(false); onGameEnd(); }} sx={{ mt: 1, px: 3, fontWeight: 'bold', background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)', boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)', borderRadius: 2 }}>Return to Lobby</Button>
+          
+          <Typography variant="body2" sx={{ 
+            color: '#ffcdd2',
+            mb: 2,
+            fontStyle: 'italic'
+          }}>
+            {language === 'am' 
+              ? 'ይህ ካርድ ታግዷል. ወደ ሎቢ ይመለሳሉ።'
+              : 'This card is blocked. You will return to the lobby.'}
+          </Typography>
+          
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              setShowLoserModal(false);
+              onGameEnd();
+            }}
+            sx={{ 
+              mt: 1,
+              fontWeight: 'bold'
+            }}
+          >
+            {language === 'am' ? 'እሺ' : 'OK'}
+          </Button>
         </Box>
       </Modal>
+      {/* Game Over Modal */}
+<Modal open={showGameOverModal} onClose={() => {
+  setShowGameOverModal(false);
+  onGameEnd();
+}}>
+  <>
+    <Box sx={{
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '90%',
+      maxWidth: 400,
+      bgcolor: 'background.paper',
+      boxShadow: 24,
+      p: 2,
+      borderRadius: 3,
+      textAlign: 'center',
+      border: '3px solid gold',
+      background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+      maxHeight: '90vh',
+      overflow: 'auto'
+    }}>
+      <IconButton
+        aria-label="close"
+        onClick={() => {
+          setShowGameOverModal(false);
+          onGameEnd();
+        }}
+        sx={{
+          position: 'absolute',
+          right: 4,
+          top: 4,
+          color: 'white'
+        }}
+      >
+        <CloseIcon fontSize="small" />
+      </IconButton>
+      
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Typography variant="h5" gutterBottom sx={{ 
+          color: 'gold',
+          mb: 2,
+          fontWeight: 'bold',
+          textShadow: '0 0 5px rgba(255,215,0,0.7)'
+        }}>
+          {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
+        </Typography>
+      </motion.div>
+      
+      {/* Prize Information */}
+      {gameEndData && (
+        <Box sx={{ 
+          background: 'rgba(255,215,0,0.2)',
+          borderRadius: 2,
+          p: 1.5,
+          mb: 2,
+          border: '1px solid gold'
+        }}>
+          <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+            {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+          </Typography>
+          <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+            {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+          </Typography>
+          {gameEndData.totalWinners > 1 && (
+            <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1 }}>
+              {language === 'am' 
+                ? `ከ${gameEndData.totalWinners} አሸናፊዎች ጋር ተካፍሏል`
+                : `Split among ${gameEndData.totalWinners} winners`}
+            </Typography>
+          )}
+        </Box>
+      )}
+      
+      {winners.length > 0 && (
+        <Box sx={{ 
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+          mb: 2
+        }}>
+          <Typography variant="h6" sx={{ 
+            color: 'white',
+            fontWeight: 'bold'
+          }}>
+            {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+          </Typography>
+          
+          {winners.map(winner => {
+            const card = getCardById(winner.id);
+            const winningCells = getWinningPatternCells(card, winner.pattern);
+            
+            return (
+              <motion.div
+                key={winner.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Box sx={{ 
+                  background: 'rgba(255,255,255,0.1)',
+                  borderRadius: 2,
+                  p: 1.5,
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: 'white',
+                    mb: 1,
+                    fontWeight: 'bold'
+                  }}>
+                    {language === 'am' 
+                      ? `ተጫዋች ${winner.id}`
+                      : `Player ${winner.id}`}
+                  </Typography>
+                  
+                  {winner.prize && (
+                    <Typography variant="body2" sx={{ 
+                      color: '#a1c4fd',
+                      mb: 1,
+                      fontStyle: 'italic'
+                    }}>
+                      {language === 'am' 
+                        ? `የሸለመ: ${winner.prize.toFixed(0)} ብር`
+                        : `Prize: ${winner.prize.toFixed(0)} Birr`}
+                    </Typography>
+                  )}
+                  
+                  {/* Winner Card */}
+                <Box sx={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gap: 0.3,
+                  mb: 1,
+                  p: 1,
+                  background: 'rgba(255,255,255,0.9)',
+                  borderRadius: 1
+                }}>
+                  {/* BINGO Header */}
+                  {["B", "I", "N", "G", "O"].map((letter, idx) => (
+                    <Box key={letter} sx={{
+                      p: 0.3,
+                      backgroundColor: 'primary.main',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '0.6rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '4px 4px 0 0'
+                    }}>
+                      {letter}
+                    </Box>
+                  ))}
+                  
+                  {/* Card numbers with winning pattern highlight */}
+                  {transposeCard(card).map((row, rowIdx) => (
+                    row.map((num, colIdx) => {
+                      const letter = "BINGO"[colIdx];
+                      const isCalled = isNumberCalled(num, letter);
+                      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+                      const isLastCalled = currentNumber === `${letter}-${num}`;
+                      
+                      return (
+                        <motion.div
+                          key={`${rowIdx}-${colIdx}`}
+                          animate={isLastCalled ? { 
+                            scale: [1, 1.2, 1],
+                            backgroundColor: [
+                              'rgba(76,175,80,0.3)', 
+                              'rgba(255,215,0,0.6)', 
+                              'rgba(76,175,80,0.3)'
+                            ]
+                          } : {}}
+                          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
+                          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                        >
+                          <Box
+                            sx={{
+                              p: 0.3,
+                              border: isWinningCell 
+                                ? '2px solid #ff5722' 
+                                : '1px solid rgba(0,0,0,0.1)',
+                              backgroundColor: 
+                                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                                isCalled
+                                  ? 'rgba(76,175,80,0.3)' 
+                                  : 'rgba(255,255,255,0.7)',
+                              color: isWinningCell ? '#ff5722' : 'text.primary',
+                              fontWeight: isWinningCell ? 'bold' : 'normal',
+                              fontSize: '0.6rem',
+                              width: '100%',
+                              height: '100%',
+                              minHeight: 20,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '2px',
+                              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.8)' : 'none',
+                              position: 'relative'
+                            }}
+                          >
+                            {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                            {isWinningCell && (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: -2,
+                                  right: -2,
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  backgroundColor: '#ff5722',
+                                  boxShadow: '0 0 3px rgba(255,87,34,0.8)'
+                                }}
+                              />
+                            )}
+                          </Box>
+                        </motion.div>
+                      );
+                    })
+                  ))}
+                </Box>
+                </Box>
+              </motion.div>
+            );
+          })}
+        </Box>
+      )}
+
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <Button 
+          variant="contained" 
+          color="primary"
+          onClick={() => {
+            setShowGameOverModal(false);
+            onGameEnd();
+          }}
+          sx={{ 
+            mt: 1,
+            px: 3,
+            fontWeight: 'bold',
+            background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+            boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)',
+            borderRadius: 2
+          }}
+        >
+          {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+        </Button>
+      </motion.div>
+    </Box>
+  </>
+</Modal>
     </Box>
   );
 };
