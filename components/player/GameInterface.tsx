@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Button, Box, Typography, Card, CardContent, 
-  useTheme, useMediaQuery, Alert, Snackbar, TextField,
+  Button, Box, Typography, Card, 
+  useTheme, useMediaQuery, Alert, Snackbar,
   IconButton, CircularProgress, Modal, Switch,
-  FormControlLabel,Select, MenuItem
+  FormControlLabel, Select, MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { checkWin } from '@/app/utils/gameLogic';
@@ -86,16 +86,10 @@ const GameInterface = ({
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
-  const [remainingNumbers, setRemainingNumbers] = useState<string[]>([]);
-  const [windowSize, setWindowSize] = useState({
-    width: 0,
-    height: 0,
-  });
-  const [gameStatusText, setGameStatusText] = useState('FETA BINGO');
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [blockedPlayers, setBlockedPlayers] = useState<number[]>([]);
   const [recentNumbers, setRecentNumbers] = useState<string[]>([]);
   const [userMarkedNumbers, setUserMarkedNumbers] = useState<{[key: string]: boolean}>({});
-  const [cardMarkedNumbers, setCardMarkedNumbers] = useState<{[playerId: string]: {[number: string]: boolean}}>({});
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [prizePool, setPrizePool] = useState(0);
   const [numberOfPlayers, setNumberOfPlayers] = useState(0);
@@ -103,7 +97,6 @@ const GameInterface = ({
   const [showToast, setShowToast] = useState(false);
   const [loserMessage, setLoserMessage] = useState('');
   const [showGameOverModal, setShowGameOverModal] = useState(false);
-  const [gameOverWinner, setGameOverWinner] = useState<GameHistory | null>(null);
   const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const { user } = useAuth();
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
@@ -114,249 +107,139 @@ const GameInterface = ({
   const [isConnected, setIsConnected] = useState(false);
   const [lastProcessedNumber, setLastProcessedNumber] = useState<string>('');
   const [isGameOver, setIsGameOver] = useState(false);
-  const [declaredWinners, setDeclaredWinners] = useState<{userId: string; card: number}[]>([]);
-  
-  // New state for countdown timer
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
-  const [gameEnded, setGameEnded] = useState(false);
-  const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const numberCalledRef = useRef<string>('');
 
-  // Initialize component on client side only
+  // Client-only setup
   useEffect(() => {
     setIsClient(true);
-    
-    // Dynamically import browser-only modules
     const loadBrowserModules = async () => {
       try {
-        // Load voice service
         const voiceModule = await import('@/app/utils/voiceService');
         setVoiceService(voiceModule.voiceService);
-        
-        // Load WebSocket service
         const wsModule = await import('@/app/utils/websocket');
         setWebSocketService(wsModule.webSocketService);
       } catch (error) {
         console.error('Failed to load browser modules:', error);
       }
     };
-    
     loadBrowserModules();
   }, []);
 
-  // Setup WebSocket connection state
+  // WebSocket connection state
   useEffect(() => {
     if (!webSocketService) return;
-
-    const handleConnect = () => {
-      setIsConnected(true);
-      console.log('WebSocket connected');
-    };
-
-    const handleDisconnect = () => {
-      setIsConnected(false);
-      console.log('WebSocket disconnected');
-    };
-
+    const handleConnect = () => setIsConnected(true);
+    const handleDisconnect = () => setIsConnected(false);
     webSocketService.on('connect', handleConnect);
     webSocketService.on('disconnect', handleDisconnect);
-
     return () => {
       webSocketService.off('connect', handleConnect);
       webSocketService.off('disconnect', handleDisconnect);
     };
   }, [webSocketService]);
 
-  // Setup WebSocket listeners when service is available - RUNS ONLY ONCE
+  // WebSocket listeners
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
-    const setupWebSocketListeners = () => {
-      webSocketService.on('connected', handleWebSocketConnected);
-      webSocketService.on('sessions-updated', handleSessionsUpdate);
-      webSocketService.on('game-ended', handleGameEnded);
-      webSocketService.on('number-called', handleNumberCalled);
-      webSocketService.on('game-state', handleGameState);
-      webSocketService.on('winner-declared', handleWinnerDeclared);
-      
-      // Request initial session data
-      webSocketService.send('get-sessions', { betAmount: bet });
-    };
-
-    setupWebSocketListeners();
-
-    return () => {
-      if (webSocketService) {
-        webSocketService.off('connected', handleWebSocketConnected);
-        webSocketService.off('sessions-updated', handleSessionsUpdate);
-        webSocketService.off('game-ended', handleGameEnded);
-        webSocketService.off('number-called', handleNumberCalled);
-        webSocketService.off('game-state', handleGameState);
-        webSocketService.off('winner-declared', handleWinnerDeclared);
-      }
-    };
-  }, [isClient, webSocketService, bet]);
-
-  // Handler for winner declared events
-  const handleWinnerDeclared = (data: {
-    betAmount: number;
-    winnerId: string;
-    winnerCard: number;
-    timestamp: number;
-  }) => {
-    if (data.betAmount !== bet) return;
-    
-    // Add to declared winners list
-    setDeclaredWinners(prev => [...prev, {userId: data.winnerId, card: data.winnerCard}]);
-    
-    // Show toast notification
-    const winnerMessage = language === 'am' 
-      ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
-      : `Player ${data.winnerCard} wins!`;
-    
-    setToastMessage(winnerMessage);
-    setShowToast(true);
-    
-    // Stop the game locally
-    setIsCalling(false);
-    setIsGameOver(true);
-  };
-
-  // Handler for server-called numbers with debouncing and duplicate prevention
-  const handleNumberCalled = useCallback(
-    debounce((data: { 
-      betAmount: number; 
-      number: string; 
-      calledNumbers: string[];
-      timestamp: number;
-    }) => {
+    function handleWinnerDeclared(data: { betAmount: number; winnerId: string; winnerCard: number; timestamp: number }) {
       if (data.betAmount !== bet) return;
-      
-      // Prevent processing the same number multiple times
+      setToastMessage(language === 'am'
+        ? `ተጫዋች ${data.winnerCard} አሸንፏል!`
+        : `Player ${data.winnerCard} wins!`);
+      setShowToast(true);
+      setIsCalling(false);
+      setIsGameOver(true);
+    }
+
+    function handleNumberCalled(data: { betAmount: number; number: string; calledNumbers: string[]; timestamp: number }) {
+      if (data.betAmount !== bet || isGameOver) return;
       if (lastProcessedNumber === data.number) return;
-      
       setLastProcessedNumber(data.number);
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
-      
       if (soundOn && voiceService) {
         const langCode = language === 'am' ? 'am-ET' : 'en-US';
         voiceService.speak(data.number, langCode, 1);
       }
-    }, 100), // 100ms debounce
-    [bet, soundOn, voiceService, language, lastProcessedNumber]
-  );
-
-  // Handler for game state updates
-  const handleGameState = (data: { 
-    betAmount: number; 
-    calledNumbers: string[]; 
-    currentNumber: string 
-  }) => {
-    if (data.betAmount !== bet) return;
-    
-    setCalledNumbers(data.calledNumbers);
-    setCurrentNumber(data.currentNumber);
-  };
-
-  // Initialize and set up window size tracking
-  useEffect(() => {
-    if (!isClient) return;
-
-    const handleResize = () => {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    // Set initial window size
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-    
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [isClient]);
-
-  // Fetch game sessions and setup countdown timer
-  useEffect(() => {
-    if (!isClient || !bet) return;
-
-    // Function to handle sessions update from WebSocket
-    const handleSessionsUpdate = (sessions: GameSession[]) => {
-      if (sessions.length > 0) {
-        // Filter sessions for the current bet amount
-        const betSessions = sessions.filter(session => session.betAmount === bet);
-        
-        if (betSessions.length > 0) {
-          // Get the earliest createdAt from all sessions
-          const earliestSession = betSessions.reduce((earliest, session) => {
-            const sessionDate = new Date(session.createdAt);
-            return sessionDate < earliest ? sessionDate : earliest;
-          }, new Date(betSessions[0].createdAt));
-          
-          setSessionCreatedAt(earliestSession);
-          
-          // Calculate time difference
-          const currentDate = new Date();
-          const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
-          
-          // Calculate remaining time (52 seconds - time difference)
-          const remainingTime = Math.max(0, 46 - timeDifference);
-          setCountdown(remainingTime);
-          
-          // Start countdown if there's time left
-          if (remainingTime > 0) {
-            startCountdown(remainingTime);
-          } else {
-            // If time is already up, start the game immediately
-            startGame();
-          }
-        }
-      }
-    };
-
-    // Set up WebSocket listener
-    if (webSocketService) {
-      webSocketService.on('sessions-updated', handleSessionsUpdate);
-      
-      // Request sessions for the current bet amount
-      webSocketService.send('get-sessions', {
-        betAmount: bet
-      });
     }
 
+    function handleGameEnded(data: GameEndData) {
+      setGameEndData(data);
+      setIsCalling(false);
+      setIsGameOver(true);
+      setWinners(data.winners.map(winner => ({
+        id: winner.card,
+        userId: winner.id,
+        pattern: 'row',
+        prize: data.split,
+        totalWinners: data.totalWinners
+      })));
+      const userWon = user && data.winners.some(winner => winner.id === user._id);
+      setTimeout(() => {
+        if (userWon) setShowWinnerModal(true);
+        else setShowGameOverModal(true);
+      }, 500);
+    }
+
+    webSocketService.on('number-called', handleNumberCalled);
+    webSocketService.on('winner-declared', handleWinnerDeclared);
+    webSocketService.on('game-ended', handleGameEnded);
+
     return () => {
-      // Clean up interval and WebSocket listener
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
+      webSocketService.off('number-called', handleNumberCalled);
+      webSocketService.off('winner-declared', handleWinnerDeclared);
+      webSocketService.off('game-ended', handleGameEnded);
+    };
+  }, [webSocketService, bet, isGameOver, language, user, soundOn, voiceService, lastProcessedNumber]);
+
+  // Window size for confetti
+  useEffect(() => {
+    if (!isClient) return;
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isClient]);
+
+  // Sessions and countdown
+  useEffect(() => {
+    if (!isClient || !bet) return;
+    function handleSessionsUpdate(sessions: GameSession[]) {
+      const betSessions = sessions.filter(session => session.betAmount === bet);
+      if (betSessions.length > 0) {
+        const earliestSession = betSessions.reduce((earliest, session) => {
+          const sessionDate = new Date(session.createdAt);
+          return sessionDate < earliest ? sessionDate : earliest;
+        }, new Date(betSessions[0].createdAt));
+        const currentDate = new Date();
+        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
+        const remainingTime = Math.max(0, 46 - timeDifference);
+        setCountdown(remainingTime);
+        if (remainingTime > 0) startCountdown(remainingTime);
+        else startGame();
       }
-      
-      if (webSocketService) {
-        webSocketService.off('sessions-updated', handleSessionsUpdate);
-      }
+    }
+    if (webSocketService) {
+      webSocketService.on('sessions-updated', handleSessionsUpdate);
+      webSocketService.send('get-sessions', { betAmount: bet });
+    }
+    return () => {
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (webSocketService) webSocketService.off('sessions-updated', handleSessionsUpdate);
     };
   }, [isClient, bet, webSocketService]);
 
   const startCountdown = (initialTime: number) => {
     setCountdown(initialTime);
     setGameStarted(false);
-    
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-    
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // Time's up, start the game
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-          }
+          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
           startGame();
           return 0;
         }
@@ -367,295 +250,118 @@ const GameInterface = ({
 
   const startGame = () => {
     setGameStarted(true);
-    
-    // Update game sessions status to playing via WebSocket
     if (webSocketService) {
-      // First update all sessions with this bet amount to 'playing' status
-      webSocketService.send('update-session-status-by-bet', {
-        betAmount: bet,
-        status: 'playing'
-      });
-      
-      // Then start the game on the server
+      webSocketService.send('update-session-status-by-bet', { betAmount: bet, status: 'playing' });
       webSocketService.send('start-game', { betAmount: bet });
-    } else {
-      console.error('WebSocket service not available');
-    }
-  };
-
-  const handleWebSocketConnected = () => {
-    setIsWebSocketConnected(true);
-    console.log('WebSocket connected in GameInterface');
-  };
-
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Filter sessions for the current bet amount
-    const betSessions = sessions.filter(session => session.betAmount === bet);
-    
-    console.log('Bet sessions:', betSessions);
-    console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
-    
-    const activePlayers = betSessions.filter(
-      (session) => session.status !== "active"
-    ).length;
-
-    setNumberOfPlayers(activePlayers);
-    
-    // Calculate prize pool as 80% of total bets
-    const pool = activePlayers * bet * 0.8;
-    setPrizePool(pool);
-    
-    // Update game sessions
-    setGameSessions(betSessions);
-  };
-  
-  const handleGameEnded = (data: GameEndData) => {
-    console.log('Game ended data received:', data);
-    
-    // Store game end data
-    setGameEndData(data);
-    
-    // Map winners to our state format
-    const formattedWinners: Winner[] = data.winners.map(winner => ({
-      id: winner.card,
-      userId: winner.id,
-      pattern: 'row', // Default pattern, will be determined later
-      prize: data.split,
-      totalWinners: data.totalWinners
-    }));
-    
-    setWinners(formattedWinners);
-    
-    // Check if current user is among winners
-    const userWon = user && data.winners.some(winner => winner.id === user._id);
-    
-    if (userWon) {
-      // Show winner modal for winners
-      setTimeout(() => {
-        setShowWinnerModal(true);
-      }, 2000);
-    } else {
-      // Show game over modal for non-winners
-      setShowGameOverModal(true);
     }
   };
 
   useEffect(() => {
-    // Update recent numbers when calledNumbers changes
     if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-3);
-      setRecentNumbers(recent);
+      setRecentNumbers(calledNumbers.slice(-3));
     }
   }, [calledNumbers]);
 
-  // Update the checkForWinner function to detect the specific winning pattern
+  // Winner check
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
-      return {
-        isWinner: false,
-        message: language === 'am' 
-          ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
-          : `Player ${playerId} is not in the game`,
-        playerId
-      };
+      return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` : `Player ${playerId} is not in the game`, playerId };
     }
-
     if (blockedPlayers.includes(playerId)) {
-      return {
-        isWinner: false,
-        message: language === 'am' 
-          ? `ተጫዋች ${playerId} ተገድቧል` 
-          : `Player ${playerId} is blocked`,
-        playerId
-      };
+      return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} ተገድቧል` : `Player ${playerId} is blocked`, playerId };
     }
-
     const card = getCardById(playerId);
     const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
-    const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-
     for (const pattern of patterns) {
       const winningCells = getWinningPatternCells(card, pattern);
-      
       if (winningCells.length > 0) {
         return {
           isWinner: true,
           pattern,
-          message: language === 'am' 
-            ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
-            : `Player ${playerId} wins with ${pattern} pattern!`,
+          message: language === 'am' ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` : `Player ${playerId} wins with ${pattern} pattern!`,
           playerId,
           userId: player.userId
         };
       }
     }
-
-    return {
-      isWinner: false,
-      message: language === 'am' 
-        ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
-        : `Player ${playerId} has not won yet`,
-      playerId
-    };
+    return { isWinner: false, message: language === 'am' ? `ተጫዋች ${playerId} ገና አላሸነፈም` : `Player ${playerId} has not won yet`, playerId };
   };
 
   const handleBingo = async (playerId: number) => {
-    if (isGameOver) {
-      // Game is already over, don't process bingo
-      return;
-    }
-    
+    if (isGameOver) return;
     const result = checkForWinner(playerId);
-    
     if (result.isWinner) {
-      try {
-        // Immediately stop the game locally
-        setIsCalling(false);
-        setIsGameOver(true);
-        
-        // Declare winner to server
-        if (webSocketService) {
-          webSocketService.send('declare-winner', {
-            betAmount: bet,
-            winnerId: result.userId,
-            winnerCard: playerId
-          });
-        }
-        
-        // Show toast message
-        const winMessage = language === 'am' 
-          ? `ተጫዋች ${playerId} አሸንፏል!` 
-          : `Player ${playerId} wins!`;
-        setToastMessage(winMessage);
-        setShowToast(true);
-        
-        if (soundOn && voiceService) {
-          const langCode = language === 'am' ? 'am-ET' : 'en-US';
-          voiceService.speak(winMessage, langCode, 1);
-        }
-      } catch (error) {
-        console.error('Error declaring winner:', error);
-        // Resume game if there was an error
-        setIsCalling(true);
-        setIsGameOver(false);
+      setIsCalling(false);
+      setIsGameOver(true);
+      if (webSocketService) {
+        webSocketService.send('declare-winner', {
+          betAmount: bet,
+          winnerId: result.userId,
+          winnerCard: playerId
+        });
+      }
+      setToastMessage(language === 'am' ? `ተጫዋች ${playerId} አሸንፏል!` : `Player ${playerId} wins!`);
+      setShowToast(true);
+      if (soundOn && voiceService) {
+        const langCode = language === 'am' ? 'am-ET' : 'en-US';
+        voiceService.speak(toastMessage, langCode, 1);
       }
     } else {
-      // Handle incorrect bingo claim
-      try {
-        // Update game session status to blocked via WebSocket
-        if (webSocketService) {
-          webSocketService.send('update-session-status', {
-            cardNumber: playerId,
-            betAmount: bet,
-            status: 'playing' // Keep as playing to allow re-attempt
-          });
-        }
-        
-        setBlockedPlayers([...blockedPlayers, playerId]);
-        setLoserMessage(result.message);
-        setLoserCardId(playerId);
-        setShowLoserModal(true);
-        
-        if (soundOn && voiceService) {
-          const langCode = language === 'am' ? 'am-ET' : 'en-US';
-          voiceService.speak(
-            language === 'am' 
-              ? 'ምንም አሸናፊ አልተገኘም!' 
-              : 'No winner found!', 
-            langCode, 
-            1
-          );
-        }
-        
-        // Resume game after 3 seconds
-        setTimeout(() => {
-          setIsCalling(true);
-        }, 3000);
-      } catch (error) {
-        console.error('Error blocking player:', error);
+      if (webSocketService) {
+        webSocketService.send('update-session-status', {
+          cardNumber: playerId,
+          betAmount: bet,
+          status: 'playing'
+        });
       }
+      setBlockedPlayers([...blockedPlayers, playerId]);
+      setLoserMessage(result.message);
+      setLoserCardId(playerId);
+      setShowLoserModal(true);
+      if (soundOn && voiceService) {
+        const langCode = language === 'am' ? 'am-ET' : 'en-US';
+        voiceService.speak(language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', langCode, 1);
+      }
+      setTimeout(() => setIsCalling(true), 3000);
     }
   };
 
-  // Add this handler function to your component
   const handleBackToLobbyWithRefund = async () => {
     try {
-      if (!user) {
-        console.error('User not authenticated');
-        return;
-      }
-
-      // Send refund request via WebSocket
+      if (!user) return;
       if (webSocketService) {
-        webSocketService.send('refund-wallet', {
-          betAmount: bet,
-          userId: user._id
-        });
-        
-        // Listen for wallet update confirmation
-        webSocketService.once('wallet-updated', (newBalance: number) => {
-          console.log('Wallet updated successfully:', newBalance);
-          // Proceed to go back to lobby
-          onBackToPlayerLobby();
-        });
-        
-        // Handle any errors
-        webSocketService.once('error', (error: { message: string }) => {
-          console.error('Refund error:', error.message);
-          // Still go back to lobby even if refund fails
-        });
-      } else {
-        console.error('WebSocket service not available');
+        webSocketService.send('refund-wallet', { betAmount: bet, userId: user._id });
+        webSocketService.once('wallet-updated', () => onBackToPlayerLobby());
+        webSocketService.once('error', () => onBackToPlayerLobby());
       }
     } catch (error) {
-      console.error('Error processing refund:', error);
+      onBackToPlayerLobby();
     }
   };
 
   const getPatternName = (pattern: WinPattern) => {
     if (language === 'am') {
-      return {
-        'row': 'ረድፍ',
-        'column': 'አምድ',
-        'diagonal': 'ዲያግናል',
-        'corners': 'ማዕዘኖች'
-      }[pattern] || pattern;
+      return { 'row': 'ረድፍ', 'column': 'አምድ', 'diagonal': 'ዲያግናል', 'corners': 'ማዕዘኖች' }[pattern] || pattern;
     }
     return pattern;
   };
 
   const toggleUserMark = (number: string) => {
-    setUserMarkedNumbers(prev => ({
-      ...prev,
-      [number]: !prev[number]
-    }));
+    setUserMarkedNumbers(prev => ({ ...prev, [number]: !prev[number] }));
   };
 
-  // Function to transpose the card for display
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
-    for (let i = 0; i < 5; i++) {
-      for (let j = 0; j < 5; j++) {
-        transposed[i][j] = card[j][i];
-      }
-    }
+    for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) transposed[i][j] = card[j][i];
     return transposed;
   };
 
-  // Get user's cards (filtered by user ID from localStorage)
-  const getUserCards = () => {
-    if (!user) return [];
-    return players.filter(player => player.userId === user._id);
-  };
-
+  const getUserCards = () => user ? players.filter(player => player.userId === user._id) : [];
   const userCards = getUserCards();
 
-  // Check if a number is called (for card display)
-  const isNumberCalled = (number: number, letter: string) => {
-    const fullNumber = `${letter}-${number}`;
-    return calledNumbers.includes(fullNumber);
-  };
+  const isNumberCalled = (number: number, letter: string) => calledNumbers.includes(`${letter}-${number}`);
+
 
   // Get winning pattern cells for highlighting
   const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
