@@ -71,7 +71,7 @@ interface GameInterfaceProps {
   setLanguage?: (lang: 'en' | 'am') => void;
 }
 
-const GameInterface = ({ 
+const GameInterface: React.FC<GameInterfaceProps> = ({ 
   players, 
   bet, 
   onGameEnd,
@@ -79,7 +79,7 @@ const GameInterface = ({
   language = 'en',
   earningsPercentage = 20,
   setLanguage
-}: GameInterfaceProps) => {
+}) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
   const [isCalling, setIsCalling] = useState(false);
