@@ -513,7 +513,7 @@ const GameInterface = ({
 
   const handleBingo = async (playerId: number) => {
     // Prevent submissions if game has ended or is stopped
-    if (gameStopped || gameEnded) {
+    if (gameEnded) {
       const message = language === 'am' ? 'ጨዋታው አልቋል!' : 'Game has ended!';
       setToastMessage(message);
       setShowToast(true);
@@ -522,7 +522,7 @@ const GameInterface = ({
 
     // Prevent submissions if game hasn't started
     if (!gameStarted) {
-      const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
+      const message = language === 'am' ? 'ጨዋታው አልተጀመረም!' : 'Game has not `started`!';
       setToastMessage(message);
       setShowToast(true);
       return;
@@ -1363,7 +1363,7 @@ const GameInterface = ({
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted || gameStopped}
+                      disabled={isBlocked || !gameStarted}
                       fullWidth
                       size="small"
                       sx={{ 
@@ -1371,10 +1371,7 @@ const GameInterface = ({
                         opacity: (isBlocked || !gameStarted || gameStopped) ? 0.6 : 1
                       }}
                     >
-                      {gameStopped ? 
-                        (language === 'am' ? 'ጨዋታው አልቋል' : 'GAME ENDED') : 
-                        'BINGO'
-                      }
+                    BINGO    
                     </Button>
                   </Card>
                 );
