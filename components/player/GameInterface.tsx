@@ -518,12 +518,12 @@ const GameInterface = ({
     }
 
     // NEW: Prevent multiple submissions from the same card
-    if (submittedBingoCards.includes(playerId)) {
-      const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
-      setToastMessage(message);
-      setShowToast(true);
-      return;
-    }
+    // if (submittedBingoCards.includes(playerId)) {
+    //   const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
+    //   setToastMessage(message);
+    //   setShowToast(true);
+    //   return;
+    // }
 
     const result = checkForWinner(playerId);
     
@@ -1380,10 +1380,7 @@ const GameInterface = ({
                       >
                         {hasSubmittedBingo ? 
                           (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
-                          (gameEnded ? 
-                            (language === 'am' ? 'ጨዋታው አልቋል' : 'GAME ENDED') : 
                             'BINGO'
-                          )
                         }
                       </Button>
                     </Card>
