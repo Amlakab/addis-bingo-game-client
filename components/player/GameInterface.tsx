@@ -1368,7 +1368,7 @@ const GameInterface = ({
                       size="small"
                       sx={{ 
                         fontSize: '0.8rem',
-                        opacity: (isBlocked || !gameStarted || gameStopped) ? 0.6 : 1
+                        opacity: (isBlocked || !gameStarted) ? 0.6 : 1
                       }}
                     >
                     BINGO    
