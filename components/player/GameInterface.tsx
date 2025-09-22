@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -37,6 +36,7 @@ interface GameEndData {
   prizePool: number;
   split: number;
   totalWinners: number;
+  betAmount: number; // Add this line
 }
 
 interface GameSession {
@@ -76,14 +76,14 @@ const GameInterface = ({
   bet, 
   onGameEnd,
   onBackToPlayerLobby,
-  language = 'am', // Default to Amharic
+  language = 'en',
   earningsPercentage = 20,
   setLanguage
 }: GameInterfaceProps) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
   const [isCalling, setIsCalling] = useState(false);
-  const [soundOn, setSoundOn] = useState(false); // Default to sound off
+  const [soundOn, setSoundOn] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
@@ -113,50 +113,30 @@ const GameInterface = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [audioElements, setAudioElements] = useState<{[key: string]: HTMLAudioElement}>({});
   
-  // New state for countdown timer
+  // New state for game control
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
+  const [gameStopped, setGameStopped] = useState(false);
+  const [gracePeriodActive, setGracePeriodActive] = useState(false);
+  const [announcedWinners, setAnnouncedWinners] = useState<Array<{userId: string; card: number}>>([]);
+  const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
+  
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
+  const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize component on client side only
   useEffect(() => {
     setIsClient(true);
     
-    // Preload audio files for Amharic
-    const preloadAudioFiles = () => {
-      const letters = ['B', 'I', 'N', 'G', 'O'];
-      const ranges = [
-        {min:1,max:15},{min:16,max:30},
-        {min:31,max:45},{min:46,max:60},
-        {min:61,max:75}
-      ];
-      
-      const audioMap: {[key: string]: HTMLAudioElement} = {};
-      
-      letters.forEach((letter, index) => {
-        for (let num = ranges[index].min; num <= ranges[index].max; num++) {
-          const audioKey = `${letter}-${num}`;
-          audioMap[audioKey] = new Audio(`/Audio/${letter}/${letter}${num}.aac`);
-        }
-      });
-      
-      // Preload game sounds
-      audioMap['not-won'] = new Audio('/Audio/game/not-won.aac');
-      
-      setAudioElements(audioMap);
-    };
-    
-    preloadAudioFiles();
-    
-    // Dynamically import browser-only modules
     const loadBrowserModules = async () => {
       try {
-        // Load WebSocket service
+        const voiceModule = await import('@/app/utils/voiceService');
+        setVoiceService(voiceModule.voiceService);
+        
         const wsModule = await import('@/app/utils/websocket');
         setWebSocketService(wsModule.webSocketService);
       } catch (error) {
@@ -166,22 +146,6 @@ const GameInterface = ({
     
     loadBrowserModules();
   }, []);
-
-  // Play audio for Amharic numbers
-  const playAmharicNumberAudio = (number: string) => {
-    if (audioElements[number]) {
-      audioElements[number].currentTime = 0;
-      audioElements[number].play().catch(e => console.log('Audio play failed:', e));
-    }
-  };
-
-  // Play not-won audio
-  const playNotWonAudio = () => {
-    if (audioElements['not-won']) {
-      audioElements['not-won'].currentTime = 0;
-      audioElements['not-won'].play().catch(e => console.log('Audio play failed:', e));
-    }
-  };
 
   // Setup WebSocket connection state
   useEffect(() => {
@@ -206,60 +170,128 @@ const GameInterface = ({
     };
   }, [webSocketService]);
 
-  // Setup WebSocket listeners when service is available - RUNS ONLY ONCE
+  // Setup WebSocket listeners for game control events
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
-    const setupWebSocketListeners = () => {
-      webSocketService.on('connected', handleWebSocketConnected);
-      webSocketService.on('sessions-updated', handleSessionsUpdate);
-      webSocketService.on('game-ended', handleGameEnded);
-      webSocketService.on('number-called', handleNumberCalled);
-      webSocketService.on('game-state', handleGameState);
+    console.log('Setting up game control WebSocket listeners for bet:', bet);
+
+    const handleGameStopped = (data: { 
+      betAmount: number; 
+      firstWinner: { userId: string; card: number };
+      message: string;
+    }) => {
+      if (data.betAmount !== bet) return;
       
-      // Request initial session data
-      webSocketService.send('get-sessions', { betAmount: bet });
+      console.log('Game stopped received:', data);
+      
+      setGameStopped(true);
+      setGracePeriodActive(true);
+      setGameEnded(true);
+      setGracePeriodCountdown(3);
+      setIsCalling(false);
+      
+      // Show toast for first winner
+      setToastMessage(data.message);
+      setShowToast(true);
+      
+      // Start grace period countdown
+      if (gracePeriodTimerRef.current) {
+        clearInterval(gracePeriodTimerRef.current);
+      }
+      
+      gracePeriodTimerRef.current = setInterval(() => {
+        setGracePeriodCountdown(prev => {
+          if (prev <= 1) {
+            if (gracePeriodTimerRef.current) {
+              clearInterval(gracePeriodTimerRef.current);
+            }
+            setGracePeriodActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     };
 
-    setupWebSocketListeners();
+    const handleWinnerAnnounced = (data: {
+      betAmount: number;
+      winnerId: string;
+      winnerCard: number;
+      totalWinnersSoFar: number;
+      message: string;
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      console.log('Winner announced:', data);
+      
+      // Add to announced winners list
+      setAnnouncedWinners(prev => {
+        const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
+        if (!isDuplicate) {
+          const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
+          console.log('Updated winners list:', newWinners);
+          return newWinners;
+        }
+        return prev;
+      });
+      
+      // Show toast for each additional winner
+      const winnerMessage = language === 'am' 
+        ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
+        : `Player ${data.winnerCard} wins!`;
+      
+      setToastMessage(winnerMessage);
+      setShowToast(true);
+    };
 
-    return () => {
-      if (webSocketService) {
-        webSocketService.off('connected', handleWebSocketConnected);
-        webSocketService.off('sessions-updated', handleSessionsUpdate);
-        webSocketService.off('game-ended', handleGameEnded);
-        webSocketService.off('number-called', handleNumberCalled);
-        webSocketService.off('game-state', handleGameState);
+    const handleGameEnded = (data: GameEndData) => {
+      if (data.betAmount !== bet) return;
+      
+      console.log('Final game results received:', data);
+      setGameEnded(true);
+      setGracePeriodActive(false);
+      setGameStopped(true);
+      setIsCalling(false);
+      
+      // Clear grace period timer
+      if (gracePeriodTimerRef.current) {
+        clearInterval(gracePeriodTimerRef.current);
+      }
+      
+      // Map winners to our state format
+      const formattedWinners: Winner[] = data.winners.map(winner => ({
+        id: winner.card,
+        userId: winner.id,
+        pattern: 'row',
+        prize: data.split,
+        totalWinners: data.totalWinners
+      }));
+      
+      setWinners(formattedWinners);
+      setGameEndData(data);
+      
+      // Check if current user is among winners
+      const userWon = user && data.winners.some(winner => winner.id === user._id);
+      
+      if (userWon) {
+        setTimeout(() => {
+          setShowWinnerModal(true);
+        }, 1000);
+      } else {
+        setShowGameOverModal(true);
       }
     };
-  }, [isClient, webSocketService]); // Removed bet from dependencies
 
-  // Setup WebSocket listeners for server-side number calling when game starts
-  useEffect(() => {
-    if (!isClient || !webSocketService || !gameStarted) return;
-
-    // Request game state when component mounts or game starts
-    webSocketService.send('get-game-state', { betAmount: bet });
-    
-    // Start the game on the server if it's not already running
-    webSocketService.send('start-game', { betAmount: bet });
-    
-    return () => {
-      // Cleanup: Stop the game when component unmounts or game ends
-      if (webSocketService && bet) {
-        webSocketService.send('stop-game', { betAmount: bet });
-      }
-    };
-  }, [isClient, webSocketService, gameStarted, bet]);
-
-  // Handler for server-called numbers with debouncing and duplicate prevention
-  const handleNumberCalled = useCallback(
-    debounce((data: { 
+    const handleNumberCalled = debounce((data: { 
       betAmount: number; 
       number: string; 
       calledNumbers: string[] 
     }) => {
       if (data.betAmount !== bet) return;
+      
+      // Prevent processing if game is stopped
+      if (gameStopped) return;
       
       // Prevent processing the same number multiple times
       if (numberCalledRef.current === data.number) return;
@@ -268,25 +300,97 @@ const GameInterface = ({
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
       
-      // Play audio for Amharic language
-      if (soundOn && language === 'am') {
-        playAmharicNumberAudio(data.number);
+      if (soundOn && voiceService) {
+        const langCode = language === 'am' ? 'am-ET' : 'en-US';
+        voiceService.speak(data.number, langCode, 1);
       }
-    }, 100), // 100ms debounce
-    [bet, soundOn, language]
-  );
+    }, 100);
 
-  // Handler for game state updates
-  const handleGameState = (data: { 
-    betAmount: number; 
-    calledNumbers: string[]; 
-    currentNumber: string 
-  }) => {
-    if (data.betAmount !== bet) return;
-    
-    setCalledNumbers(data.calledNumbers);
-    setCurrentNumber(data.currentNumber);
-  };
+    const handleGameState = (data: { 
+      betAmount: number; 
+      calledNumbers: string[]; 
+      currentNumber: string 
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      setCalledNumbers(data.calledNumbers);
+      setCurrentNumber(data.currentNumber);
+    };
+
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      // Filter sessions for the current bet amount
+      const betSessions = sessions.filter(session => session.betAmount === bet);
+      
+      console.log('Bet sessions:', betSessions);
+      
+      const activePlayers = betSessions.filter(
+        (session) => session.status !== "active"
+      ).length;
+
+      setNumberOfPlayers(activePlayers);
+      
+      // Calculate prize pool as 80% of total bets
+      const pool = activePlayers * bet * 0.8;
+      setPrizePool(pool);
+      
+      // Update game sessions
+      setGameSessions(betSessions);
+
+      // Handle countdown timer for game start
+      if (betSessions.length > 0 && !gameStarted && !gameStopped) {
+        // Get the earliest createdAt from all sessions
+        const earliestSession = betSessions.reduce((earliest, session) => {
+          const sessionDate = new Date(session.createdAt);
+          return sessionDate < earliest ? sessionDate : earliest;
+        }, new Date(betSessions[0].createdAt));
+        
+        setSessionCreatedAt(earliestSession);
+        
+        // Calculate time difference
+        const currentDate = new Date();
+        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
+        
+        // Calculate remaining time (46 seconds - time difference)
+        const remainingTime = Math.max(0, 46 - timeDifference);
+        setCountdown(remainingTime);
+        
+        // Start countdown if there's time left
+        if (remainingTime > 0) {
+          startCountdown(remainingTime);
+        } else {
+          // If time is already up, start the game immediately
+          startGame();
+        }
+      }
+    };
+
+    // Set up all listeners
+    webSocketService.on('game-stopped', handleGameStopped);
+    webSocketService.on('winner-announced', handleWinnerAnnounced);
+    webSocketService.on('game-ended', handleGameEnded);
+    webSocketService.on('number-called', handleNumberCalled);
+    webSocketService.on('game-state', handleGameState);
+    webSocketService.on('sessions-updated', handleSessionsUpdate);
+    webSocketService.on('connected', handleWebSocketConnected);
+
+    // Request initial data
+    webSocketService.send('get-sessions', { betAmount: bet });
+
+    return () => {
+      // Clean up listeners and timers
+      webSocketService.off('game-stopped', handleGameStopped);
+      webSocketService.off('winner-announced', handleWinnerAnnounced);
+      webSocketService.off('game-ended', handleGameEnded);
+      webSocketService.off('number-called', handleNumberCalled);
+      webSocketService.off('game-state', handleGameState);
+      webSocketService.off('sessions-updated', handleSessionsUpdate);
+      webSocketService.off('connected', handleWebSocketConnected);
+      
+      if (gracePeriodTimerRef.current) {
+        clearInterval(gracePeriodTimerRef.current);
+      }
+    };
+  }, [isClient, webSocketService, bet, language, user, gameStopped, soundOn, voiceService, gameStarted]);
 
   // Initialize and set up window size tracking
   useEffect(() => {
@@ -299,75 +403,13 @@ const GameInterface = ({
       });
     };
 
-    // Set initial window size
     handleResize();
-
     window.addEventListener('resize', handleResize);
     
     return () => {
       window.removeEventListener('resize', handleResize);
     };
   }, [isClient]);
-
-  // Fetch game sessions and setup countdown timer
-  useEffect(() => {
-    if (!isClient || !bet) return;
-
-    // Function to handle sessions update from WebSocket
-    const handleSessionsUpdate = (sessions: GameSession[]) => {
-      if (sessions.length > 0) {
-        // Filter sessions for the current bet amount
-        const betSessions = sessions.filter(session => session.betAmount === bet);
-        
-        if (betSessions.length > 0) {
-          // Get the earliest createdAt from all sessions
-          const earliestSession = betSessions.reduce((earliest, session) => {
-            const sessionDate = new Date(session.createdAt);
-            return sessionDate < earliest ? sessionDate : earliest;
-          }, new Date(betSessions[0].createdAt));
-          
-          setSessionCreatedAt(earliestSession);
-          
-          // Calculate time difference
-          const currentDate = new Date();
-          const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000); // in seconds
-          
-          // Calculate remaining time (52 seconds - time difference)
-          const remainingTime = Math.max(0, 46 - timeDifference);
-          setCountdown(remainingTime);
-          
-          // Start countdown if there's time left
-          if (remainingTime > 0) {
-            startCountdown(remainingTime);
-          } else {
-            // If time is already up, start the game immediately
-            startGame();
-          }
-        }
-      }
-    };
-
-    // Set up WebSocket listener
-    if (webSocketService) {
-      webSocketService.on('sessions-updated', handleSessionsUpdate);
-      
-      // Request sessions for the current bet amount
-      webSocketService.send('get-sessions', {
-        betAmount: bet
-      });
-    }
-
-    return () => {
-      // Clean up interval and WebSocket listener
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-      
-      if (webSocketService) {
-        webSocketService.off('sessions-updated', handleSessionsUpdate);
-      }
-    };
-  }, [isClient, bet, webSocketService]);
 
   const startCountdown = (initialTime: number) => {
     setCountdown(initialTime);
@@ -380,7 +422,6 @@ const GameInterface = ({
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // Time's up, start the game
           if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current);
           }
@@ -397,13 +438,13 @@ const GameInterface = ({
     
     // Update game sessions status to playing via WebSocket
     if (webSocketService) {
-      // First update all sessions with this bet amount to 'playing' status
       webSocketService.send('update-session-status-by-bet', {
         betAmount: bet,
         status: 'playing'
       });
-    } else {
-      console.error('WebSocket service not available');
+      
+      // Start the game on the server
+      webSocketService.send('start-game', { betAmount: bet });
     }
   };
 
@@ -411,61 +452,6 @@ const GameInterface = ({
     setIsWebSocketConnected(true);
     console.log('WebSocket connected in GameInterface');
   };
-
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Filter sessions for the current bet amount
-    const betSessions = sessions.filter(session => session.betAmount === bet);
-    
-    console.log('Bet sessions:', betSessions);
-    console.log('Unique user IDs in bet sessions:', Array.from(new Set(betSessions.map(s => s.userId.toString()))));
-    
-    const activePlayers = betSessions.filter(
-      (session) => session.status !== "active"
-    ).length;
-
-    setNumberOfPlayers(activePlayers);
-    
-    // Calculate prize pool as 80% of total bets
-    const pool = activePlayers * bet * 0.8;
-    setPrizePool(pool);
-    
-    // Update game sessions
-    setGameSessions(betSessions);
-  };
-  
-  const handleGameEnded = (data: GameEndData) => {
-  console.log('Game ended data received:', data);
-    // Stop calling numbers
-  setIsCalling(false);
-
-  // Store game end data
-  setGameEndData(data);
-  
-  // Map winners to our state format
-  const formattedWinners: Winner[] = data.winners.map(winner => ({
-    id: winner.card,
-    userId: winner.id,
-    pattern: 'row', // Default pattern, will be determined later
-    prize: data.split,
-    totalWinners: data.totalWinners
-  }));
-  
-  setWinners(formattedWinners);
-  
-  // Check if current user is among winners
-  const userWon = user && data.winners.some(winner => winner.id === user._id);
-  
-  if (userWon) {
-    // Show winner modal for winners
-    setTimeout(() => {
-      setShowWinnerModal(true);
-    }, 2000);
-  } else {
-    // Show game over modal for non-winners
-    setShowGameOverModal(true);
-  }
-  
-};
 
   useEffect(() => {
     // Update recent numbers when calledNumbers changes
@@ -475,186 +461,165 @@ const GameInterface = ({
     }
   }, [calledNumbers]);
 
-// Update the checkForWinner function to detect the specific winning pattern
-const checkForWinner = (playerId: number) => {
-  const player = players.find(p => p.id === playerId);
-  if (!player) {
-    return {
-      isWinner: false,
-      message: language === 'am' 
-        ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
-        : `Player ${playerId} is not in the game`,
-      playerId
-    };
-  }
-
-  if (blockedPlayers.includes(playerId)) {
-    return {
-      isWinner: false,
-      message: language === 'am' 
-        ? `ተጫዋች ${playerId} ተገድቧል` 
-        : `Player ${playerId} is blocked`,
-      playerId
-    };
-  }
-
-  const card = getCardById(playerId);
-  const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
-  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-
-  for (const pattern of patterns) {
-    const winningCells = getWinningPatternCells(card, pattern);
-    
-    if (winningCells.length > 0) {
+  const checkForWinner = (playerId: number) => {
+    const player = players.find(p => p.id === playerId);
+    if (!player) {
       return {
-        isWinner: true,
-        pattern,
+        isWinner: false,
         message: language === 'am' 
-          ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
-          : `Player ${playerId} wins with ${pattern} pattern!`,
-        playerId,
-        userId: player.userId
+          ? `ተጫዋች ${playerId} በጨዋታው ውስጥ አይገኝም` 
+          : `Player ${playerId} is not in the game`,
+        playerId
       };
     }
-  }
 
-  return {
-    isWinner: false,
-    message: language === 'am' 
-      ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
-      : `Player ${playerId} has not won yet`,
-    playerId
+    if (blockedPlayers.includes(playerId)) {
+      return {
+        isWinner: false,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} ተገድቧል` 
+          : `Player ${playerId} is blocked`,
+        playerId
+      };
+    }
+
+    const card = getCardById(playerId);
+    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+
+    for (const pattern of patterns) {
+      const winningCells = getWinningPatternCells(card, pattern);
+      
+      if (winningCells.length > 0) {
+        return {
+          isWinner: true,
+          pattern,
+          message: language === 'am' 
+            ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
+            : `Player ${playerId} wins with ${pattern} pattern!`,
+          playerId,
+          userId: player.userId
+        };
+      }
+    }
+
+    return {
+      isWinner: false,
+      message: language === 'am' 
+        ? `ተጫዋች ${playerId} ገና አላሸነፈም` 
+        : `Player ${playerId} has not won yet`,
+      playerId
+    };
   };
-};
 
   const handleBingo = async (playerId: number) => {
-   // Stop calling numbers
-    setGameEnded(true);
-  const result = checkForWinner(playerId);
-  
-  if (result.isWinner) {
-    try {
-
-      setIsCalling(false);
-      const prizeAmount = numberOfPlayers * bet * 0.8; // 80% of total bets
-      
-      // Show toast message for all users
-      const winMessage = language === 'am' 
-        ? `ተጫዋች ${playerId} አሸንፏል!` 
-        : `Player ${playerId} wins!`;
-      setToastMessage(winMessage);
+    // Prevent submissions if game has ended or is stopped
+    if (gameStopped || gameEnded) {
+      const message = language === 'am' ? 'ጨዋታው አልቋል!' : 'Game has ended!';
+      setToastMessage(message);
       setShowToast(true);
-      
-      // Create game history
-      await api.post('/game/history', {
-        winnerId: result.userId,
-        winnerCard: playerId,
-        prizePool: prizeAmount,
-        numberOfPlayers: numberOfPlayers,
-        betAmount: bet
-      });
-      
-      // End game via WebSocket - server will handle multiple winners
-      if (webSocketService) {
-        webSocketService.send('end-game', {
-          betAmount: bet,
-          winnerId: result.userId,
-          winnerCard: playerId,
-          prizePool: prizeAmount
-        });
-        
-        // Listen for game-ended broadcast (instead of private winner-notification)
-        webSocketService.once('game-ended', (data: GameEndData) => {
-          console.log('Game ended data received:', data);
-          
-          // Map winners to our state format
-          const formattedWinners: Winner[] = data.winners.map(winner => ({
-            id: winner.card,
-            userId: winner.id,
-            pattern: 'row', // Default pattern
-            prize: data.split,
-            totalWinners: data.totalWinners
-          }));
-          
-          setWinners(formattedWinners);
-          setGameEndData(data);
-          
-          // Show winner modal after 1 second
-          setTimeout(() => {
-            setShowWinnerModal(true);
-          }, 1000);
-        });
-      }
-    } catch (error) {
-      console.error('Error ending game:', error);
-    }
-  } else {
-    // Show loser modal with card status
-    try {
-      // Update game session status to blocked via WebSocket
-      if (webSocketService) {
-        webSocketService.send('update-session-status', {
-          cardNumber: playerId,
-          betAmount: bet,
-          status: 'playing' // Keep as playing to allow re-attempt
-        });
-      }
-      
-      setBlockedPlayers([...blockedPlayers, playerId]);
-      setLoserMessage(result.message);
-      setLoserCardId(playerId);
-      setShowLoserModal(true);
-      
-      // Play not-won audio for Amharic
-      if (language === 'am') {
-        playNotWonAudio();
-      }
-      
-      // Resume game after 3 seconds
-      setTimeout(() => {
-        setIsCalling(true);
-      }, 3000);
-    } catch (error) {
-      console.error('Error blocking player:', error);
-    }
-  }
-};
-
-  // Add this handler function to your component
-const handleBackToLobbyWithRefund = async () => {
-  try {
-    if (!user) {
-      console.error('User not authenticated');
       return;
     }
 
-    // Send refund request via WebSocket
-    if (webSocketService) {
-      webSocketService.send('refund-wallet', {
-        betAmount: bet,
-        userId: user._id
-      });
-      
-      // Listen for wallet update confirmation
-      webSocketService.once('wallet-updated', (newBalance: number) => {
-        console.log('Wallet updated successfully:', newBalance);
-        // Proceed to go back to lobby
-        onBackToPlayerLobby();
-      });
-      
-      // Handle any errors
-      webSocketService.once('error', (error: { message: string }) => {
-        console.error('Refund error:', error.message);
-        // Still go back to lobby even if refund fails
-      });
-    } else {
-      console.error('WebSocket service not available');
+    // Prevent submissions if game hasn't started
+    if (!gameStarted) {
+      const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
+      setToastMessage(message);
+      setShowToast(true);
+      return;
     }
-  } catch (error) {
-    console.error('Error processing refund:', error);
-  }
-};
 
+    const result = checkForWinner(playerId);
+    
+    if (result.isWinner) {
+      try {
+        const prizeAmount = numberOfPlayers * bet * 0.8;
+        
+        console.log(`Player ${playerId} claims BINGO! Sending to server...`);
+        
+        // Send win announcement via WebSocket
+        if (webSocketService) {
+          webSocketService.send('end-game', {
+            betAmount: bet,
+            winnerId: result.userId!,
+            winnerCard: playerId,
+            prizePool: prizeAmount
+          });
+          
+          // Disable further BINGO submissions from this client
+          setGameStopped(true);
+        } else {
+          throw new Error('WebSocket not available');
+        }
+        
+      } catch (error) {
+        console.error('Error announcing win:', error);
+        const errorMessage = language === 'am' 
+          ? 'የአሸናፊ ማስታወቂያ አልተሳካም!' 
+          : 'Win announcement failed!';
+        setToastMessage(errorMessage);
+        setShowToast(true);
+        // Re-enable BINGO button if there was an error
+        setGameStopped(false);
+      }
+    } else {
+      // Handle loser case
+      try {
+        if (webSocketService) {
+          webSocketService.send('update-session-status', {
+            cardNumber: playerId,
+            betAmount: bet,
+            status: 'playing'
+          });
+        }
+        
+        setBlockedPlayers([...blockedPlayers, playerId]);
+        setLoserMessage(result.message);
+        setLoserCardId(playerId);
+        setShowLoserModal(true);
+        
+        if (soundOn && voiceService) {
+          const langCode = language === 'am' ? 'am-ET' : 'en-US';
+          voiceService.speak(
+            language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', 
+            langCode, 
+            1
+          );
+        }
+      } catch (error) {
+        console.error('Error blocking player:', error);
+      }
+    }
+  };
+
+  const handleBackToLobbyWithRefund = async () => {
+    try {
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      if (webSocketService) {
+        webSocketService.send('refund-wallet', {
+          betAmount: bet,
+          userId: user._id
+        });
+        
+        webSocketService.once('wallet-updated', (newBalance: number) => {
+          console.log('Wallet updated successfully:', newBalance);
+          onBackToPlayerLobby();
+        });
+        
+        webSocketService.once('error', (error: { message: string }) => {
+          console.error('Refund error:', error.message);
+          onBackToPlayerLobby();
+        });
+      } else {
+        console.error('WebSocket service not available');
+      }
+    } catch (error) {
+      console.error('Error processing refund:', error);
+    }
+  };
 
   const getPatternName = (pattern: WinPattern) => {
     if (language === 'am') {
@@ -675,7 +640,6 @@ const handleBackToLobbyWithRefund = async () => {
     }));
   };
 
-  // Function to transpose the card for display
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
     for (let i = 0; i < 5; i++) {
@@ -686,7 +650,6 @@ const handleBackToLobbyWithRefund = async () => {
     return transposed;
   };
 
-  // Get user's cards (filtered by user ID from localStorage)
   const getUserCards = () => {
     if (!user) return [];
     return players.filter(player => player.userId === user._id);
@@ -694,71 +657,53 @@ const handleBackToLobbyWithRefund = async () => {
 
   const userCards = getUserCards();
 
-  // Check if a number is called (for card display)
   const isNumberCalled = (number: number, letter: string) => {
     const fullNumber = `${letter}-${number}`;
     return calledNumbers.includes(fullNumber);
   };
 
-  // Get winning pattern cells for highlighting
-// Update the getWinningPatternCells function to properly identify the winning pattern
-const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
-  const cells: {row: number, col: number}[] = [];
-  const lastCalledNumber = calledNumbers[calledNumbers.length - 1];
-  const lastNum = parseInt(lastCalledNumber?.split('-')[1] || '0');
-  const lastLetter = lastCalledNumber?.split('-')[0] || '';
-  
-  // Check if the last called number is in this card
-  const lastNumColIndex = "BINGO".indexOf(lastLetter);
-  const lastNumRowIndex = lastNumColIndex !== -1 ? card[lastNumColIndex]?.indexOf(lastNum) : -1;
-  
-  if (lastNumRowIndex === -1) {
-    return cells; // Last called number not in this card
-  }
-  
-  if (pattern === 'row') {
-    // Check if the row containing the last called number is a winning row
-    const rowIndex = lastNumRowIndex;
-    let isWinningRow = true;
+  const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
+    const cells: {row: number, col: number}[] = [];
     
-    for (let col = 0; col < 5; col++) {
-      const number = card[col][rowIndex];
-      const letter = "BINGO"[col];
-      if (!isNumberCalled(number, letter)) {
-        isWinningRow = false;
-        break;
-      }
-    }
-    
-    if (isWinningRow) {
-      for (let col = 0; col < 5; col++) {
-        cells.push({row: rowIndex, col});
-      }
-    }
-  } else if (pattern === 'column') {
-    // Check if the column containing the last called number is a winning column
-    const colIndex = lastNumColIndex;
-    let isWinningCol = true;
-    
-    for (let row = 0; row < 5; row++) {
-      const number = card[colIndex][row];
-      const letter = "BINGO"[colIndex];
-      if (!isNumberCalled(number, letter)) {
-        isWinningCol = false;
-        break;
-      }
-    }
-    
-    if (isWinningCol) {
+    if (pattern === 'row') {
       for (let row = 0; row < 5; row++) {
-        cells.push({row, col: colIndex});
+        let isWinningRow = true;
+        for (let col = 0; col < 5; col++) {
+          const number = card[col][row];
+          const letter = "BINGO"[col];
+          if (!isNumberCalled(number, letter)) {
+            isWinningRow = false;
+            break;
+          }
+        }
+        if (isWinningRow) {
+          for (let col = 0; col < 5; col++) {
+            cells.push({row, col});
+          }
+          break;
+        }
       }
-    }
-  } else if (pattern === 'diagonal') {
-    // Check main diagonal
-    if (lastNumColIndex === lastNumRowIndex) {
+    } else if (pattern === 'column') {
+      for (let col = 0; col < 5; col++) {
+        let isWinningCol = true;
+        for (let row = 0; row < 5; row++) {
+          const number = card[col][row];
+          const letter = "BINGO"[col];
+          if (!isNumberCalled(number, letter)) {
+            isWinningCol = false;
+            break;
+          }
+        }
+        if (isWinningCol) {
+          for (let row = 0; row < 5; row++) {
+            cells.push({row, col});
+          }
+          break;
+        }
+      }
+    } else if (pattern === 'diagonal') {
+      // Main diagonal
       let isWinningDiagonal = true;
-      
       for (let i = 0; i < 5; i++) {
         const number = card[i][i];
         const letter = "BINGO"[i];
@@ -767,18 +712,14 @@ const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
           break;
         }
       }
-      
       if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
           cells.push({row: i, col: i});
         }
       }
-    }
-    
-    // Check anti-diagonal
-    if (lastNumColIndex === 4 - lastNumRowIndex) {
-      let isWinningDiagonal = true;
       
+      // Anti-diagonal
+      isWinningDiagonal = true;
       for (let i = 0; i < 5; i++) {
         const number = card[i][4 - i];
         const letter = "BINGO"[i];
@@ -787,28 +728,18 @@ const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
           break;
         }
       }
-      
       if (isWinningDiagonal) {
         for (let i = 0; i < 5; i++) {
           cells.push({row: 4 - i, col: i});
         }
       }
-    }
-  } else if (pattern === 'corners') {
-    // Check corners
-    const corners = [
-      {row: 0, col: 0}, {row: 0, col: 4},
-      {row: 4, col: 0}, {row: 4, col: 4}
-    ];
-    
-    // Check if the last called number is a corner
-    const isLastCalledCorner = corners.some(corner => 
-      corner.row === lastNumRowIndex && corner.col === lastNumColIndex
-    );
-    
-    if (isLastCalledCorner) {
-      let isWinningCorners = true;
+    } else if (pattern === 'corners') {
+      const corners = [
+        {row: 0, col: 0}, {row: 0, col: 4},
+        {row: 4, col: 0}, {row: 4, col: 4}
+      ];
       
+      let isWinningCorners = true;
       for (const corner of corners) {
         const number = card[corner.col][corner.row];
         const letter = "BINGO"[corner.col];
@@ -822,10 +753,9 @@ const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
         cells.push(...corners);
       }
     }
-  }
-  
-  return cells;
-};
+    
+    return cells;
+  };
 
   if (!isClient) {
     return (
@@ -842,163 +772,162 @@ const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
   }
 
   // Winner Card Component
-const WinnerCard = ({ winner, isCurrentUser, language }: { 
-  winner: Winner; 
-  isCurrentUser: boolean;
-  language: 'en' | 'am';
-}) => {
-  const card = getCardById(winner.id);
-  const winningCells = getWinningPatternCells(card, winner.pattern);
+  const WinnerCard = ({ winner, isCurrentUser, language }: { 
+    winner: Winner; 
+    isCurrentUser: boolean;
+    language: 'en' | 'am';
+  }) => {
+    const card = getCardById(winner.id);
+    const winningCells = getWinningPatternCells(card, winner.pattern);
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Box sx={{ 
-        background: isCurrentUser 
-          ? 'rgba(255,215,0,0.15)' 
-          : 'rgba(255,255,255,0.1)',
-        borderRadius: 2,
-        p: 2,
-        border: isCurrentUser ? '2px solid gold' : '1px solid rgba(255,255,255,0.2)',
-        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-      }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" sx={{ 
-            color: isCurrentUser ? 'gold' : 'white',
-            fontWeight: 'bold'
-          }}>
-            {language === 'am' ? 'ካርድ' : 'Card'} #{winner.id}
-            {isCurrentUser && ` (${language === 'am' ? 'የእርስዎ' : 'Yours'})`}
-          </Typography>
-          
-          {winner.prize && (
-            <Box sx={{ 
-              background: 'rgba(76,175,80,0.3)',
-              borderRadius: 2,
-              px: 2,
-              py: 1
-            }}>
-              <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
-                {winner.prize.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-
-        <Typography variant="body2" sx={{ 
-          color: '#a1c4fd',
-          mb: 2,
-          fontStyle: 'italic'
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Box sx={{ 
+          background: isCurrentUser 
+            ? 'rgba(255,215,0,0.15)' 
+            : 'rgba(255,255,255,0.1)',
+          borderRadius: 2,
+          p: 2,
+          border: isCurrentUser ? '2px solid gold' : '1px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
         }}>
-          {language === 'am' 
-            ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
-            : `Won with ${winner.pattern} pattern!`}
-        </Typography>
-        
-        {/* Winner Card Grid */}
-        // In the WinnerCard component, update the number display
-<Box sx={{ 
-  display: 'grid',
-  gridTemplateColumns: 'repeat(5, 1fr)',
-  gap: 0.3,
-  mb: 1,
-  p: 1,
-  background: 'rgba(255,255,255,0.9)',
-  borderRadius: 1,
-  position: 'relative'
-}}>
-  {/* BINGO Header */}
-  {["B", "I", "N", "G", "O"].map((letter, idx) => (
-    <Box key={letter} sx={{
-      p: 0.3,
-      backgroundColor: 'primary.main',
-      color: 'white',
-      fontWeight: 'bold',
-      fontSize: '0.7rem',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: '4px 4px 0 0'
-    }}>
-      {letter}
-    </Box>
-  ))}
-  
-  {/* Card numbers with winning pattern highlight */}
-  {transposeCard(card).map((row, rowIdx) => (
-    row.map((num, colIdx) => {
-      const letter = "BINGO"[colIdx];
-      const isCalled = isNumberCalled(num, letter);
-      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
-      const isLastCalled = currentNumber === `${letter}-${num}`;
-      
-      return (
-        <motion.div
-          key={`${rowIdx}-${colIdx}`}
-          animate={isLastCalled ? { 
-            scale: [1, 1.2, 1],
-            backgroundColor: [
-              'rgba(76,175,80,0.3)', 
-              'rgba(255,215,0,0.6)', 
-              'rgba(76,175,80,0.3)'
-            ]
-          } : {}}
-          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
-          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-        >
-          <Box
-            sx={{
-              p: 0.3,
-              border: isWinningCell 
-                ? '2px solid #ff5722' 
-                : '1px solid rgba(0,0,0,0.1)',
-              backgroundColor: 
-                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
-                isCalled
-                  ? 'rgba(76,175,80,0.3)' 
-                  : 'rgba(255,255,255,0.7)',
-              color: isWinningCell ? '#ff5722' : 'text.primary',
-              fontWeight: isWinningCell ? 'bold' : 'normal',
-              fontSize: '0.7rem',
-              width: '100%',
-              height: '100%',
-              minHeight: 22,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '2px',
-              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.6)' : 'none',
-              position: 'relative'
-            }}
-          >
-            {num === 0 ? (language === 'am' ? '*' : '*') : num}
-            {isWinningCell && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -2,
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  backgroundColor: '#ff5722',
-                  boxShadow: '0 0 4px rgba(255,87,34,0.8)'
-                }}
-              />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ 
+              color: isCurrentUser ? 'gold' : 'white',
+              fontWeight: 'bold'
+            }}>
+              {language === 'am' ? 'ካርድ' : 'Card'} #{winner.id}
+              {isCurrentUser && ` (${language === 'am' ? 'የእርስዎ' : 'Yours'})`}
+            </Typography>
+            
+            {winner.prize && (
+              <Box sx={{ 
+                background: 'rgba(76,175,80,0.3)',
+                borderRadius: 2,
+                px: 2,
+                py: 1
+              }}>
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  {winner.prize.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                </Typography>
+              </Box>
             )}
           </Box>
-        </motion.div>
-      );
-    })
-  ))}
-</Box>
-      </Box>
-    </motion.div>
-  );
-};
+
+          <Typography variant="body2" sx={{ 
+            color: '#a1c4fd',
+            mb: 2,
+            fontStyle: 'italic'
+          }}>
+            {language === 'am' 
+              ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
+              : `Won with ${winner.pattern} pattern!`}
+          </Typography>
+          
+          {/* Winner Card Grid */}
+          <Box sx={{ 
+            display: 'grid',
+            gridTemplateColumns: 'repeat(5, 1fr)',
+            gap: 0.3,
+            mb: 1,
+            p: 1,
+            background: 'rgba(255,255,255,0.9)',
+            borderRadius: 1,
+            position: 'relative'
+          }}>
+            {/* BINGO Header */}
+            {["B", "I", "N", "G", "O"].map((letter, idx) => (
+              <Box key={letter} sx={{
+                p: 0.3,
+                backgroundColor: 'primary.main',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '0.7rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px 4px 0 0'
+              }}>
+                {letter}
+              </Box>
+            ))}
+            
+            {/* Card numbers with winning pattern highlight */}
+            {transposeCard(card).map((row, rowIdx) => (
+              row.map((num, colIdx) => {
+                const letter = "BINGO"[colIdx];
+                const isCalled = isNumberCalled(num, letter);
+                const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+                const isLastCalled = currentNumber === `${letter}-${num}`;
+                
+                return (
+                  <motion.div
+                    key={`${rowIdx}-${colIdx}`}
+                    animate={isLastCalled ? { 
+                      scale: [1, 1.2, 1],
+                      backgroundColor: [
+                        'rgba(76,175,80,0.3)', 
+                        'rgba(255,215,0,0.6)', 
+                        'rgba(76,175,80,0.3)'
+                      ]
+                    } : {}}
+                    transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
+                    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                  >
+                    <Box
+                      sx={{
+                        p: 0.3,
+                        border: isWinningCell 
+                          ? '2px solid #ff5722' 
+                          : '1px solid rgba(0,0,0,0.1)',
+                        backgroundColor: 
+                          (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                          isCalled
+                            ? 'rgba(76,175,80,0.3)' 
+                            : 'rgba(255,255,255,0.7)',
+                        color: isWinningCell ? '#ff5722' : 'text.primary',
+                        fontWeight: isWinningCell ? 'bold' : 'normal',
+                        fontSize: '0.7rem',
+                        width: '100%',
+                        height: '100%',
+                        minHeight: 22,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '2px',
+                        boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.6)' : 'none',
+                        position: 'relative'
+                      }}
+                    >
+                      {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                      {isWinningCell && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            top: -2,
+                            right: -2,
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: '#ff5722',
+                            boxShadow: '0 0 4px rgba(255,87,34,0.8)'
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </motion.div>
+                );
+              })
+            ))}
+          </Box>
+        </Box>
+      </motion.div>
+    );
+  };
 
   return (
     <Box sx={{ 
@@ -1009,6 +938,55 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
       display: 'flex',
       flexDirection: 'column'
     }}>
+      
+      {/* Grace Period Indicator */}
+      {gracePeriodActive && (
+        <Box sx={{
+          background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+          color: 'black',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          fontWeight: 'bold',
+          animation: 'pulse 1s infinite'
+        }}>
+          ⏳ {language === 'am' 
+            ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ...` 
+            : `Grace period: ${gracePeriodCountdown}s...`}
+        </Box>
+      )}
+
+      {/* Game Stopped Indicator */}
+      {gameStopped && !gracePeriodActive && (
+        <Box sx={{
+          background: 'linear-gradient(45deg, #4CAF50, #45a049)',
+          color: 'white',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          fontWeight: 'bold'
+        }}>
+          ✅ {language === 'am' ? 'ጨዋታው አልቋል' : 'Game ended'}
+        </Box>
+      )}
+
+      {/* Announced Winners Summary */}
+      {announcedWinners.length > 0 && (
+        <Box sx={{
+          background: 'rgba(33,150,243,0.1)',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          border: '1px solid #2196F3'
+        }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976D2' }}>
+            {language === 'am' 
+              ? `አሸናፊዎች: ${announcedWinners.map(w => w.card).join(', ')}`
+              : `Winners: ${announcedWinners.map(w => w.card).join(', ')}`}
+          </Typography>
+        </Box>
+      )}
+
       {/* Game Info Header */}
       <Box sx={{
         display: 'flex',
@@ -1065,7 +1043,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
         
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
           <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-            {language === 'am' ? 'ደራሽ' : 'Derash'}
+            {language === 'am' ? 'ደራሽ' : 'Prize Pool'}
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.2rem' }}>
             {prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
@@ -1092,7 +1070,6 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
           borderRadius: 2,
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           overflow: 'auto',
- 
           minHeight: '25vh',
           minWidth: 0
         }}>
@@ -1118,7 +1095,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
             ))}
           </Box>
 
-          {/* Number Grid - Fixed to show numbers in correct columns */}
+          {/* Number Grid */}
           <Box sx={{ 
             flex: 1,
             display: 'grid',
@@ -1180,18 +1157,19 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
             })}
           </Box>
           
-            {!gameStarted && (
-              <Button 
-                variant="contained" 
-                color="error"
-                onClick={handleBackToLobbyWithRefund}
-                fullWidth
-                size="small"
-                sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}
-              >
-                {language === 'am' ? 'ካችሮችን አጥፋ' : 'Clear Card'}
-              </Button>
-            )}
+          {!gameStarted && (
+            <Button 
+              variant="contained" 
+              color="error"
+              onClick={handleBackToLobbyWithRefund}
+              fullWidth
+              size="small"
+              sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}
+            >
+              {language === 'am' ? 'ካርዶችን አጥፋ' : 'Clear Cards'}
+            </Button>
+          )}
+          
           {/* Recent Numbers */}
           {gameStarted && (
             <Box sx={{ 
@@ -1245,10 +1223,8 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
           minHeight: '25vh',
         }}>
           {/* Controls */}
-          
-            {/* Language Selection */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FormControlLabel
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FormControlLabel
               control={
                 <Switch
                   checked={soundOn}
@@ -1259,22 +1235,20 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
               }
               label={
                 <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
-                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound SSOff')}
+                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound Off')}
                 </Typography>
-                
               }
-              
             />
-              <Select
-                value={language}
-                onChange={(e) => setLanguage && setLanguage(e.target.value)}
-                size="small"
-                sx={{ minWidth: 40, fontSize: '0.7rem' }}
-              >
-                <MenuItem value="en">EN</MenuItem>
-                <MenuItem value="am">AM</MenuItem>
-              </Select>
-            </Box>
+            <Select
+              value={language}
+              onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
+              size="small"
+              sx={{ minWidth: 40, fontSize: '0.7rem' }}
+            >
+              <MenuItem value="en">EN</MenuItem>
+              <MenuItem value="am">AM</MenuItem>
+            </Select>
+          </Box>
 
           {/* User Cards */}
           <Box sx={{ 
@@ -1341,7 +1315,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                         </Box>
                       ))}
                       
-                      {/* Card numbers (transposed) - Only show user marked numbers */}
+                      {/* Card numbers */}
                       {transposeCard(card).map((row, rowIdx) => (
                         row.map((num, colIdx) => {
                           const letter = "BINGO"[colIdx];
@@ -1358,7 +1332,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                                 backgroundColor: 
                                   (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
                                   isUserMarked
-                                    ? 'rgba(255,152,0,0.5)' // Orange for user marked
+                                    ? 'rgba(255,152,0,0.5)'
                                     : 'rgba(255,255,255,0.7)',
                                 color: 'text.primary',
                                 fontWeight: 'normal',
@@ -1389,19 +1363,23 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                       variant="contained" 
                       color="success"
                       onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted}
+                      disabled={isBlocked || !gameStarted || gameStopped}
                       fullWidth
                       size="small"
-                      sx={{ fontSize: '0.8rem' }}
+                      sx={{ 
+                        fontSize: '0.8rem',
+                        opacity: (isBlocked || !gameStarted || gameStopped) ? 0.6 : 1
+                      }}
                     >
-                      BINGO
+                      {gameStopped ? 
+                        (language === 'am' ? 'ጨዋታው አልቋል' : 'GAME ENDED') : 
+                        'BINGO'
+                      }
                     </Button>
                   </Card>
                 );
               })
             )}
-            
-            {/* Clear Button (only shown before game starts) */}
           </Box>
         </Box>
       </Box>
@@ -1419,211 +1397,209 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
       </Snackbar>
 
       {/* Winner Modal */}
-{/* Winner Modal */}
-<Modal open={showWinnerModal} onClose={() => {
-  setShowWinnerModal(false);
-  onGameEnd();
-}}>
-  <>
-    <Confetti
-      width={windowSize.width}
-      height={windowSize.height}
-      recycle={false}
-      numberOfPieces={300}
-    />
-    <Box sx={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '90%',
-      maxWidth: 500,
-      bgcolor: 'background.paper',
-      boxShadow: 24,
-      p: 3,
-      borderRadius: 3,
-      textAlign: 'center',
-      border: '3px solid gold',
-      background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-      maxHeight: '90vh',
-      overflow: 'auto'
-    }}>
-      <IconButton
-        aria-label="close"
-        onClick={() => {
-          setShowWinnerModal(false);
-          onGameEnd();
-        }}
-        sx={{
-          position: 'absolute',
-          right: 8,
-          top: 8,
-          color: 'white'
-        }}
-      >
-        <CloseIcon />
-      </IconButton>
-      
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Typography variant="h4" gutterBottom sx={{ 
-          color: 'gold',
-          mb: 3,
-          fontWeight: 'bold',
-          textShadow: '0 0 5px rgba(255,215,0,0.7)'
-        }}>
-          {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
-        </Typography>
-      </motion.div>
-
-      {/* Prize Information */}
-      {gameEndData && (
-        <Box sx={{ 
-          background: 'rgba(255,215,0,0.2)',
-          borderRadius: 2,
-          p: 2,
-          mb: 3,
-          border: '2px solid gold'
-        }}>
-          <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1 }}>
-            {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
-          </Typography>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
-            <Box sx={{ textAlign: 'center', mb: 1 }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
-                {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
-              </Typography>
-              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-                {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-              </Typography>
-            </Box>
+      <Modal open={showWinnerModal} onClose={() => {
+        setShowWinnerModal(false);
+        onGameEnd();
+      }}>
+        <>
+          <Confetti
+            width={windowSize.width}
+            height={windowSize.height}
+            recycle={false}
+            numberOfPieces={300}
+          />
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: 500,
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            p: 3,
+            borderRadius: 3,
+            textAlign: 'center',
+            border: '3px solid gold',
+            background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <IconButton
+              aria-label="close"
+              onClick={() => {
+                setShowWinnerModal(false);
+                onGameEnd();
+              }}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: 'white'
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
             
-            <Box sx={{ textAlign: 'center', mb: 1 }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Typography variant="h4" gutterBottom sx={{ 
+                color: 'gold',
+                mb: 3,
+                fontWeight: 'bold',
+                textShadow: '0 0 5px rgba(255,215,0,0.7)'
+              }}>
+                {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
+              </Typography>
+            </motion.div>
+
+            {/* Prize Information */}
+            {gameEndData && (
+              <Box sx={{ 
+                background: 'rgba(255,215,0,0.2)',
+                borderRadius: 2,
+                p: 2,
+                mb: 3,
+                border: '2px solid gold'
+              }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1 }}>
+                  {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
+                </Typography>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Box sx={{ textAlign: 'center', mb: 1 }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                      {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                      {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ textAlign: 'center', mb: 1 }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                      {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                      {gameEndData.totalWinners}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ textAlign: 'center', mb: 1 }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                      {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                      {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
+
+            {/* Winners List */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ 
+                color: 'white',
+                mb: 2,
+                fontWeight: 'bold'
+              }}>
                 {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
               </Typography>
-              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-                {gameEndData.totalWinners}
-              </Typography>
+              
+              {user && (
+                <>
+                  {/* Current User's Wins */}
+                  {winners.filter(winner => winner.userId === user._id).length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="h6" sx={{ 
+                        color: 'gold',
+                        mb: 2,
+                        fontWeight: 'bold'
+                      }}>
+                        {language === 'am' ? 'የእርስዎ አሸናፊ ካርዶች' : 'Your Winning Cards'}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {winners
+                          .filter(winner => winner.userId === user._id)
+                          .map((winner, index) => (
+                            <WinnerCard 
+                              key={index}
+                              winner={winner}
+                              isCurrentUser={true}
+                              language={language}
+                            />
+                          ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Other Winners */}
+                  {winners.filter(winner => winner.userId !== user._id).length > 0 && (
+                    <Box>
+                      <Typography variant="h6" sx={{ 
+                        color: '#a1c4fd',
+                        mb: 2,
+                        fontWeight: 'bold'
+                      }}>
+                        {language === 'am' ? 'ሌሎች አሸናፊዎች' : 'Other Winners'}
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {winners
+                          .filter(winner => winner.userId !== user._id)
+                          .map((winner, index) => (
+                            <WinnerCard 
+                              key={index}
+                              winner={winner}
+                              isCurrentUser={false}
+                              language={language}
+                            />
+                          ))}
+                      </Box>
+                    </Box>
+                  )}
+                </>
+              )}
             </Box>
-            
-            <Box sx={{ textAlign: 'center', mb: 1 }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
-                {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
-              </Typography>
-              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-                {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-              </Typography>
-            </Box>
+
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={() => {
+                  setShowWinnerModal(false);
+                  onGameEnd();
+                }}
+                sx={{ 
+                  mt: 2,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 'bold',
+                  fontSize: '1.1rem',
+                  background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+                  boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)',
+                  borderRadius: 2,
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #FE6B8B 40%, #FF8E53 100%)',
+                  }
+                }}
+              >
+                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+              </Button>
+            </motion.div>
           </Box>
-        </Box>
-      )}
+        </>
+      </Modal>
 
-      {/* Winners List */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ 
-          color: 'white',
-          mb: 2,
-          fontWeight: 'bold'
-        }}>
-          {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
-        </Typography>
-        
-        {/* Separate current user's wins and other wins */}
-        {user && (
-          <>
-            {/* Current User's Wins */}
-            {winners.filter(winner => winner.userId === user._id).length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" sx={{ 
-                  color: 'gold',
-                  mb: 2,
-                  fontWeight: 'bold'
-                }}>
-                  {language === 'am' ? 'የእርስዎ አሸናፊ ካርዶች' : 'Your Winning Cards'}
-                </Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {winners
-                    .filter(winner => winner.userId === user._id)
-                    .map((winner, index) => (
-                      <WinnerCard 
-                        key={index}
-                        winner={winner}
-                        isCurrentUser={true}
-                        language={language}
-                      />
-                    ))}
-                </Box>
-              </Box>
-            )}
-
-            {/* Other Winners */}
-            {winners.filter(winner => winner.userId !== user._id).length > 0 && (
-              <Box>
-                <Typography variant="h6" sx={{ 
-                  color: '#a1c4fd',
-                  mb: 2,
-                  fontWeight: 'bold'
-                }}>
-                  {language === 'am' ? 'ሌሎች አሸናፊዎች' : 'Other Winners'}
-                </Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {winners
-                    .filter(winner => winner.userId !== user._id)
-                    .map((winner, index) => (
-                      <WinnerCard 
-                        key={index}
-                        winner={winner}
-                        isCurrentUser={false}
-                        language={language}
-                      />
-                    ))}
-                </Box>
-              </Box>
-            )}
-          </>
-        )}
-      </Box>
-
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <Button 
-          variant="contained" 
-          color="primary"
-          onClick={() => {
-            setShowWinnerModal(false);
-            onGameEnd();
-          }}
-          sx={{ 
-            mt: 2,
-            px: 4,
-            py: 1.5,
-            fontWeight: 'bold',
-            fontSize: '1.1rem',
-            background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-            boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)',
-            borderRadius: 2,
-            '&:hover': {
-              background: 'linear-gradient(45deg, #FE6B8B 40%, #FF8E53 100%)',
-            }
-          }}
-        >
-          {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
-        </Button>
-      </motion.div>
-    </Box>
-  </>
-</Modal>
-
-       {/* Loser Modal */}
+      {/* Loser Modal */}
       <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
         <Box sx={{
           position: 'absolute',
@@ -1697,7 +1673,7 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
                 </Box>
               ))}
               
-              {/* Card numbers with actual called numbers highlighted */}
+              {/* Card numbers */}
               {transposeCard(getCardById(loserCardId)).map((row, rowIdx) => (
                 row.map((num, colIdx) => {
                   const letter = "BINGO"[colIdx];
@@ -1758,266 +1734,253 @@ const WinnerCard = ({ winner, isCurrentUser, language }: {
           </Button>
         </Box>
       </Modal>
+
       {/* Game Over Modal */}
-<Modal open={showGameOverModal} onClose={() => {
-  setShowGameOverModal(false);
-  onGameEnd();
-}}>
-  <>
-    <Box sx={{
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '90%',
-      maxWidth: 400,
-      bgcolor: 'background.paper',
-      boxShadow: 24,
-      p: 2,
-      borderRadius: 3,
-      textAlign: 'center',
-      border: '3px solid gold',
-      background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-      maxHeight: '90vh',
-      overflow: 'auto'
-    }}>
-      <IconButton
-        aria-label="close"
-        onClick={() => {
-          setShowGameOverModal(false);
-          onGameEnd();
-        }}
-        sx={{
-          position: 'absolute',
-          right: 4,
-          top: 4,
-          color: 'white'
-        }}
-      >
-        <CloseIcon fontSize="small" />
-      </IconButton>
-      
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <Typography variant="h5" gutterBottom sx={{ 
-          color: 'gold',
-          mb: 2,
-          fontWeight: 'bold',
-          textShadow: '0 0 5px rgba(255,215,0,0.7)'
-        }}>
-          {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
-        </Typography>
-      </motion.div>
-      
-      {/* Prize Information */}
-      {gameEndData && (
-        <Box sx={{ 
-          background: 'rgba(255,215,0,0.2)',
-          borderRadius: 2,
-          p: 1.5,
-          mb: 2,
-          border: '1px solid gold'
-        }}>
-          <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
-            {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
-          </Typography>
-          <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
-            {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-          </Typography>
-          {gameEndData.totalWinners > 1 && (
-            <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1 }}>
-              {language === 'am' 
-                ? `ከ${gameEndData.totalWinners} አሸናፊዎች ጋር ተካፍሏል`
-                : `Split among ${gameEndData.totalWinners} winners`}
-            </Typography>
-          )}
-        </Box>
-      )}
-      
-      {winners.length > 0 && (
-        <Box sx={{ 
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          mb: 2
-        }}>
-          <Typography variant="h6" sx={{ 
-            color: 'white',
-            fontWeight: 'bold'
+      <Modal open={showGameOverModal} onClose={() => {
+        setShowGameOverModal(false);
+        onGameEnd();
+      }}>
+        <>
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '90%',
+            maxWidth: 400,
+            bgcolor: 'background.paper',
+            boxShadow: 24,
+            p: 2,
+            borderRadius: 3,
+            textAlign: 'center',
+            border: '3px solid gold',
+            background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+            maxHeight: '90vh',
+            overflow: 'auto'
           }}>
-            {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
-          </Typography>
-          
-          {winners.map(winner => {
-            const card = getCardById(winner.id);
-            const winningCells = getWinningPatternCells(card, winner.pattern);
+            <IconButton
+              aria-label="close"
+              onClick={() => {
+                setShowGameOverModal(false);
+                onGameEnd();
+              }}
+              sx={{
+                position: 'absolute',
+                right: 4,
+                top: 4,
+                color: 'white'
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
             
-            return (
-              <motion.div
-                key={winner.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Box sx={{ 
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: 2,
-                  p: 1.5,
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    color: 'white',
-                    mb: 1,
-                    fontWeight: 'bold'
-                  }}>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Typography variant="h5" gutterBottom sx={{ 
+                color: 'gold',
+                mb: 2,
+                fontWeight: 'bold',
+                textShadow: '0 0 5px rgba(255,215,0,0.7)'
+              }}>
+                {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
+              </Typography>
+            </motion.div>
+            
+            {/* Prize Information */}
+            {gameEndData && (
+              <Box sx={{ 
+                background: 'rgba(255,215,0,0.2)',
+                borderRadius: 2,
+                p: 1.5,
+                mb: 2,
+                border: '1px solid gold'
+              }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                  {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+                </Typography>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                  {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                </Typography>
+                {gameEndData.totalWinners > 1 && (
+                  <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1 }}>
                     {language === 'am' 
-                      ? `ተጫዋች ${winner.id}`
-                      : `Player ${winner.id}`}
+                      ? `ከ${gameEndData.totalWinners} አሸናፊዎች ጋር ተካፍሏል`
+                      : `Split among ${gameEndData.totalWinners} winners`}
                   </Typography>
-                  
-                  {winner.prize && (
-                    <Typography variant="body2" sx={{ 
-                      color: '#a1c4fd',
-                      mb: 1,
-                      fontStyle: 'italic'
-                    }}>
-                      {language === 'am' 
-                        ? `የሸለመ: ${winner.prize.toFixed(0)} ብር`
-                        : `Prize: ${winner.prize.toFixed(0)} Birr`}
-                    </Typography>
-                  )}
-                  
-                  {/* Winner Card */}
-                <Box sx={{ 
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(5, 1fr)',
-                  gap: 0.3,
-                  mb: 1,
-                  p: 1,
-                  background: 'rgba(255,255,255,0.9)',
-                  borderRadius: 1
+                )}
+              </Box>
+            )}
+            
+            {winners.length > 0 && (
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                mb: 2
+              }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'white',
+                  fontWeight: 'bold'
                 }}>
-                  {/* BINGO Header */}
-                  {["B", "I", "N", "G", "O"].map((letter, idx) => (
-                    <Box key={letter} sx={{
-                      p: 0.3,
-                      backgroundColor: 'primary.main',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      fontSize: '0.6rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '4px 4px 0 0'
-                    }}>
-                      {letter}
-                    </Box>
-                  ))}
+                  {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+                </Typography>
+                
+                {winners.map(winner => {
+                  const card = getCardById(winner.id);
+                  const winningCells = getWinningPatternCells(card, winner.pattern);
                   
-                  {/* Card numbers with winning pattern highlight */}
-                  {transposeCard(card).map((row, rowIdx) => (
-                    row.map((num, colIdx) => {
-                      const letter = "BINGO"[colIdx];
-                      const isCalled = isNumberCalled(num, letter);
-                      const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
-                      const isLastCalled = currentNumber === `${letter}-${num}`;
-                      
-                      return (
-                        <motion.div
-                          key={`${rowIdx}-${colIdx}`}
-                          animate={isLastCalled ? { 
-                            scale: [1, 1.2, 1],
-                            backgroundColor: [
-                              'rgba(76,175,80,0.3)', 
-                              'rgba(255,215,0,0.6)', 
-                              'rgba(76,175,80,0.3)'
-                            ]
-                          } : {}}
-                          transition={{ duration: 0.8, repeat: isLastCalled ? Infinity : 0 }}
-                          style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                        >
-                          <Box
-                            sx={{
+                  return (
+                    <motion.div
+                      key={winner.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Box sx={{ 
+                        background: 'rgba(255,255,255,0.1)',
+                        borderRadius: 2,
+                        p: 1.5,
+                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                      }}>
+                        <Typography variant="h6" sx={{ 
+                          color: 'white',
+                          mb: 1,
+                          fontWeight: 'bold'
+                        }}>
+                          {language === 'am' 
+                            ? `ተጫዋች ${winner.id}`
+                            : `Player ${winner.id}`}
+                        </Typography>
+                        
+                        {winner.prize && (
+                          <Typography variant="body2" sx={{ 
+                            color: '#a1c4fd',
+                            mb: 1,
+                            fontStyle: 'italic'
+                          }}>
+                            {language === 'am' 
+                              ? `የሸለመ: ${winner.prize.toFixed(0)} ብር`
+                              : `Prize: ${winner.prize.toFixed(0)} Birr`}
+                          </Typography>
+                        )}
+                        
+                        {/* Winner Card */}
+                        <Box sx={{ 
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(5, 1fr)',
+                          gap: 0.3,
+                          mb: 1,
+                          p: 1,
+                          background: 'rgba(255,255,255,0.9)',
+                          borderRadius: 1
+                        }}>
+                          {/* BINGO Header */}
+                          {["B", "I", "N", "G", "O"].map((letter, idx) => (
+                            <Box key={letter} sx={{
                               p: 0.3,
-                              border: isWinningCell 
-                                ? '2px solid #ff5722' 
-                                : '1px solid rgba(0,0,0,0.1)',
-                              backgroundColor: 
-                                (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
-                                isCalled
-                                  ? 'rgba(76,175,80,0.3)' 
-                                  : 'rgba(255,255,255,0.7)',
-                              color: isWinningCell ? '#ff5722' : 'text.primary',
-                              fontWeight: isWinningCell ? 'bold' : 'normal',
+                              backgroundColor: 'primary.main',
+                              color: 'white',
+                              fontWeight: 'bold',
                               fontSize: '0.6rem',
-                              width: '100%',
-                              height: '100%',
-                              minHeight: 20,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              borderRadius: '2px',
-                              boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.8)' : 'none',
-                              position: 'relative'
-                            }}
-                          >
-                            {num === 0 ? (language === 'am' ? '*' : '*') : num}
-                            {isWinningCell && (
-                              <Box
-                                sx={{
-                                  position: 'absolute',
-                                  top: -2,
-                                  right: -2,
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: '50%',
-                                  backgroundColor: '#ff5722',
-                                  boxShadow: '0 0 3px rgba(255,87,34,0.8)'
-                                }}
-                              />
-                            )}
-                          </Box>
-                        </motion.div>
-                      );
-                    })
-                  ))}
-                </Box>
-                </Box>
-              </motion.div>
-            );
-          })}
-        </Box>
-      )}
+                              borderRadius: '4px 4px 0 0'
+                            }}>
+                              {letter}
+                            </Box>
+                          ))}
+                          
+                          {/* Card numbers */}
+                          {transposeCard(card).map((row, rowIdx) => (
+                            row.map((num, colIdx) => {
+                              const letter = "BINGO"[colIdx];
+                              const isCalled = isNumberCalled(num, letter);
+                              const isWinningCell = winningCells.some(cell => cell.row === rowIdx && cell.col === colIdx);
+                              
+                              return (
+                                <Box
+                                  key={`${rowIdx}-${colIdx}`}
+                                  sx={{
+                                    p: 0.3,
+                                    border: isWinningCell 
+                                      ? '2px solid #ff5722' 
+                                      : '1px solid rgba(0,0,0,0.1)',
+                                    backgroundColor: 
+                                      (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
+                                      isCalled
+                                        ? 'rgba(76,175,80,0.3)' 
+                                        : 'rgba(255,255,255,0.7)',
+                                    color: isWinningCell ? '#ff5722' : 'text.primary',
+                                    fontWeight: isWinningCell ? 'bold' : 'normal',
+                                    fontSize: '0.6rem',
+                                    width: '100%',
+                                    height: '100%',
+                                    minHeight: 20,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '2px',
+                                    boxShadow: isWinningCell ? '0 0 8px rgba(255,87,34,0.8)' : 'none',
+                                    position: 'relative'
+                                  }}
+                                >
+                                  {num === 0 ? (language === 'am' ? '*' : '*') : num}
+                                  {isWinningCell && (
+                                    <Box
+                                      sx={{
+                                        position: 'absolute',
+                                        top: -2,
+                                        right: -2,
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#ff5722',
+                                        boxShadow: '0 0 3px rgba(255,87,34,0.8)'
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              );
+                            })
+                          ))}
+                        </Box>
+                      </Box>
+                    </motion.div>
+                  );
+                })}
+              </Box>
+            )}
 
-      <motion.div
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
-        <Button 
-          variant="contained" 
-          color="primary"
-          onClick={() => {
-            setShowGameOverModal(false);
-            onGameEnd();
-          }}
-          sx={{ 
-            mt: 1,
-            px: 3,
-            fontWeight: 'bold',
-            background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-            boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)',
-            borderRadius: 2
-          }}
-        >
-          {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
-        </Button>
-      </motion.div>
-    </Box>
-  </>
-</Modal>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={() => {
+                  setShowGameOverModal(false);
+                  onGameEnd();
+                }}
+                sx={{ 
+                  mt: 1,
+                  px: 3,
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+                  boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)',
+                  borderRadius: 2
+                }}
+              >
+                {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+              </Button>
+            </motion.div>
+          </Box>
+        </>
+      </Modal>
     </Box>
   );
 };
