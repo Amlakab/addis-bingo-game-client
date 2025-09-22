@@ -36,7 +36,7 @@ interface GameEndData {
   prizePool: number;
   split: number;
   totalWinners: number;
-  betAmount: number; // Add this line
+  betAmount: number;
 }
 
 interface GameSession {
@@ -46,19 +46,6 @@ interface GameSession {
   betAmount: number;
   status: string;
   createdAt: string;
-}
-
-interface GameHistory {
-  _id: string;
-  winnerId: {
-    _id: string;
-    phone: string;
-  };
-  winnerCard: number;
-  prizePool: number;
-  numberOfPlayers: number;
-  betAmount: number;
-  createdAt: Date;
 }
 
 interface GameInterfaceProps {
@@ -104,7 +91,6 @@ const GameInterface = ({
   const [showToast, setShowToast] = useState(false);
   const [loserMessage, setLoserMessage] = useState('');
   const [showGameOverModal, setShowGameOverModal] = useState(false);
-  const [gameOverWinner, setGameOverWinner] = useState<GameHistory | null>(null);
   const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const { user } = useAuth();
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
@@ -123,6 +109,9 @@ const GameInterface = ({
   const [gracePeriodActive, setGracePeriodActive] = useState(false);
   const [announcedWinners, setAnnouncedWinners] = useState<Array<{userId: string; card: number}>>([]);
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
+  
+  // NEW: Track which specific cards have submitted BINGO
+  const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
@@ -512,7 +501,7 @@ const GameInterface = ({
   };
 
   const handleBingo = async (playerId: number) => {
-    // Prevent submissions if game has ended or is stopped
+    // Prevent submissions if game has ended completely
     if (gameEnded) {
       const message = language === 'am' ? 'ጨዋታው አልቋል!' : 'Game has ended!';
       setToastMessage(message);
@@ -522,7 +511,15 @@ const GameInterface = ({
 
     // Prevent submissions if game hasn't started
     if (!gameStarted) {
-      const message = language === 'am' ? 'ጨዋታው አልተጀመረም!' : 'Game has not `started`!';
+      const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
+      setToastMessage(message);
+      setShowToast(true);
+      return;
+    }
+
+    // NEW: Prevent multiple submissions from the same card
+    if (submittedBingoCards.includes(playerId)) {
+      const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
       setToastMessage(message);
       setShowToast(true);
       return;
@@ -536,6 +533,9 @@ const GameInterface = ({
         
         console.log(`Player ${playerId} claims BINGO! Sending to server...`);
         
+        // NEW: Mark this specific card as submitted
+        setSubmittedBingoCards(prev => [...prev, playerId]);
+        
         // Send win announcement via WebSocket
         if (webSocketService) {
           webSocketService.send('end-game', {
@@ -545,8 +545,11 @@ const GameInterface = ({
             prizePool: prizeAmount
           });
           
-          // Disable further BINGO submissions from this client
-          setGameStopped(true);
+          // Only disable the game globally if this is the first winner
+          // (the server will handle stopping the number calling)
+          if (!gameStopped) {
+            setGameStopped(true);
+          }
         } else {
           throw new Error('WebSocket not available');
         }
@@ -558,8 +561,8 @@ const GameInterface = ({
           : 'Win announcement failed!';
         setToastMessage(errorMessage);
         setShowToast(true);
-        // Re-enable BINGO button if there was an error
-        setGameStopped(false);
+        // NEW: Remove the card from submitted list if there was an error
+        setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
       }
     } else {
       // Handle loser case
@@ -1251,45 +1254,49 @@ const GameInterface = ({
           </Box>
 
           {/* User Cards */}
-          <Box sx={{ 
-            flex: 1,
-            overflow: 'auto',
-            p: 0.5,
-            background: 'rgba(255,255,255,0.5)',
-            borderRadius: 2,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            minHeight: '25vh'
-          }}>
-            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-              {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}
-            </Typography>
+           {/* User Cards Section - UPDATED BINGO BUTTON LOGIC */}
+      <Box sx={{ 
+        flex: 1,
+        overflow: 'auto',
+        p: 0.5,
+        background: 'rgba(255,255,255,0.5)',
+        borderRadius: 2,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        minHeight: '25vh'
+      }}>
+        <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+          {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}
+        </Typography>
+        
+        {userCards.length === 0 ? (
+          <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
+            {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
+          </Typography>
+        ) : (
+          userCards.map(player => {
+            const card = getCardById(player.id);
+            const isBlocked = blockedPlayers.includes(player.id);
+            // NEW: Check if this specific card has submitted BINGO
+            const hasSubmittedBingo = submittedBingoCards.includes(player.id);
             
-            {userCards.length === 0 ? (
-              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
-                {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
-              </Typography>
-            ) : (
-              userCards.map(player => {
-                const card = getCardById(player.id);
-                const isBlocked = blockedPlayers.includes(player.id);
-                
-                return (
-                  <Card 
-                    key={player.id} 
-                    sx={{ 
-                      p: 1, 
-                      background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
-                      border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
-                      borderRadius: 2
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>
-                      {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
-                      {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
-                    </Typography>
+            return (
+              <Card 
+                key={player.id} 
+                sx={{ 
+                  p: 1, 
+                  background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
+                  border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
+                  borderRadius: 2
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>
+                  {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
+                  {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
+                  {hasSubmittedBingo && ` (${language === 'am' ? 'ቀርቧል' : 'Submitted'})`}
+                </Typography>
                     
                     {/* BINGO Card */}
                     <Box sx={{ 
@@ -1359,25 +1366,31 @@ const GameInterface = ({
                     </Box>
                     
                     {/* Bingo Button */}
-                    <Button 
-                      variant="contained" 
-                      color="success"
-                      onClick={() => handleBingo(player.id)}
-                      disabled={isBlocked || !gameStarted}
-                      fullWidth
-                      size="small"
-                      sx={{ 
-                        fontSize: '0.8rem',
-                        opacity: (isBlocked || !gameStarted) ? 0.6 : 1
-                      }}
-                    >
-                    BINGO    
-                    </Button>
-                  </Card>
-                );
-              })
-            )}
-          </Box>
+                       <Button 
+                        variant="contained" 
+                        color="success"
+                        onClick={() => handleBingo(player.id)}
+                        disabled={isBlocked || !gameStarted || hasSubmittedBingo || gameEnded}
+                        fullWidth
+                        size="small"
+                        sx={{ 
+                          fontSize: '0.8rem',
+                          opacity: (isBlocked || !gameStarted || hasSubmittedBingo || gameEnded) ? 0.6 : 1
+                        }}
+                      >
+                        {hasSubmittedBingo ? 
+                          (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
+                          (gameEnded ? 
+                            (language === 'am' ? 'ጨዋታው አልቋል' : 'GAME ENDED') : 
+                            'BINGO'
+                          )
+                        }
+                      </Button>
+                    </Card>
+                  );
+                })
+              )}
+            </Box>
         </Box>
       </Box>
 
