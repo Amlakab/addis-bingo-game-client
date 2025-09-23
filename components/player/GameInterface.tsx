@@ -165,112 +165,117 @@ const GameInterface = ({
 
     console.log('Setting up game control WebSocket listeners for bet:', bet);
 
-    const handleGameStopped = (data: { 
-      betAmount: number; 
-      firstWinner: { userId: string; card: number };
-      message: string;
-    }) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('Game stopped received:', data);
-      
-      setGameStopped(true);
-      setGracePeriodActive(true);
-      //setGameEnded(true);
-      setGracePeriodCountdown(3);
-      setIsCalling(false);
-      
-      // Show toast for first winner
-      setToastMessage(data.message);
-      setShowToast(true);
-      
-      // Start grace period countdown
-      if (gracePeriodTimerRef.current) {
-        clearInterval(gracePeriodTimerRef.current);
-      }
-      
-      gracePeriodTimerRef.current = setInterval(() => {
-        setGracePeriodCountdown(prev => {
-          if (prev <= 1) {
-            if (gracePeriodTimerRef.current) {
-              clearInterval(gracePeriodTimerRef.current);
-            }
-            setGracePeriodActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    };
-
-    const handleWinnerAnnounced = (data: {
-      betAmount: number;
-      winnerId: string;
-      winnerCard: number;
-      totalWinnersSoFar: number;
-      message: string;
-    }) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('Winner announced:', data);
-      
-      // Add to announced winners list
-      setAnnouncedWinners(prev => {
-        const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
-        if (!isDuplicate) {
-          const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
-          console.log('Updated winners list:', newWinners);
-          return newWinners;
+// In your WebSocket listeners - FIX the game-stopped handler:
+const handleGameStopped = (data: { 
+  betAmount: number; 
+  firstWinner: { userId: string; card: number };
+  message: string;
+}) => {
+  if (data.betAmount !== bet) return;
+  
+  console.log('First winner found - grace period started:', data);
+  
+  // Update UI state but DON'T block BINGO submissions
+  setGameStopped(true);
+  setGracePeriodActive(true);
+  setGracePeriodCountdown(3);
+  setIsCalling(false);
+  
+  // Show toast for first winner
+  setToastMessage(data.message);
+  setShowToast(true);
+  
+  // Start grace period countdown
+  if (gracePeriodTimerRef.current) {
+    clearInterval(gracePeriodTimerRef.current);
+  }
+  
+  gracePeriodTimerRef.current = setInterval(() => {
+    setGracePeriodCountdown(prev => {
+      if (prev <= 1) {
+        if (gracePeriodTimerRef.current) {
+          clearInterval(gracePeriodTimerRef.current);
         }
-        return prev;
-      });
-      
-      // Show toast for each additional winner
-      const winnerMessage = language === 'am' 
-        ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
-        : `Player ${data.winnerCard} wins!`;
-      
-      setToastMessage(winnerMessage);
-      setShowToast(true);
-    };
+        setGracePeriodActive(false);
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+};
 
-    const handleGameEnded = (data: GameEndData) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('Final game results received:', data);
-      setGameEnded(true);
-      setGracePeriodActive(false);
-      setGameStopped(true);
-      setIsCalling(false);
-      
-      // Clear grace period timer
-      if (gracePeriodTimerRef.current) {
-        clearInterval(gracePeriodTimerRef.current);
-      }
-      
-      // Map winners to our state format
-      const formattedWinners: Winner[] = data.winners.map(winner => ({
-        id: winner.card,
-        userId: winner.id,
-        pattern: 'row',
-        prize: data.split,
-        totalWinners: data.totalWinners
-      }));
-      
-      setWinners(formattedWinners);
-      setGameEndData(data);
-      
-      // Check if current user is among winners
-      const userWon = user && data.winners.some(winner => winner.id === user._id);
-      
-      if (userWon) {
-        setTimeout(() => {
-          setShowWinnerModal(true);
-        }, 1000);
-      } else {
-        setShowGameOverModal(true);
-      }
-    };
+// Keep your existing winner-announced handler (it's correct):
+const handleWinnerAnnounced = (data: {
+  betAmount: number;
+  winnerId: string;
+  winnerCard: number;
+  totalWinnersSoFar: number;
+  message: string;
+}) => {
+  if (data.betAmount !== bet) return;
+  
+  console.log('Additional winner announced:', data);
+  
+  // Add to announced winners list
+  setAnnouncedWinners(prev => {
+    const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
+    if (!isDuplicate) {
+      const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
+      console.log('Updated winners list:', newWinners);
+      return newWinners;
+    }
+    return prev;
+  });
+  
+  // Show toast for each additional winner
+  const winnerMessage = language === 'am' 
+    ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
+    : `Player ${data.winnerCard} wins!`;
+  
+  setToastMessage(winnerMessage);
+  setShowToast(true);
+};
+
+const handleGameEnded = (data: GameEndData) => {
+  if (data.betAmount !== bet) return;
+  
+  console.log('Final game results received - game truly ended:', data);
+  setGameEnded(true);
+  setGracePeriodActive(false);
+  setGameStopped(true);
+  setIsCalling(false);
+  
+  // Clear grace period timer
+  if (gracePeriodTimerRef.current) {
+    clearInterval(gracePeriodTimerRef.current);
+  }
+  
+  // Clear all submitted cards - new game can start
+  setSubmittedBingoCards([]);
+  
+  // Map winners to our state format
+  const formattedWinners: Winner[] = data.winners.map(winner => ({
+    id: winner.card,
+    userId: winner.id,
+    pattern: 'row',
+    prize: data.split,
+    totalWinners: data.totalWinners
+  }));
+  
+  setWinners(formattedWinners);
+  setGameEndData(data);
+  
+  // Check if current user is among winners
+  const userWon = user && data.winners.some(winner => winner.id === user._id);
+  
+  if (userWon) {
+    setTimeout(() => {
+      setShowWinnerModal(true);
+    }, 1000);
+  } else {
+    setShowGameOverModal(true);
+  }
+};
 
     const handleNumberCalled = debounce((data: { 
       betAmount: number; 
@@ -500,98 +505,90 @@ const GameInterface = ({
     };
   };
 
-  const handleBingo = async (playerId: number) => {
-    // Prevent submissions if game has ended completely
-    // if (gameEnded) {
-    //   const message = language === 'am' ? 'ጨዋታው አልቋል!' : 'Game has ended!';
-    //   setToastMessage(message);
-    //   setShowToast(true);
-    //   return;
-    // }
+const handleBingo = async (playerId: number) => {
+  // Prevent submissions if game hasn't started
+  if (!gameStarted) {
+    const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
+    setToastMessage(message);
+    setShowToast(true);
+    return;
+  }
 
-    // Prevent submissions if game hasn't started
-    if (!gameStarted) {
-      const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
-      setToastMessage(message);
+  // Prevent duplicate submissions for the same card
+  if (submittedBingoCards.includes(playerId)) {
+    const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
+    setToastMessage(message);
+    setShowToast(true);
+    return;
+  }
+
+  const result = checkForWinner(playerId);
+  
+  if (result.isWinner) {
+    try {
+      const prizeAmount = numberOfPlayers * bet * 0.8;
+      
+      console.log(`Player ${playerId} claims BINGO! Sending to server...`);
+      
+      // Mark this card as submitted (prevent duplicate clicks only)
+      setSubmittedBingoCards(prev => [...prev, playerId]);
+      
+      // Send win announcement via WebSocket
+      if (webSocketService) {
+        webSocketService.send('end-game', {
+          betAmount: bet,
+          winnerId: result.userId!,
+          winnerCard: playerId,
+          prizePool: prizeAmount
+        });
+        
+        // IMPORTANT: Don't stop the game client-side
+        // Let the server handle the first winner and grace period
+        console.log(`BINGO submitted for card ${playerId}`);
+        
+      } else {
+        throw new Error('WebSocket not available');
+      }
+      
+    } catch (error) {
+      console.error('Error announcing win:', error);
+      const errorMessage = language === 'am' 
+        ? 'የአሸናፊ ማስታወቂያ አልተሳካም!' 
+        : 'Win announcement failed!';
+      setToastMessage(errorMessage);
       setShowToast(true);
-      return;
+      // Remove the card from submitted list if error
+      setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
     }
-
-    // if (submittedBingoCards.includes(playerId)) {
-    //   const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
-    //   setToastMessage(message);
-    //   setShowToast(true);
-    //   return;
-    // }
-
-    const result = checkForWinner(playerId);
-    
-    if (result.isWinner) {
-      try {
-        const prizeAmount = numberOfPlayers * bet * 0.8;
-        
-        console.log(`Player ${playerId} claims BINGO! Sending to server...`);
-        
-        // NEW: Mark this specific card as submitted
-        setSubmittedBingoCards(prev => [...prev, playerId]);
-        
-        // Send win announcement via WebSocket
-        if (webSocketService) {
-          webSocketService.send('end-game', {
-            betAmount: bet,
-            winnerId: result.userId!,
-            winnerCard: playerId,
-            prizePool: prizeAmount
-          });
-          
-          // Only disable the game globally if this is the first winner
-          // (the server will handle stopping the number calling)
-          if (!gameStopped) {
-            setGameStopped(true);
-          }
-        } else {
-          throw new Error('WebSocket not available');
-        }
-        
-      } catch (error) {
-        console.error('Error announcing win:', error);
-        const errorMessage = language === 'am' 
-          ? 'የአሸናፊ ማስታወቂያ አልተሳካም!' 
-          : 'Win announcement failed!';
-        setToastMessage(errorMessage);
-        setShowToast(true);
-        // NEW: Remove the card from submitted list if there was an error
-        setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
+  } else {
+    // Handle loser case (your existing code)
+    try {
+      if (webSocketService) {
+        webSocketService.send('update-session-status', {
+          cardNumber: playerId,
+          betAmount: bet,
+          status: 'playing'
+        });
       }
-    } else {
-      // Handle loser case
-      try {
-        if (webSocketService) {
-          webSocketService.send('update-session-status', {
-            cardNumber: playerId,
-            betAmount: bet,
-            status: 'playing'
-          });
-        }
-        
-        setBlockedPlayers([...blockedPlayers, playerId]);
-        setLoserMessage(result.message);
-        setLoserCardId(playerId);
-        setShowLoserModal(true);
-        
-        if (soundOn && voiceService) {
-          const langCode = language === 'am' ? 'am-ET' : 'en-US';
-          voiceService.speak(
-            language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', 
-            langCode, 
-            1
-          );
-        }
-      } catch (error) {
-        console.error('Error blocking player:', error);
+      
+      setBlockedPlayers([...blockedPlayers, playerId]);
+      setLoserMessage(result.message);
+      setLoserCardId(playerId);
+      setShowLoserModal(true);
+      
+      if (soundOn && voiceService) {
+        const langCode = language === 'am' ? 'am-ET' : 'en-US';
+        voiceService.speak(
+          language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', 
+          langCode, 
+          1
+        );
       }
+    } catch (error) {
+      console.error('Error blocking player:', error);
     }
-  };
+  }
+};
 
   const handleBackToLobbyWithRefund = async () => {
     try {
@@ -1365,21 +1362,21 @@ const GameInterface = ({
                     </Box>
                     
                     {/* Bingo Button */}
-                       <Button 
+                      <Button 
                         variant="contained" 
                         color="success"
                         onClick={() => handleBingo(player.id)}
-                        disabled={isBlocked || !gameStarted || hasSubmittedBingo}
+                        disabled={isBlocked || !gameStarted || submittedBingoCards.includes(player.id)}
                         fullWidth
                         size="small"
                         sx={{ 
                           fontSize: '0.8rem',
-                          opacity: (isBlocked || !gameStarted || hasSubmittedBingo) ? 0.6 : 1
+                          opacity: (isBlocked || !gameStarted || submittedBingoCards.includes(player.id)) ? 0.6 : 1
                         }}
                       >
-                        {hasSubmittedBingo ? 
+                        {submittedBingoCards.includes(player.id) ? 
                           (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
-                            'BINGO'
+                          'BINGO'
                         }
                       </Button>
                     </Card>
