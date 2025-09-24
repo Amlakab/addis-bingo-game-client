@@ -53,7 +53,7 @@ interface GameInterfaceProps {
   bet: number; 
   onGameEnd: () => void;
   onBackToPlayerLobby: () => void;
-  language: 'en' | 'am';
+  language?: 'en' | 'am';
   earningsPercentage?: number;
   setLanguage?: (lang: 'en' | 'am') => void;
 }
@@ -63,7 +63,7 @@ const GameInterface = ({
   bet, 
   onGameEnd,
   onBackToPlayerLobby,
-  language = 'en',
+  language = 'am', // Default to Amharic
   earningsPercentage = 20,
   setLanguage
 }: GameInterfaceProps) => {
@@ -117,6 +117,80 @@ const GameInterface = ({
   const numberCalledRef = useRef<string>('');
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Function to play local Amharic audio files
+// Function to play local Amharic audio files
+// Function to play local Amharic audio files
+const playAmharicNumberAudio = (number: string) => {
+  if (!soundOn) return;
+  
+  try {
+    const [letter, num] = number.split('-');
+    // Remove the dash to match file names like B1, I16, N31, etc.
+    const audioFileName = `${letter}${num}`;
+    // Path is relative to public folder from app perspective
+    const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
+    
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Create new audio element
+    audioRef.current = new Audio(audioPath);
+    audioRef.current.play().catch(error => {
+      console.warn('Audio play failed, falling back to TTS:', error);
+      // Fallback to TTS if local audio fails
+      if (voiceService) {
+        const langCode = 'am-ET';
+        voiceService.speak(number, langCode, 1);
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error playing Amharic audio:', error);
+    // Fallback to TTS
+    if (voiceService) {
+      const langCode = 'am-ET';
+      voiceService.speak(number, langCode, 1);
+    }
+  }
+};
+
+// Function to play game sound effects in Amharic
+const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
+  if (!soundOn) return;
+  
+  try {
+    // Path is relative to public folder from app perspective
+    const audioPath = `/Audio/game/${soundType}.aac`;
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    audioRef.current = new Audio(audioPath);
+    audioRef.current.play().catch(error => {
+      console.warn('Game audio play failed:', error);
+    });
+    
+  } catch (error) {
+    console.error('Error playing game audio:', error);
+  }
+};
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
 
   // Initialize component on client side only
   useEffect(() => {
@@ -211,9 +285,17 @@ const GameInterface = ({
       setCalledNumbers(data.calledNumbers);
       setIsCalling(true);
       
-      if (soundOn && voiceService) {
-        const langCode = language === 'am' ? 'am-ET' : 'en-US';
-        voiceService.speak(data.number, langCode, 1);
+      // Use local Amharic audio for number calling when language is Amharic
+      if (soundOn) {
+        if (language === 'am') {
+          playAmharicNumberAudio(data.number);
+        } else {
+          // Use TTS for English
+          if (voiceService) {
+            const langCode = 'en-US';
+            voiceService.speak(data.number, langCode, 1);
+          }
+        }
       }
       
       setTimeout(() => {
@@ -286,51 +368,58 @@ const GameInterface = ({
     }
 
     // FIXED: Game ended handler
- // FIXED: Game ended handler
-const handleGameEnded = (data: GameEndData) => {
-  if (data.betAmount !== bet) return;
-  
-  console.log('Final game results received:', data);
-  setGameEnded(true);
-  setGracePeriodActive(false);
-  setGameStopped(true);
-  setIsCalling(false);
-  
-  if (gracePeriodTimerRef.current) {
-    clearInterval(gracePeriodTimerRef.current);
-  }
-  
-  setSubmittedBingoCards([]);
-  
-  const formattedWinners: Winner[] = data.winners.map(winner => {
-    const card = getCardById(winner.card);
-    
-    // Find the winning pattern that was completed by the last called number
-    const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
-    
-    return {
-      id: winner.card,
-      userId: winner.id,
-      pattern: winningPatternInfo.pattern as WinPattern, // ADD TYPE ASSERTION HERE
-      prize: data.split,
-      totalWinners: data.totalWinners,
-      winningCells: winningPatternInfo.cells
+    const handleGameEnded = (data: GameEndData) => {
+      if (data.betAmount !== bet) return;
+      
+      console.log('Final game results received:', data);
+      setGameEnded(true);
+      setGracePeriodActive(false);
+      setGameStopped(true);
+      setIsCalling(false);
+      
+      if (gracePeriodTimerRef.current) {
+        clearInterval(gracePeriodTimerRef.current);
+      }
+      
+      setSubmittedBingoCards([]);
+      
+      const formattedWinners: Winner[] = data.winners.map(winner => {
+        const card = getCardById(winner.card);
+        
+        // Find the winning pattern that was completed by the last called number
+        const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
+        
+        return {
+          id: winner.card,
+          userId: winner.id,
+          pattern: winningPatternInfo.pattern as WinPattern,
+          prize: data.split,
+          totalWinners: data.totalWinners,
+          winningCells: winningPatternInfo.cells
+        };
+      });
+      
+      setWinners(formattedWinners);
+      setGameEndData(data);
+      
+      const userWon = user && data.winners.some(winner => winner.id === user._id);
+      
+      if (userWon) {
+        // Play win sound for Amharic
+        if (language === 'am') {
+          playAmharicGameAudio('won');
+        }
+        setTimeout(() => {
+          setShowWinnerModal(true);
+        }, 1000);
+      } else {
+        // Play not-won sound for Amharic
+        if (language === 'am') {
+          playAmharicGameAudio('not-won');
+        }
+        setShowGameOverModal(true);
+      }
     };
-  });
-  
-  setWinners(formattedWinners);
-  setGameEndData(data);
-  
-  const userWon = user && data.winners.some(winner => winner.id === user._id);
-  
-  if (userWon) {
-    setTimeout(() => {
-      setShowWinnerModal(true);
-    }, 1000);
-  } else {
-    setShowGameOverModal(true);
-  }
-};
 
     const handleGameState = (data: { 
       betAmount: number; 
@@ -496,164 +585,163 @@ const handleGameEnded = (data: GameEndData) => {
   };
 
   // FIXED: Find which pattern was COMPLETED by the last called number
-// FIXED: Find which pattern was COMPLETED by the last called number
-const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
-  const transposedCard = transposeCard(card);
-  
-  // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
-  const [lastLetter, lastNumStr] = currentNumber.split('-');
-  const lastNum = parseInt(lastNumStr);
-  
-  // Check rows
-  for (let row = 0; row < 5; row++) {
-    let isWinningRow = true;
-    let lastNumberIsInThisRow = false;
+  const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
+    const transposedCard = transposeCard(card);
     
-    for (let col = 0; col < 5; col++) {
-      const number = transposedCard[row][col];
-      const letter = "BINGO"[col];
-      const isFreeSpace = (col === 2 && row === 2);
-      
-      // Check if this cell contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        lastNumberIsInThisRow = true;
-      }
-      
-      if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isWinningRow = false;
-        break;
-      }
-    }
+    // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
+    const [lastLetter, lastNumStr] = currentNumber.split('-');
+    const lastNum = parseInt(lastNumStr);
     
-    // This row wins AND contains the last called number
-    if (isWinningRow && lastNumberIsInThisRow) {
-      const rowCells = [];
-      for (let col = 0; col < 5; col++) {
-        rowCells.push({row, col});
-      }
-      return { pattern: 'row', cells: rowCells };
-    }
-  }
-  
-  // Check columns
-  for (let col = 0; col < 5; col++) {
-    let isWinningCol = true;
-    let lastNumberIsInThisCol = false;
-    
+    // Check rows
     for (let row = 0; row < 5; row++) {
-      const number = transposedCard[row][col];
-      const letter = "BINGO"[col];
-      const isFreeSpace = (col === 2 && row === 2);
+      let isWinningRow = true;
+      let lastNumberIsInThisRow = false;
+      
+      for (let col = 0; col < 5; col++) {
+        const number = transposedCard[row][col];
+        const letter = "BINGO"[col];
+        const isFreeSpace = (col === 2 && row === 2);
+        
+        // Check if this cell contains the last called number
+        if (letter === lastLetter && number === lastNum) {
+          lastNumberIsInThisRow = true;
+        }
+        
+        if (!isFreeSpace && !isNumberCalled(number, letter)) {
+          isWinningRow = false;
+          break;
+        }
+      }
+      
+      // This row wins AND contains the last called number
+      if (isWinningRow && lastNumberIsInThisRow) {
+        const rowCells = [];
+        for (let col = 0; col < 5; col++) {
+          rowCells.push({row, col});
+        }
+        return { pattern: 'row', cells: rowCells };
+      }
+    }
+    
+    // Check columns
+    for (let col = 0; col < 5; col++) {
+      let isWinningCol = true;
+      let lastNumberIsInThisCol = false;
+      
+      for (let row = 0; row < 5; row++) {
+        const number = transposedCard[row][col];
+        const letter = "BINGO"[col];
+        const isFreeSpace = (col === 2 && row === 2);
+        
+        // Check if this cell contains the last called number
+        if (letter === lastLetter && number === lastNum) {
+          lastNumberIsInThisCol = true;
+        }
+        
+        if (!isFreeSpace && !isNumberCalled(number, letter)) {
+          isWinningCol = false;
+          break;
+        }
+      }
+      
+      // This column wins AND contains the last called number
+      if (isWinningCol && lastNumberIsInThisCol) {
+        const colCells = [];
+        for (let row = 0; row < 5; row++) {
+          colCells.push({row, col});
+        }
+        return { pattern: 'column', cells: colCells };
+      }
+    }
+    
+    // Check main diagonal
+    let isWinningMainDiagonal = true;
+    let lastNumberIsInMainDiagonal = false;
+    
+    for (let i = 0; i < 5; i++) {
+      const number = transposedCard[i][i];
+      const letter = "BINGO"[i];
+      const isFreeSpace = (i === 2);
       
       // Check if this cell contains the last called number
       if (letter === lastLetter && number === lastNum) {
-        lastNumberIsInThisCol = true;
+        lastNumberIsInMainDiagonal = true;
       }
       
       if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isWinningCol = false;
+        isWinningMainDiagonal = false;
         break;
       }
     }
     
-    // This column wins AND contains the last called number
-    if (isWinningCol && lastNumberIsInThisCol) {
-      const colCells = [];
-      for (let row = 0; row < 5; row++) {
-        colCells.push({row, col});
+    if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
+      const mainDiagonalCells = [];
+      for (let i = 0; i < 5; i++) {
+        mainDiagonalCells.push({row: i, col: i});
       }
-      return { pattern: 'column', cells: colCells };
-    }
-  }
-  
-  // Check main diagonal
-  let isWinningMainDiagonal = true;
-  let lastNumberIsInMainDiagonal = false;
-  
-  for (let i = 0; i < 5; i++) {
-    const number = transposedCard[i][i];
-    const letter = "BINGO"[i];
-    const isFreeSpace = (i === 2);
-    
-    // Check if this cell contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      lastNumberIsInMainDiagonal = true;
+      return { pattern: 'diagonal', cells: mainDiagonalCells };
     }
     
-    if (!isFreeSpace && !isNumberCalled(number, letter)) {
-      isWinningMainDiagonal = false;
-      break;
-    }
-  }
-  
-  if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
-    const mainDiagonalCells = [];
+    // Check anti-diagonal
+    let isWinningAntiDiagonal = true;
+    let lastNumberIsInAntiDiagonal = false;
+    
     for (let i = 0; i < 5; i++) {
-      mainDiagonalCells.push({row: i, col: i});
-    }
-    return { pattern: 'diagonal', cells: mainDiagonalCells };
-  }
-  
-  // Check anti-diagonal
-  let isWinningAntiDiagonal = true;
-  let lastNumberIsInAntiDiagonal = false;
-  
-  for (let i = 0; i < 5; i++) {
-    const number = transposedCard[i][4 - i];
-    const letter = "BINGO"[i];
-    const isFreeSpace = (i === 2);
-    
-    // Check if this cell contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      lastNumberIsInAntiDiagonal = true;
+      const number = transposedCard[i][4 - i];
+      const letter = "BINGO"[i];
+      const isFreeSpace = (i === 2);
+      
+      // Check if this cell contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        lastNumberIsInAntiDiagonal = true;
+      }
+      
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isWinningAntiDiagonal = false;
+        break;
+      }
     }
     
-    if (!isFreeSpace && !isNumberCalled(number, letter)) {
-      isWinningAntiDiagonal = false;
-      break;
-    }
-  }
-  
-  if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
-    const antiDiagonalCells = [];
-    for (let i = 0; i < 5; i++) {
-      antiDiagonalCells.push({row: i, col: 4 - i});
-    }
-    return { pattern: 'diagonal', cells: antiDiagonalCells };
-  }
-  
-  // Check corners
-  const corners = [
-    {row: 0, col: 0}, 
-    {row: 0, col: 4},
-    {row: 4, col: 0}, 
-    {row: 4, col: 4}
-  ];
-  
-  let isWinningCorners = true;
-  let lastNumberIsInCorners = false;
-  
-  for (const corner of corners) {
-    const number = transposedCard[corner.row][corner.col];
-    const letter = "BINGO"[corner.col];
-    
-    // Check if this corner contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      lastNumberIsInCorners = true;
+    if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
+      const antiDiagonalCells = [];
+      for (let i = 0; i < 5; i++) {
+        antiDiagonalCells.push({row: i, col: 4 - i});
+      }
+      return { pattern: 'diagonal', cells: antiDiagonalCells };
     }
     
-    if (!isNumberCalled(number, letter)) {
-      isWinningCorners = false;
-      break;
+    // Check corners
+    const corners = [
+      {row: 0, col: 0}, 
+      {row: 0, col: 4},
+      {row: 4, col: 0}, 
+      {row: 4, col: 4}
+    ];
+    
+    let isWinningCorners = true;
+    let lastNumberIsInCorners = false;
+    
+    for (const corner of corners) {
+      const number = transposedCard[corner.row][corner.col];
+      const letter = "BINGO"[corner.col];
+      
+      // Check if this corner contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        lastNumberIsInCorners = true;
+      }
+      
+      if (!isNumberCalled(number, letter)) {
+        isWinningCorners = false;
+        break;
+      }
     }
-  }
-  
-  if (isWinningCorners && lastNumberIsInCorners) {
-    return { pattern: 'corners', cells: corners };
-  }
-  
-  return { pattern: 'row', cells: [] };
-};
+    
+    if (isWinningCorners && lastNumberIsInCorners) {
+      return { pattern: 'corners', cells: corners };
+    }
+    
+    return { pattern: 'row', cells: [] };
+  };
 
   // FIXED: Check for winner - ONLY win if last called number completes a pattern
   const checkForWinner = (playerId: number) => {
@@ -767,13 +855,20 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
         setLoserCardId(playerId);
         setShowLoserModal(true);
         
-        if (soundOn && voiceService) {
-          const langCode = language === 'am' ? 'am-ET' : 'en-US';
-          voiceService.speak(
-            language === 'am' ? 'ምንም አሸናፊ አልተገኘም!' : 'No winner found!', 
-            langCode, 
-            1
-          );
+        // Use local Amharic audio for game sounds
+        if (soundOn) {
+          if (language === 'am') {
+            playAmharicGameAudio('not-won');
+          } else {
+            if (voiceService) {
+              const langCode = 'en-US';
+              voiceService.speak(
+                'No winner found!', 
+                langCode, 
+                1
+              );
+            }
+          }
         }
       } catch (error) {
         console.error('Error blocking player:', error);
