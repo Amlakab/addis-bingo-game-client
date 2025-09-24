@@ -112,9 +112,6 @@ const GameInterface = ({
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
-  // NEW: Track the last winning pattern for each card
-  const [lastWinningPatterns, setLastWinningPatterns] = useState<{[cardId: number]: WinPattern}>({});
-  
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
@@ -288,7 +285,7 @@ const GameInterface = ({
       setShowToast(true);
     }
 
-    // FIXED: Game ended handler - only store the LAST winning pattern
+    // FIXED: Game ended handler - find pattern that includes last called number
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
@@ -304,42 +301,21 @@ const GameInterface = ({
       
       setSubmittedBingoCards([]);
       
-      // NEW: Track the last winning pattern for each winner
-      const lastPatterns: {[cardId: number]: WinPattern} = {};
-      
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
         
-        // NEW: Get the MOST RECENT winning pattern (the one that completed the BINGO)
-        const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
-        let winningPattern: WinPattern = 'row';
-        let winningCells: {row: number, col: number}[] = [];
-        
-        // Check patterns in reverse order to find the most recent one
-        for (let i = patterns.length - 1; i >= 0; i--) {
-          const pattern = patterns[i];
-          const cells = getWinningPatternCells(card, pattern);
-          if (cells.length > 0) {
-            winningPattern = pattern;
-            winningCells = cells;
-            // Store the last pattern for this card
-            lastPatterns[winner.card] = pattern;
-            break; // Take the first one found (most recent)
-          }
-        }
+        // Find the winning pattern that INCLUDES THE LAST CALLED NUMBER
+        const winningPatternInfo = findWinningPatternWithLastNumber(card);
         
         return {
           id: winner.card,
           userId: winner.id,
-          pattern: winningPattern,
+          pattern: winningPatternInfo.pattern,
           prize: data.split,
           totalWinners: data.totalWinners,
-          winningCells: winningCells
+          winningCells: winningPatternInfo.cells
         };
       });
-      
-      // Update last winning patterns
-      setLastWinningPatterns(lastPatterns);
       
       setWinners(formattedWinners);
       setGameEndData(data);
@@ -518,7 +494,45 @@ const GameInterface = ({
     return calledNumbers.includes(fullNumber);
   };
 
-  // FIXED: Improved getWinningPatternCells function - returns ONLY the specific pattern
+  // NEW: Find which pattern contains the last called number
+  const findWinningPatternWithLastNumber = (card: number[][]) => {
+    const transposedCard = transposeCard(card);
+    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+    
+    // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
+    const [lastLetter, lastNumStr] = currentNumber.split('-');
+    const lastNum = parseInt(lastNumStr);
+    
+    for (const pattern of patterns) {
+      const cells = getWinningPatternCells(card, pattern);
+      
+      // Check if this pattern contains the last called number
+      const containsLastNumber = cells.some(cell => {
+        const row = cell.row;
+        const col = cell.col;
+        const number = transposedCard[row][col];
+        const letter = "BINGO"[col];
+        
+        return letter === lastLetter && number === lastNum;
+      });
+      
+      if (containsLastNumber && cells.length > 0) {
+        return { pattern, cells };
+      }
+    }
+    
+    // Fallback: return the first winning pattern found
+    for (const pattern of patterns) {
+      const cells = getWinningPatternCells(card, pattern);
+      if (cells.length > 0) {
+        return { pattern, cells };
+      }
+    }
+    
+    return { pattern: 'row' as WinPattern, cells: [] };
+  };
+
+  // FIXED: Get winning pattern cells for a specific pattern
   const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
     const cells: {row: number, col: number}[] = [];
     const transposedCard = transposeCard(card);
@@ -541,7 +555,7 @@ const GameInterface = ({
         }
         
         if (isWinningRow && rowCells.length > 0) {
-          return rowCells; // Return immediately for this specific pattern
+          return rowCells;
         }
       }
     } 
@@ -563,7 +577,7 @@ const GameInterface = ({
         }
         
         if (isWinningCol && colCells.length > 0) {
-          return colCells; // Return immediately for this specific pattern
+          return colCells;
         }
       }
     } 
@@ -585,7 +599,7 @@ const GameInterface = ({
       }
       
       if (isWinningMainDiagonal && mainDiagonalCells.length > 0) {
-        return mainDiagonalCells; // Return immediately for this specific pattern
+        return mainDiagonalCells;
       }
       
       // Anti-diagonal
@@ -605,7 +619,7 @@ const GameInterface = ({
       }
       
       if (isWinningAntiDiagonal && antiDiagonalCells.length > 0) {
-        return antiDiagonalCells; // Return immediately for this specific pattern
+        return antiDiagonalCells;
       }
     } 
     else if (pattern === 'corners') {
@@ -628,14 +642,14 @@ const GameInterface = ({
       }
       
       if (isWinningCorners) {
-        return corners; // Return immediately for this specific pattern
+        return corners;
       }
     }
     
-    return []; // Return empty if pattern not found
+    return [];
   };
 
-  // FIXED: Check for winner - returns the MOST RECENT winning pattern
+  // FIXED: Check for winner - find pattern that includes last called number
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
@@ -659,31 +673,21 @@ const GameInterface = ({
     }
 
     const card = getCardById(playerId);
-    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
-
-    // NEW: Check patterns in reverse order to find the MOST RECENT one
-    for (let i = patterns.length - 1; i >= 0; i--) {
-      const pattern = patterns[i];
-      const winningCells = getWinningPatternCells(card, pattern);
-      
-      if (winningCells.length > 0) {
-        // NEW: Update the last winning pattern for this card
-        setLastWinningPatterns(prev => ({
-          ...prev,
-          [playerId]: pattern
-        }));
-        
-        return {
-          isWinner: true,
-          pattern,
-          message: language === 'am' 
-            ? `ተጫዋች ${playerId} በ${getPatternName(pattern)} ቅደም ተከተል አሸንፏል!` 
-            : `Player ${playerId} wins with ${pattern} pattern!`,
-          playerId,
-          userId: player.userId,
-          winningCells
-        };
-      }
+    
+    // Find the winning pattern that INCLUDES THE LAST CALLED NUMBER
+    const winningPatternInfo = findWinningPatternWithLastNumber(card);
+    
+    if (winningPatternInfo.cells.length > 0) {
+      return {
+        isWinner: true,
+        pattern: winningPatternInfo.pattern,
+        message: language === 'am' 
+          ? `ተጫዋች ${playerId} በ${getPatternName(winningPatternInfo.pattern)} ቅደም ተከተል አሸንፏል!` 
+          : `Player ${playerId} wins with ${winningPatternInfo.pattern} pattern!`,
+        playerId,
+        userId: player.userId,
+        winningCells: winningPatternInfo.cells
+      };
     }
 
     return {
@@ -837,17 +841,14 @@ const GameInterface = ({
 
   const userCards = getUserCards();
 
-  // FIXED: Winner Card Component - only shows the LAST winning pattern
+  // FIXED: Winner Card Component - shows pattern that includes last called number
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
     language: 'en' | 'am';
   }) => {
     const card = getCardById(winner.id);
-    
-    // NEW: Get the LAST winning pattern for this card, fallback to winner.pattern
-    const lastPattern = lastWinningPatterns[winner.id] || winner.pattern;
-    const winningCells = getWinningPatternCells(card, lastPattern);
+    const winningCells = winner.winningCells || [];
 
     return (
       <motion.div
@@ -893,8 +894,8 @@ const GameInterface = ({
             fontStyle: 'italic'
           }}>
             {language === 'am' 
-              ? `በ${getPatternName(lastPattern)} ቅደም ተከተል አሸንፈዋል!`
-              : `Won with ${lastPattern} pattern!`}
+              ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
+              : `Won with ${winner.pattern} pattern!`}
           </Typography>
           
           {/* Winner Card Grid */}
@@ -925,7 +926,7 @@ const GameInterface = ({
               </Box>
             ))}
             
-            {/* Card numbers with ONLY the last winning pattern highlight */}
+            {/* Card numbers - ONLY border the pattern that includes last called number */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
