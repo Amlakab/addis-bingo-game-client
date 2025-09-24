@@ -112,6 +112,9 @@ const GameInterface = ({
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
+  // NEW: Track the last winning pattern for each card
+  const [lastWinningPatterns, setLastWinningPatterns] = useState<{[cardId: number]: WinPattern}>({});
+  
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
@@ -184,13 +187,12 @@ const GameInterface = ({
     };
   }, [webSocketService]);
 
-  // Setup WebSocket listeners for game control events - CORRECTED
+  // Setup WebSocket listeners for game control events
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
     console.log('Setting up game control WebSocket listeners for bet:', bet);
 
-    // PRECISE NUMBER CALL HANDLING - NO DUPLICATES
     const handleNumberCalled = (data: { 
       betAmount: number; 
       number: string; 
@@ -198,12 +200,10 @@ const GameInterface = ({
     }) => {
       if (data.betAmount !== bet) return;
       
-      // Prevent processing if already processing or game stopped
       if (isProcessingRef.current || gameStopped) return;
       
       isProcessingRef.current = true;
       
-      // Prevent processing the same number multiple times
       if (numberCalledRef.current === data.number) {
         isProcessingRef.current = false;
         return;
@@ -219,13 +219,11 @@ const GameInterface = ({
         voiceService.speak(data.number, langCode, 1);
       }
       
-      // Reset processing flag
       setTimeout(() => {
         isProcessingRef.current = false;
       }, 50);
     };
 
-    // GAME STOPPED - GRACE PERIOD START
     const handleGameStopped = (data: { 
       betAmount: number; 
       firstWinner: { userId: string; card: number };
@@ -240,11 +238,9 @@ const GameInterface = ({
       setGracePeriodCountdown(3);
       setIsCalling(false);
       
-      // Show toast for first winner
       setToastMessage(data.message);
       setShowToast(true);
       
-      // Start grace period countdown
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
       }
@@ -263,7 +259,6 @@ const GameInterface = ({
       }, 1000);
     };
 
-    // ADDITIONAL WINNER ANNOUNCED DURING GRACE PERIOD
     const handleWinnerAnnounced = (data: {
       betAmount: number;
       winnerId: string;
@@ -275,7 +270,6 @@ const GameInterface = ({
       
       console.log('Additional winner announced:', data);
       
-      // Add to announced winners list without duplicates
       setAnnouncedWinners(prev => {
         const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
         if (!isDuplicate) {
@@ -286,7 +280,6 @@ const GameInterface = ({
         return prev;
       });
       
-      // Show toast for each additional winner
       const winnerMessage = language === 'am' 
         ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
         : `Player ${data.winnerCard} wins!`;
@@ -295,7 +288,7 @@ const GameInterface = ({
       setShowToast(true);
     }
 
-    // GAME ENDED - FINAL RESULTS
+    // FIXED: Game ended handler - only store the LAST winning pattern
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
@@ -305,28 +298,33 @@ const GameInterface = ({
       setGameStopped(true);
       setIsCalling(false);
       
-      // Clear grace period timer
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
       }
       
-      // Clear all submitted cards
       setSubmittedBingoCards([]);
       
-      // Map winners to our state format with winning patterns and cells
+      // NEW: Track the last winning pattern for each winner
+      const lastPatterns: {[cardId: number]: WinPattern} = {};
+      
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
-        // Determine the winning pattern for this winner
+        
+        // NEW: Get the MOST RECENT winning pattern (the one that completed the BINGO)
         const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
         let winningPattern: WinPattern = 'row';
         let winningCells: {row: number, col: number}[] = [];
         
-        for (const pattern of patterns) {
+        // Check patterns in reverse order to find the most recent one
+        for (let i = patterns.length - 1; i >= 0; i--) {
+          const pattern = patterns[i];
           const cells = getWinningPatternCells(card, pattern);
           if (cells.length > 0) {
             winningPattern = pattern;
             winningCells = cells;
-            break;
+            // Store the last pattern for this card
+            lastPatterns[winner.card] = pattern;
+            break; // Take the first one found (most recent)
           }
         }
         
@@ -340,10 +338,12 @@ const GameInterface = ({
         };
       });
       
+      // Update last winning patterns
+      setLastWinningPatterns(lastPatterns);
+      
       setWinners(formattedWinners);
       setGameEndData(data);
       
-      // Check if current user is among winners
       const userWon = user && data.winners.some(winner => winner.id === user._id);
       
       if (userWon) {
@@ -367,7 +367,6 @@ const GameInterface = ({
     };
 
     const handleSessionsUpdate = (sessions: GameSession[]) => {
-      // Filter sessions for the current bet amount
       const betSessions = sessions.filter(session => session.betAmount === bet);
       
       console.log('Bet sessions:', betSessions);
@@ -378,16 +377,12 @@ const GameInterface = ({
 
       setNumberOfPlayers(activePlayers);
       
-      // Calculate prize pool as 80% of total bets
       const pool = activePlayers * bet * 0.8;
       setPrizePool(pool);
       
-      // Update game sessions
       setGameSessions(betSessions);
 
-      // Handle countdown timer for game start
       if (betSessions.length > 0 && !gameStarted && !gameStopped) {
-        // Get the earliest createdAt from all sessions
         const earliestSession = betSessions.reduce((earliest, session) => {
           const sessionDate = new Date(session.createdAt);
           return sessionDate < earliest ? sessionDate : earliest;
@@ -395,19 +390,15 @@ const GameInterface = ({
         
         setSessionCreatedAt(earliestSession);
         
-        // Calculate time difference
         const currentDate = new Date();
         const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
         
-        // Calculate remaining time (46 seconds - time difference)
         const remainingTime = Math.max(0, 46 - timeDifference);
         setCountdown(remainingTime);
         
-        // Start countdown if there's time left
         if (remainingTime > 0) {
           startCountdown(remainingTime);
         } else {
-          // If time is already up, start the game immediately
           startGame();
         }
       }
@@ -418,7 +409,7 @@ const GameInterface = ({
       console.log('WebSocket connected in GameInterface');
     };
 
-    // Set up all listeners - REMOVE OLD LISTENERS FIRST
+    // Set up all listeners
     webSocketService.off('number-called', handleNumberCalled);
     webSocketService.off('game-stopped', handleGameStopped);
     webSocketService.off('winner-announced', handleWinnerAnnounced);
@@ -427,7 +418,6 @@ const GameInterface = ({
     webSocketService.off('sessions-updated', handleSessionsUpdate);
     webSocketService.off('connected', handleWebSocketConnected);
 
-    // Add new listeners
     webSocketService.on('number-called', handleNumberCalled);
     webSocketService.on('game-stopped', handleGameStopped);
     webSocketService.on('winner-announced', handleWinnerAnnounced);
@@ -436,11 +426,9 @@ const GameInterface = ({
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('connected', handleWebSocketConnected);
 
-    // Request initial data
     webSocketService.send('get-sessions', { betAmount: bet });
 
     return () => {
-      // Clean up listeners and timers
       webSocketService.off('number-called', handleNumberCalled);
       webSocketService.off('game-stopped', handleGameStopped);
       webSocketService.off('winner-announced', handleWinnerAnnounced);
@@ -512,34 +500,30 @@ const GameInterface = ({
   const startGame = () => {
     setGameStarted(true);
     
-    // Update game sessions status to playing via WebSocket
     if (webSocketService) {
       webSocketService.send('update-session-status-by-bet', {
         betAmount: bet,
         status: 'playing'
       });
       
-      // Start the game on the server
       webSocketService.send('start-game', { betAmount: bet });
     }
   };
 
   // FIXED: Improved isNumberCalled function to handle free space
   const isNumberCalled = (number: number, letter: string) => {
-    // Free space (center) is always considered called
     if (number === 0) return true;
     
     const fullNumber = `${letter}-${number}`;
     return calledNumbers.includes(fullNumber);
   };
 
-  // FIXED: Improved getWinningPatternCells function
+  // FIXED: Improved getWinningPatternCells function - returns ONLY the specific pattern
   const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
     const cells: {row: number, col: number}[] = [];
     const transposedCard = transposeCard(card);
     
     if (pattern === 'row') {
-      // Check each row for complete marking
       for (let row = 0; row < 5; row++) {
         const rowCells = [];
         let isWinningRow = true;
@@ -557,13 +541,11 @@ const GameInterface = ({
         }
         
         if (isWinningRow && rowCells.length > 0) {
-          cells.push(...rowCells);
-          break;
+          return rowCells; // Return immediately for this specific pattern
         }
       }
     } 
     else if (pattern === 'column') {
-      // Check each column for complete marking
       for (let col = 0; col < 5; col++) {
         const colCells = [];
         let isWinningCol = true;
@@ -581,13 +563,12 @@ const GameInterface = ({
         }
         
         if (isWinningCol && colCells.length > 0) {
-          cells.push(...colCells);
-          break;
+          return colCells; // Return immediately for this specific pattern
         }
       }
     } 
     else if (pattern === 'diagonal') {
-      // Main diagonal (top-left to bottom-right)
+      // Main diagonal
       const mainDiagonalCells = [];
       let isWinningMainDiagonal = true;
       
@@ -604,10 +585,10 @@ const GameInterface = ({
       }
       
       if (isWinningMainDiagonal && mainDiagonalCells.length > 0) {
-        cells.push(...mainDiagonalCells);
+        return mainDiagonalCells; // Return immediately for this specific pattern
       }
       
-      // Anti-diagonal (top-right to bottom-left)
+      // Anti-diagonal
       const antiDiagonalCells = [];
       let isWinningAntiDiagonal = true;
       
@@ -624,7 +605,7 @@ const GameInterface = ({
       }
       
       if (isWinningAntiDiagonal && antiDiagonalCells.length > 0) {
-        cells.push(...antiDiagonalCells);
+        return antiDiagonalCells; // Return immediately for this specific pattern
       }
     } 
     else if (pattern === 'corners') {
@@ -647,14 +628,14 @@ const GameInterface = ({
       }
       
       if (isWinningCorners) {
-        cells.push(...corners);
+        return corners; // Return immediately for this specific pattern
       }
     }
     
-    return cells;
+    return []; // Return empty if pattern not found
   };
 
-  // FIXED: Improved checkForWinner function to include winningCells
+  // FIXED: Check for winner - returns the MOST RECENT winning pattern
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
@@ -680,10 +661,18 @@ const GameInterface = ({
     const card = getCardById(playerId);
     const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
 
-    for (const pattern of patterns) {
+    // NEW: Check patterns in reverse order to find the MOST RECENT one
+    for (let i = patterns.length - 1; i >= 0; i--) {
+      const pattern = patterns[i];
       const winningCells = getWinningPatternCells(card, pattern);
       
       if (winningCells.length > 0) {
+        // NEW: Update the last winning pattern for this card
+        setLastWinningPatterns(prev => ({
+          ...prev,
+          [playerId]: pattern
+        }));
+        
         return {
           isWinner: true,
           pattern,
@@ -706,9 +695,8 @@ const GameInterface = ({
     };
   };
 
-  // CORRECTED BINGO HANDLER - ALLOWS MULTIPLE WINNERS DURING GRACE PERIOD
+  // BINGO handler
   const handleBingo = async (playerId: number) => {
-    // Prevent submissions if game hasn't started
     if (!gameStarted) {
       const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
       setToastMessage(message);
@@ -716,7 +704,6 @@ const GameInterface = ({
       return;
     }
 
-    // Prevent duplicate submissions for the same card
     if (submittedBingoCards.includes(playerId)) {
       const message = language === 'am' ? 'ይህ ካርድ አስቀድሞ ቀርቧል!' : 'This card has already been submitted!';
       setToastMessage(message);
@@ -730,10 +717,8 @@ const GameInterface = ({
       try {
         console.log(`Player ${playerId} claims BINGO! Sending to server...`);
         
-        // Mark this card as submitted (ONLY prevent duplicate clicks)
         setSubmittedBingoCards(prev => [...prev, playerId]);
         
-        // Send win announcement via WebSocket
         if (webSocketService) {
           webSocketService.send('end-game', {
             betAmount: bet,
@@ -755,11 +740,9 @@ const GameInterface = ({
           : 'Win announcement failed!';
         setToastMessage(errorMessage);
         setShowToast(true);
-        // Remove the card from submitted list if error
         setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
       }
     } else {
-      // Handle loser case
       try {
         if (webSocketService) {
           webSocketService.send('update-session-status', {
@@ -854,14 +837,17 @@ const GameInterface = ({
 
   const userCards = getUserCards();
 
-  // FIXED: Winner Card Component with proper pattern borders and animation
+  // FIXED: Winner Card Component - only shows the LAST winning pattern
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
     language: 'en' | 'am';
   }) => {
     const card = getCardById(winner.id);
-    const winningCells = winner.winningCells || getWinningPatternCells(card, winner.pattern);
+    
+    // NEW: Get the LAST winning pattern for this card, fallback to winner.pattern
+    const lastPattern = lastWinningPatterns[winner.id] || winner.pattern;
+    const winningCells = getWinningPatternCells(card, lastPattern);
 
     return (
       <motion.div
@@ -907,8 +893,8 @@ const GameInterface = ({
             fontStyle: 'italic'
           }}>
             {language === 'am' 
-              ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
-              : `Won with ${winner.pattern} pattern!`}
+              ? `በ${getPatternName(lastPattern)} ቅደም ተከተል አሸንፈዋል!`
+              : `Won with ${lastPattern} pattern!`}
           </Typography>
           
           {/* Winner Card Grid */}
@@ -939,7 +925,7 @@ const GameInterface = ({
               </Box>
             ))}
             
-            {/* Card numbers with winning pattern highlight */}
+            {/* Card numbers with ONLY the last winning pattern highlight */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
@@ -971,7 +957,7 @@ const GameInterface = ({
                           isFreeSpace ? 'rgba(255,235,59,0.5)' :
                           isCalled
                             ? isLastCalled 
-                              ? 'rgba(255,215,0,0.8)' // Blinking color for last called
+                              ? 'rgba(255,215,0,0.8)'
                               : 'rgba(76,175,80,0.5)' 
                             : 'rgba(255,255,255,0.7)',
                         color: isWinningCell ? '#ff5722' : 'text.primary',
