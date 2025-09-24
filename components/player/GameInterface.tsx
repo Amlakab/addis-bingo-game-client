@@ -285,7 +285,7 @@ const GameInterface = ({
       setShowToast(true);
     }
 
-    // FIXED: Game ended handler - find pattern that includes last called number
+    // FIXED: Game ended handler
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
@@ -304,8 +304,8 @@ const GameInterface = ({
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
         
-        // Find the winning pattern that INCLUDES THE LAST CALLED NUMBER
-        const winningPatternInfo = findWinningPatternWithLastNumber(card);
+        // Find the winning pattern that was completed by the last called number
+        const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
         
         return {
           id: winner.card,
@@ -494,8 +494,8 @@ const GameInterface = ({
     return calledNumbers.includes(fullNumber);
   };
 
-  // NEW: Find which pattern contains the last called number
-  const findWinningPatternWithLastNumber = (card: number[][]) => {
+  // NEW: Find which pattern was COMPLETED by the last called number
+  const findWinningPatternCompletedByLastNumber = (card: number[][]) => {
     const transposedCard = transposeCard(card);
     const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
     
@@ -506,8 +506,10 @@ const GameInterface = ({
     for (const pattern of patterns) {
       const cells = getWinningPatternCells(card, pattern);
       
-      // Check if this pattern contains the last called number
-      const containsLastNumber = cells.some(cell => {
+      if (cells.length === 0) continue;
+      
+      // Check if the last called number is part of this winning pattern
+      const lastNumberIsInPattern = cells.some(cell => {
         const row = cell.row;
         const col = cell.col;
         const number = transposedCard[row][col];
@@ -516,8 +518,36 @@ const GameInterface = ({
         return letter === lastLetter && number === lastNum;
       });
       
-      if (containsLastNumber && cells.length > 0) {
-        return { pattern, cells };
+      // Check if this pattern was COMPLETED by the last called number
+      if (lastNumberIsInPattern) {
+        // Verify that this pattern was indeed completed by checking if WITHOUT the last number it would be incomplete
+        const patternCellsWithoutLast = cells.filter(cell => {
+          const row = cell.row;
+          const col = cell.col;
+          const number = transposedCard[row][col];
+          const letter = "BINGO"[col];
+          
+          return !(letter === lastLetter && number === lastNum);
+        });
+        
+        // If removing the last number makes the pattern incomplete, then it was completed by the last number
+        let wouldStillBeComplete = true;
+        for (const cell of patternCellsWithoutLast) {
+          const row = cell.row;
+          const col = cell.col;
+          const number = transposedCard[row][col];
+          const letter = "BINGO"[col];
+          const isFreeSpace = (col === 2 && row === 2);
+          
+          if (!isFreeSpace && !isNumberCalled(number, letter)) {
+            wouldStillBeComplete = false;
+            break;
+          }
+        }
+        
+        if (!wouldStillBeComplete) {
+          return { pattern, cells };
+        }
       }
     }
     
@@ -532,7 +562,7 @@ const GameInterface = ({
     return { pattern: 'row' as WinPattern, cells: [] };
   };
 
-  // FIXED: Get winning pattern cells for a specific pattern
+  // FIXED: Check if a pattern is a winning pattern
   const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
     const cells: {row: number, col: number}[] = [];
     const transposedCard = transposeCard(card);
@@ -649,7 +679,7 @@ const GameInterface = ({
     return [];
   };
 
-  // FIXED: Check for winner - find pattern that includes last called number
+  // FIXED: Check for winner - ONLY win if last called number completes a pattern
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
@@ -674,8 +704,8 @@ const GameInterface = ({
 
     const card = getCardById(playerId);
     
-    // Find the winning pattern that INCLUDES THE LAST CALLED NUMBER
-    const winningPatternInfo = findWinningPatternWithLastNumber(card);
+    // Find the winning pattern that was COMPLETED by the last called number
+    const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
     
     if (winningPatternInfo.cells.length > 0) {
       return {
@@ -841,7 +871,7 @@ const GameInterface = ({
 
   const userCards = getUserCards();
 
-  // FIXED: Winner Card Component - shows pattern that includes last called number
+  // FIXED: Winner Card Component - shows pattern completed by last called number
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
@@ -926,7 +956,7 @@ const GameInterface = ({
               </Box>
             ))}
             
-            {/* Card numbers - ONLY border the pattern that includes last called number */}
+            {/* Card numbers - ONLY border the pattern completed by last called number */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
