@@ -239,36 +239,38 @@ const GameInterface = ({
     };
 
     // ADDITIONAL WINNER ANNOUNCED DURING GRACE PERIOD
-    const handleWinnerAnnounced = (data: {
-      betAmount: number;
-      winnerId: string;
-      winnerCard: number;
-      totalWinnersSoFar: number;
-      message: string;
-    }) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('Additional winner announced:', data);
-      
-      // Add to announced winners list
-      setAnnouncedWinners(prev => {
-        const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
-        if (!isDuplicate) {
-          const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
-          console.log('Updated winners list:', newWinners);
-          return newWinners;
-        }
-        return prev;
-      });
-      
-      // Show toast for each additional winner
-      const winnerMessage = language === 'am' 
-        ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
-        : `Player ${data.winnerCard} wins!`;
-      
-      setToastMessage(winnerMessage);
-      setShowToast(true);
-    };
+     // ADDITIONAL WINNER ANNOUNCED DURING GRACE PERIOD - CORRECTED
+  const handleWinnerAnnounced = (data: {
+    betAmount: number;
+    winnerId: string;
+    winnerCard: number;
+    totalWinnersSoFar: number;
+    message: string;
+  }) => {
+    if (data.betAmount !== bet) return;
+    
+    console.log('Additional winner announced:', data);
+    
+    // Add to announced winners list without duplicates
+    setAnnouncedWinners(prev => {
+      const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
+      if (!isDuplicate) {
+        const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
+        console.log('Updated winners list:', newWinners);
+        return newWinners;
+      }
+      return prev;
+    });
+    
+    // Show toast for each additional winner
+    const winnerMessage = language === 'am' 
+      ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
+      : `Player ${data.winnerCard} wins!`;
+    
+    setToastMessage(winnerMessage);
+    setShowToast(true);
+  }
+
 
     // GAME ENDED - FINAL RESULTS
     const handleGameEnded = (data: GameEndData) => {
@@ -413,6 +415,14 @@ const GameInterface = ({
         clearInterval(countdownIntervalRef.current);
       }
     };
+
+    // Remove old listener and add new one
+  webSocketService.off('winner-announced', handleWinnerAnnounced);
+  webSocketService.on('winner-announced', handleWinnerAnnounced);
+
+  return () => {
+    webSocketService.off('winner-announced', handleWinnerAnnounced);
+  };
   }, [isClient, webSocketService, bet, language, user, gameStopped, soundOn, voiceService, gameStarted]);
 
   // Initialize and set up window size tracking
@@ -781,6 +791,7 @@ const GameInterface = ({
   };
 
   // Winner Card Component
+
 
   if (!isClient) {
     return (
