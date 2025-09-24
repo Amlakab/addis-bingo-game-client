@@ -286,50 +286,51 @@ const GameInterface = ({
     }
 
     // FIXED: Game ended handler
-    const handleGameEnded = (data: GameEndData) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('Final game results received:', data);
-      setGameEnded(true);
-      setGracePeriodActive(false);
-      setGameStopped(true);
-      setIsCalling(false);
-      
-      if (gracePeriodTimerRef.current) {
-        clearInterval(gracePeriodTimerRef.current);
-      }
-      
-      setSubmittedBingoCards([]);
-      
-      const formattedWinners: Winner[] = data.winners.map(winner => {
-        const card = getCardById(winner.card);
-        
-        // Find the winning pattern that was completed by the last called number
-        const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
-        
-        return {
-          id: winner.card,
-          userId: winner.id,
-          pattern: winningPatternInfo.pattern,
-          prize: data.split,
-          totalWinners: data.totalWinners,
-          winningCells: winningPatternInfo.cells
-        };
-      });
-      
-      setWinners(formattedWinners);
-      setGameEndData(data);
-      
-      const userWon = user && data.winners.some(winner => winner.id === user._id);
-      
-      if (userWon) {
-        setTimeout(() => {
-          setShowWinnerModal(true);
-        }, 1000);
-      } else {
-        setShowGameOverModal(true);
-      }
+ // FIXED: Game ended handler
+const handleGameEnded = (data: GameEndData) => {
+  if (data.betAmount !== bet) return;
+  
+  console.log('Final game results received:', data);
+  setGameEnded(true);
+  setGracePeriodActive(false);
+  setGameStopped(true);
+  setIsCalling(false);
+  
+  if (gracePeriodTimerRef.current) {
+    clearInterval(gracePeriodTimerRef.current);
+  }
+  
+  setSubmittedBingoCards([]);
+  
+  const formattedWinners: Winner[] = data.winners.map(winner => {
+    const card = getCardById(winner.card);
+    
+    // Find the winning pattern that was completed by the last called number
+    const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
+    
+    return {
+      id: winner.card,
+      userId: winner.id,
+      pattern: winningPatternInfo.pattern as WinPattern, // ADD TYPE ASSERTION HERE
+      prize: data.split,
+      totalWinners: data.totalWinners,
+      winningCells: winningPatternInfo.cells
     };
+  });
+  
+  setWinners(formattedWinners);
+  setGameEndData(data);
+  
+  const userWon = user && data.winners.some(winner => winner.id === user._id);
+  
+  if (userWon) {
+    setTimeout(() => {
+      setShowWinnerModal(true);
+    }, 1000);
+  } else {
+    setShowGameOverModal(true);
+  }
+};
 
     const handleGameState = (data: { 
       betAmount: number; 
@@ -494,190 +495,165 @@ const GameInterface = ({
     return calledNumbers.includes(fullNumber);
   };
 
-  // NEW: Find which pattern was COMPLETED by the last called number
-  const findWinningPatternCompletedByLastNumber = (card: number[][]) => {
-    const transposedCard = transposeCard(card);
-    const patterns: WinPattern[] = ["row", "column", "diagonal", "corners"];
+  // FIXED: Find which pattern was COMPLETED by the last called number
+// FIXED: Find which pattern was COMPLETED by the last called number
+const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
+  const transposedCard = transposeCard(card);
+  
+  // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
+  const [lastLetter, lastNumStr] = currentNumber.split('-');
+  const lastNum = parseInt(lastNumStr);
+  
+  // Check rows
+  for (let row = 0; row < 5; row++) {
+    let isWinningRow = true;
+    let lastNumberIsInThisRow = false;
     
-    // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
-    const [lastLetter, lastNumStr] = currentNumber.split('-');
-    const lastNum = parseInt(lastNumStr);
-    
-    for (const pattern of patterns) {
-      const cells = getWinningPatternCells(card, pattern);
+    for (let col = 0; col < 5; col++) {
+      const number = transposedCard[row][col];
+      const letter = "BINGO"[col];
+      const isFreeSpace = (col === 2 && row === 2);
       
-      if (cells.length === 0) continue;
+      // Check if this cell contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        lastNumberIsInThisRow = true;
+      }
       
-      // Check if the last called number is part of this winning pattern
-      const lastNumberIsInPattern = cells.some(cell => {
-        const row = cell.row;
-        const col = cell.col;
-        const number = transposedCard[row][col];
-        const letter = "BINGO"[col];
-        
-        return letter === lastLetter && number === lastNum;
-      });
-      
-      // Check if this pattern was COMPLETED by the last called number
-      if (lastNumberIsInPattern) {
-        // Verify that this pattern was indeed completed by checking if WITHOUT the last number it would be incomplete
-        const patternCellsWithoutLast = cells.filter(cell => {
-          const row = cell.row;
-          const col = cell.col;
-          const number = transposedCard[row][col];
-          const letter = "BINGO"[col];
-          
-          return !(letter === lastLetter && number === lastNum);
-        });
-        
-        // If removing the last number makes the pattern incomplete, then it was completed by the last number
-        let wouldStillBeComplete = true;
-        for (const cell of patternCellsWithoutLast) {
-          const row = cell.row;
-          const col = cell.col;
-          const number = transposedCard[row][col];
-          const letter = "BINGO"[col];
-          const isFreeSpace = (col === 2 && row === 2);
-          
-          if (!isFreeSpace && !isNumberCalled(number, letter)) {
-            wouldStillBeComplete = false;
-            break;
-          }
-        }
-        
-        if (!wouldStillBeComplete) {
-          return { pattern, cells };
-        }
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isWinningRow = false;
+        break;
       }
     }
     
-    // Fallback: return the first winning pattern found
-    for (const pattern of patterns) {
-      const cells = getWinningPatternCells(card, pattern);
-      if (cells.length > 0) {
-        return { pattern, cells };
-      }
-    }
-    
-    return { pattern: 'row' as WinPattern, cells: [] };
-  };
-
-  // FIXED: Check if a pattern is a winning pattern
-  const getWinningPatternCells = (card: number[][], pattern: WinPattern) => {
-    const cells: {row: number, col: number}[] = [];
-    const transposedCard = transposeCard(card);
-    
-    if (pattern === 'row') {
-      for (let row = 0; row < 5; row++) {
-        const rowCells = [];
-        let isWinningRow = true;
-        
-        for (let col = 0; col < 5; col++) {
-          const number = transposedCard[row][col];
-          const letter = "BINGO"[col];
-          const isFreeSpace = (col === 2 && row === 2);
-          
-          if (!isFreeSpace && !isNumberCalled(number, letter)) {
-            isWinningRow = false;
-            break;
-          }
-          rowCells.push({row, col});
-        }
-        
-        if (isWinningRow && rowCells.length > 0) {
-          return rowCells;
-        }
-      }
-    } 
-    else if (pattern === 'column') {
+    // This row wins AND contains the last called number
+    if (isWinningRow && lastNumberIsInThisRow) {
+      const rowCells = [];
       for (let col = 0; col < 5; col++) {
-        const colCells = [];
-        let isWinningCol = true;
-        
-        for (let row = 0; row < 5; row++) {
-          const number = transposedCard[row][col];
-          const letter = "BINGO"[col];
-          const isFreeSpace = (col === 2 && row === 2);
-          
-          if (!isFreeSpace && !isNumberCalled(number, letter)) {
-            isWinningCol = false;
-            break;
-          }
-          colCells.push({row, col});
-        }
-        
-        if (isWinningCol && colCells.length > 0) {
-          return colCells;
-        }
+        rowCells.push({row, col});
       }
-    } 
-    else if (pattern === 'diagonal') {
-      // Main diagonal
-      const mainDiagonalCells = [];
-      let isWinningMainDiagonal = true;
+      return { pattern: 'row', cells: rowCells };
+    }
+  }
+  
+  // Check columns
+  for (let col = 0; col < 5; col++) {
+    let isWinningCol = true;
+    let lastNumberIsInThisCol = false;
+    
+    for (let row = 0; row < 5; row++) {
+      const number = transposedCard[row][col];
+      const letter = "BINGO"[col];
+      const isFreeSpace = (col === 2 && row === 2);
       
-      for (let i = 0; i < 5; i++) {
-        const number = transposedCard[i][i];
-        const letter = "BINGO"[i];
-        const isFreeSpace = (i === 2);
-        
-        if (!isFreeSpace && !isNumberCalled(number, letter)) {
-          isWinningMainDiagonal = false;
-          break;
-        }
-        mainDiagonalCells.push({row: i, col: i});
+      // Check if this cell contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        lastNumberIsInThisCol = true;
       }
       
-      if (isWinningMainDiagonal && mainDiagonalCells.length > 0) {
-        return mainDiagonalCells;
-      }
-      
-      // Anti-diagonal
-      const antiDiagonalCells = [];
-      let isWinningAntiDiagonal = true;
-      
-      for (let i = 0; i < 5; i++) {
-        const number = transposedCard[i][4 - i];
-        const letter = "BINGO"[i];
-        const isFreeSpace = (i === 2);
-        
-        if (!isFreeSpace && !isNumberCalled(number, letter)) {
-          isWinningAntiDiagonal = false;
-          break;
-        }
-        antiDiagonalCells.push({row: i, col: 4 - i});
-      }
-      
-      if (isWinningAntiDiagonal && antiDiagonalCells.length > 0) {
-        return antiDiagonalCells;
-      }
-    } 
-    else if (pattern === 'corners') {
-      const corners = [
-        {row: 0, col: 0}, 
-        {row: 0, col: 4},
-        {row: 4, col: 0}, 
-        {row: 4, col: 4}
-      ];
-      
-      let isWinningCorners = true;
-      for (const corner of corners) {
-        const number = transposedCard[corner.row][corner.col];
-        const letter = "BINGO"[corner.col];
-        
-        if (!isNumberCalled(number, letter)) {
-          isWinningCorners = false;
-          break;
-        }
-      }
-      
-      if (isWinningCorners) {
-        return corners;
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isWinningCol = false;
+        break;
       }
     }
     
-    return [];
-  };
+    // This column wins AND contains the last called number
+    if (isWinningCol && lastNumberIsInThisCol) {
+      const colCells = [];
+      for (let row = 0; row < 5; row++) {
+        colCells.push({row, col});
+      }
+      return { pattern: 'column', cells: colCells };
+    }
+  }
+  
+  // Check main diagonal
+  let isWinningMainDiagonal = true;
+  let lastNumberIsInMainDiagonal = false;
+  
+  for (let i = 0; i < 5; i++) {
+    const number = transposedCard[i][i];
+    const letter = "BINGO"[i];
+    const isFreeSpace = (i === 2);
+    
+    // Check if this cell contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      lastNumberIsInMainDiagonal = true;
+    }
+    
+    if (!isFreeSpace && !isNumberCalled(number, letter)) {
+      isWinningMainDiagonal = false;
+      break;
+    }
+  }
+  
+  if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
+    const mainDiagonalCells = [];
+    for (let i = 0; i < 5; i++) {
+      mainDiagonalCells.push({row: i, col: i});
+    }
+    return { pattern: 'diagonal', cells: mainDiagonalCells };
+  }
+  
+  // Check anti-diagonal
+  let isWinningAntiDiagonal = true;
+  let lastNumberIsInAntiDiagonal = false;
+  
+  for (let i = 0; i < 5; i++) {
+    const number = transposedCard[i][4 - i];
+    const letter = "BINGO"[i];
+    const isFreeSpace = (i === 2);
+    
+    // Check if this cell contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      lastNumberIsInAntiDiagonal = true;
+    }
+    
+    if (!isFreeSpace && !isNumberCalled(number, letter)) {
+      isWinningAntiDiagonal = false;
+      break;
+    }
+  }
+  
+  if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
+    const antiDiagonalCells = [];
+    for (let i = 0; i < 5; i++) {
+      antiDiagonalCells.push({row: i, col: 4 - i});
+    }
+    return { pattern: 'diagonal', cells: antiDiagonalCells };
+  }
+  
+  // Check corners
+  const corners = [
+    {row: 0, col: 0}, 
+    {row: 0, col: 4},
+    {row: 4, col: 0}, 
+    {row: 4, col: 4}
+  ];
+  
+  let isWinningCorners = true;
+  let lastNumberIsInCorners = false;
+  
+  for (const corner of corners) {
+    const number = transposedCard[corner.row][corner.col];
+    const letter = "BINGO"[corner.col];
+    
+    // Check if this corner contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      lastNumberIsInCorners = true;
+    }
+    
+    if (!isNumberCalled(number, letter)) {
+      isWinningCorners = false;
+      break;
+    }
+  }
+  
+  if (isWinningCorners && lastNumberIsInCorners) {
+    return { pattern: 'corners', cells: corners };
+  }
+  
+  return { pattern: 'row', cells: [] };
+};
 
   // FIXED: Check for winner - ONLY win if last called number completes a pattern
   const checkForWinner = (playerId: number) => {
@@ -1118,7 +1094,6 @@ const GameInterface = ({
         flexWrap: 'wrap'
       }}>
         {!gameStarted ? (
-          // Show countdown timer before game starts
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
               {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
@@ -1128,7 +1103,6 @@ const GameInterface = ({
             </Typography>
           </Box>
         ) : (
-          // Show current number and called numbers after game starts
           <>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
@@ -1951,7 +1925,7 @@ const GameInterface = ({
                 
                 {winners.map(winner => {
                   const card = getCardById(winner.id);
-                  const winningCells = winner.winningCells || getWinningPatternCells(card, winner.pattern);
+                  const winningCells = winner.winningCells || [];
                   
                   return (
                     <motion.div
