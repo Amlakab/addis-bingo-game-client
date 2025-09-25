@@ -63,7 +63,7 @@ const GameInterface = ({
   bet, 
   onGameEnd,
   onBackToPlayerLobby,
-  language = 'am',
+  language = 'am', // Default to Amharic
   earningsPercentage = 20,
   setLanguage
 }: GameInterfaceProps) => {
@@ -101,7 +101,7 @@ const GameInterface = ({
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Game control state - UPDATED FOR MULTI-WINNER
+  // Game control state
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -111,7 +111,6 @@ const GameInterface = ({
   const [announcedWinners, setAnnouncedWinners] = useState<Array<{userId: string; card: number}>>([]);
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
-  const [allWinnersDuringGrace, setAllWinnersDuringGrace] = useState<Array<{userId: string; card: number}>>([]);
   
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -121,57 +120,67 @@ const GameInterface = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Function to play local Amharic audio files
-  const playAmharicNumberAudio = (number: string) => {
-    if (!soundOn) return;
+// Function to play local Amharic audio files
+// Function to play local Amharic audio files
+const playAmharicNumberAudio = (number: string) => {
+  if (!soundOn) return;
+  
+  try {
+    const [letter, num] = number.split('-');
+    // Remove the dash to match file names like B1, I16, N31, etc.
+    const audioFileName = `${letter}${num}`;
+    // Path is relative to public folder from app perspective
+    const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
     
-    try {
-      const [letter, num] = number.split('-');
-      const audioFileName = `${letter}${num}`;
-      const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-      
-      audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(error => {
-        console.warn('Audio play failed, falling back to TTS:', error);
-        if (voiceService) {
-          const langCode = 'am-ET';
-          voiceService.speak(number, langCode, 1);
-        }
-      });
-      
-    } catch (error) {
-      console.error('Error playing Amharic audio:', error);
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Create new audio element
+    audioRef.current = new Audio(audioPath);
+    audioRef.current.play().catch(error => {
+      console.warn('Audio play failed, falling back to TTS:', error);
+      // Fallback to TTS if local audio fails
       if (voiceService) {
         const langCode = 'am-ET';
         voiceService.speak(number, langCode, 1);
       }
-    }
-  };
-
-  const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
-    if (!soundOn) return;
+    });
     
-    try {
-      const audioPath = `/Audio/game/${soundType}.mp3`;
-      
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-      
-      audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(error => {
-        console.warn('Game audio play failed:', error);
-      });
-      
-    } catch (error) {
-      console.error('Error playing game audio:', error);
+  } catch (error) {
+    console.error('Error playing Amharic audio:', error);
+    // Fallback to TTS
+    if (voiceService) {
+      const langCode = 'am-ET';
+      voiceService.speak(number, langCode, 1);
     }
-  };
+  }
+};
+
+// Function to play game sound effects in Amharic
+const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
+  if (!soundOn) return;
+  
+  try {
+    // Path is relative to public folder from app perspective
+    const audioPath = `/Audio/game/${soundType}.mp3`;
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    audioRef.current = new Audio(audioPath);
+    audioRef.current.play().catch(error => {
+      console.warn('Game audio play failed:', error);
+    });
+    
+  } catch (error) {
+    console.error('Error playing game audio:', error);
+  }
+};
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -249,20 +258,20 @@ const GameInterface = ({
     };
   }, [webSocketService]);
 
-  // FIXED: WebSocket listeners with proper multi-winner handling
+  // Setup WebSocket listeners for game control events
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
     console.log('Setting up game control WebSocket listeners for bet:', bet);
 
-    // Handler for when numbers are called (only active when game is running)
     const handleNumberCalled = (data: { 
       betAmount: number; 
       number: string; 
       calledNumbers: string[] 
     }) => {
       if (data.betAmount !== bet) return;
-      if (isProcessingRef.current || gameStopped) return; // Stop processing if game stopped
+      
+      if (isProcessingRef.current || gameStopped) return;
       
       isProcessingRef.current = true;
       
@@ -276,10 +285,12 @@ const GameInterface = ({
       setCalledNumbers(data.calledNumbers);
       setIsCalling(true);
       
+      // Use local Amharic audio for number calling when language is Amharic
       if (soundOn) {
         if (language === 'am') {
           playAmharicNumberAudio(data.number);
         } else {
+          // Use TTS for English
           if (voiceService) {
             const langCode = 'en-US';
             voiceService.speak(data.number, langCode, 1);
@@ -292,37 +303,27 @@ const GameInterface = ({
       }, 50);
     };
 
-    // FIXED: Game stopped handler - now handles multiple winners during grace period
     const handleGameStopped = (data: { 
       betAmount: number; 
       firstWinner: { userId: string; card: number };
       message: string;
-      allWinners?: Array<{userId: string; card: number}>;
     }) => {
       if (data.betAmount !== bet) return;
       
       console.log('First winner found - grace period started:', data);
       
-      // Stop the game immediately
       setGameStopped(true);
       setGracePeriodActive(true);
-      setGracePeriodCountdown(3); // 3-second grace period
+      setGracePeriodCountdown(4);
       setIsCalling(false);
-      
-      // Initialize winners list
-      const initialWinners = data.allWinners || [data.firstWinner];
-      setAllWinnersDuringGrace(initialWinners);
-      setAnnouncedWinners(initialWinners);
       
       setToastMessage(data.message);
       setShowToast(true);
       
-      // Clear any existing timers
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
       }
       
-      // Start grace period countdown
       gracePeriodTimerRef.current = setInterval(() => {
         setGracePeriodCountdown(prev => {
           if (prev <= 1) {
@@ -330,9 +331,6 @@ const GameInterface = ({
               clearInterval(gracePeriodTimerRef.current);
             }
             setGracePeriodActive(false);
-            
-            // Grace period ended - server will handle finalization
-            console.log('Grace period ended with winners:', allWinnersDuringGrace);
             return 0;
           }
           return prev - 1;
@@ -340,7 +338,6 @@ const GameInterface = ({
       }, 1000);
     };
 
-    // FIXED: Winner announced handler - adds winners during grace period
     const handleWinnerAnnounced = (data: {
       betAmount: number;
       winnerId: string;
@@ -350,59 +347,46 @@ const GameInterface = ({
     }) => {
       if (data.betAmount !== bet) return;
       
-      console.log('Additional winner announced during grace period:', data);
-      
-      // Update both winner lists
-      setAllWinnersDuringGrace(prev => {
-        const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
-        if (!isDuplicate) {
-          const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
-          console.log('Updated all winners during grace:', newWinners);
-          return newWinners;
-        }
-        return prev;
-      });
+      console.log('Additional winner announced:', data);
       
       setAnnouncedWinners(prev => {
         const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
         if (!isDuplicate) {
           const newWinners = [...prev, { userId: data.winnerId, card: data.winnerCard }];
+          console.log('Updated winners list:', newWinners);
           return newWinners;
         }
         return prev;
       });
       
       const winnerMessage = language === 'am' 
-        ? `ተጫዋች ${data.winnerCard} አሸንፏል! (${data.totalWinnersSoFar} አሸናፊዎች)` 
-        : `Player ${data.winnerCard} wins! (${data.totalWinnersSoFar} winners)`;
+        ? `ተጫዋች ${data.winnerCard} አሸንፏል!` 
+        : `Player ${data.winnerCard} wins!`;
       
       setToastMessage(winnerMessage);
       setShowToast(true);
-    };
+    }
 
-    // FIXED: Game ended handler - processes all final winners
+    // FIXED: Game ended handler
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
-      console.log('Final game results received with all winners:', data);
-      
-      // Final game state
+      console.log('Final game results received:', data);
       setGameEnded(true);
       setGracePeriodActive(false);
       setGameStopped(true);
       setIsCalling(false);
       
-      // Clear grace period timer
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
       }
       
-      // Reset submitted cards
       setSubmittedBingoCards([]);
       
-      // Process ALL winners for final display
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
+        
+        // Find the winning pattern that was completed by the last called number
         const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
         
         return {
@@ -418,10 +402,10 @@ const GameInterface = ({
       setWinners(formattedWinners);
       setGameEndData(data);
       
-      // Check if current user won
       const userWon = user && data.winners.some(winner => winner.id === user._id);
       
       if (userWon) {
+        // Play win sound for Amharic
         if (language === 'am') {
           playAmharicGameAudio('won');
         }
@@ -429,6 +413,7 @@ const GameInterface = ({
           setShowWinnerModal(true);
         }, 1000);
       } else {
+        // Play not-won sound for Amharic
         if (language === 'am') {
           playAmharicGameAudio('not-won');
         }
@@ -436,7 +421,6 @@ const GameInterface = ({
       }
     };
 
-    // Other existing handlers (keep them as-is)
     const handleGameState = (data: { 
       betAmount: number; 
       calledNumbers: string[]; 
@@ -526,7 +510,7 @@ const GameInterface = ({
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [isClient, webSocketService, bet, language, user, gameStopped, soundOn, voiceService, gameStarted, allWinnersDuringGrace]);
+  }, [isClient, webSocketService, bet, language, user, gameStopped, soundOn, voiceService, gameStarted]);
 
   // Initialize and set up window size tracking
   useEffect(() => {
@@ -604,6 +588,7 @@ const GameInterface = ({
   const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
     const transposedCard = transposeCard(card);
     
+    // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
     const [lastLetter, lastNumStr] = currentNumber.split('-');
     const lastNum = parseInt(lastNumStr);
     
@@ -617,6 +602,7 @@ const GameInterface = ({
         const letter = "BINGO"[col];
         const isFreeSpace = (col === 2 && row === 2);
         
+        // Check if this cell contains the last called number
         if (letter === lastLetter && number === lastNum) {
           lastNumberIsInThisRow = true;
         }
@@ -627,6 +613,7 @@ const GameInterface = ({
         }
       }
       
+      // This row wins AND contains the last called number
       if (isWinningRow && lastNumberIsInThisRow) {
         const rowCells = [];
         for (let col = 0; col < 5; col++) {
@@ -646,6 +633,7 @@ const GameInterface = ({
         const letter = "BINGO"[col];
         const isFreeSpace = (col === 2 && row === 2);
         
+        // Check if this cell contains the last called number
         if (letter === lastLetter && number === lastNum) {
           lastNumberIsInThisCol = true;
         }
@@ -656,6 +644,7 @@ const GameInterface = ({
         }
       }
       
+      // This column wins AND contains the last called number
       if (isWinningCol && lastNumberIsInThisCol) {
         const colCells = [];
         for (let row = 0; row < 5; row++) {
@@ -674,6 +663,7 @@ const GameInterface = ({
       const letter = "BINGO"[i];
       const isFreeSpace = (i === 2);
       
+      // Check if this cell contains the last called number
       if (letter === lastLetter && number === lastNum) {
         lastNumberIsInMainDiagonal = true;
       }
@@ -701,6 +691,7 @@ const GameInterface = ({
       const letter = "BINGO"[i];
       const isFreeSpace = (i === 2);
       
+      // Check if this cell contains the last called number
       if (letter === lastLetter && number === lastNum) {
         lastNumberIsInAntiDiagonal = true;
       }
@@ -734,6 +725,7 @@ const GameInterface = ({
       const number = transposedCard[corner.row][corner.col];
       const letter = "BINGO"[corner.col];
       
+      // Check if this corner contains the last called number
       if (letter === lastLetter && number === lastNum) {
         lastNumberIsInCorners = true;
       }
@@ -775,6 +767,8 @@ const GameInterface = ({
     }
 
     const card = getCardById(playerId);
+    
+    // Find the winning pattern that was COMPLETED by the last called number
     const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
     
     if (winningPatternInfo.cells.length > 0) {
@@ -799,9 +793,9 @@ const GameInterface = ({
     };
   };
 
-  // FIXED: BINGO handler with proper multi-winner support during grace period
+  // BINGO handler
   const handleBingo = async (playerId: number) => {
-    if (!gameStarted && !gracePeriodActive) {
+    if (!gameStarted) {
       const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
       setToastMessage(message);
       setShowToast(true);
@@ -824,15 +818,14 @@ const GameInterface = ({
         setSubmittedBingoCards(prev => [...prev, playerId]);
         
         if (webSocketService) {
-          // Send bingo claim - server will handle grace period logic
-          webSocketService.send('claim-bingo', {
+          webSocketService.send('end-game', {
             betAmount: bet,
             winnerId: result.userId!,
             winnerCard: playerId,
-            isDuringGracePeriod: gracePeriodActive
+            prizePool: numberOfPlayers * bet * 0.8
           });
           
-          console.log(`BINGO submitted for card ${playerId} during grace: ${gracePeriodActive}`);
+          console.log(`BINGO submitted for card ${playerId}`);
           
         } else {
           throw new Error('WebSocket not available');
@@ -862,13 +855,18 @@ const GameInterface = ({
         setLoserCardId(playerId);
         setShowLoserModal(true);
         
+        // Use local Amharic audio for game sounds
         if (soundOn) {
           if (language === 'am') {
             playAmharicGameAudio('not-won');
           } else {
             if (voiceService) {
               const langCode = 'en-US';
-              voiceService.speak('No winner found!', langCode, 1);
+              voiceService.speak(
+                'No winner found!', 
+                langCode, 
+                1
+              );
             }
           }
         }
@@ -877,7 +875,6 @@ const GameInterface = ({
       }
     }
   };
-
 
   const handleBackToLobbyWithRefund = async () => {
     try {
@@ -1132,39 +1129,52 @@ const GameInterface = ({
     }}>
       
       {/* Grace Period Indicator */}
-       {/* Grace Period Indicator - UPDATED */}
-  {gracePeriodActive && (
-    <Box sx={{
-      background: 'linear-gradient(45deg, #FFD700, #FFA500)',
-      color: 'black',
-      p: 1,
-      mb: 1,
-      borderRadius: 2,
-      fontWeight: 'bold',
-      animation: 'pulse 1s infinite'
-    }}>
-      ⏳ {language === 'am' 
-        ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ... አሸናፊዎች: ${allWinnersDuringGrace.map(w => w.card).join(', ')}` 
-        : `Grace period: ${gracePeriodCountdown}s... Winners: ${allWinnersDuringGrace.map(w => w.card).join(', ')}`}
-    </Box>
-  )}
+      {gracePeriodActive && (
+        <Box sx={{
+          background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+          color: 'black',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          fontWeight: 'bold',
+          animation: 'pulse 1s infinite'
+        }}>
+          ⏳ {language === 'am' 
+            ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ...` 
+            : `Grace period: ${gracePeriodCountdown}s...`}
+        </Box>
+      )}
 
-  {/* Announced Winners Summary - UPDATED */}
-  {allWinnersDuringGrace.length > 0 && !gracePeriodActive && (
-    <Box sx={{
-      background: 'rgba(33,150,243,0.1)',
-      p: 1,
-      mb: 1,
-      borderRadius: 2,
-      border: '1px solid #2196F3'
-    }}>
-      <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976D2' }}>
-        {language === 'am' 
-          ? `ጠቅላላ አሸናፊዎች: ${allWinnersDuringGrace.length} - ${allWinnersDuringGrace.map(w => w.card).join(', ')}`
-          : `Total Winners: ${allWinnersDuringGrace.length} - ${allWinnersDuringGrace.map(w => w.card).join(', ')}`}
-      </Typography>
-    </Box>
-  )}
+      {/* Game Stopped Indicator */}
+      {gameStopped && !gracePeriodActive && (
+        <Box sx={{
+          background: 'linear-gradient(45deg, #4CAF50, #45a049)',
+          color: 'white',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          fontWeight: 'bold'
+        }}>
+          ✅ {language === 'am' ? 'ጨዋታው አልቋል' : 'Game ended'}
+        </Box>
+      )}
+
+      {/* Announced Winners Summary */}
+      {announcedWinners.length > 0 && (
+        <Box sx={{
+          background: 'rgba(33,150,243,0.1)',
+          p: 1,
+          mb: 1,
+          borderRadius: 2,
+          border: '1px solid #2196F3'
+        }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976D2' }}>
+            {language === 'am' 
+              ? `አሸናፊዎች: ${announcedWinners.map(w => w.card).join(', ')}`
+              : `Winners: ${announcedWinners.map(w => w.card).join(', ')}`}
+          </Typography>
+        </Box>
+      )}
 
       {/* Game Info Header */}
       <Box sx={{
