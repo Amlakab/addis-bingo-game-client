@@ -1661,7 +1661,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
                   <Box sx={{ textAlign: 'center', mb: 1 }}>
                     <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
-                      {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+                      {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
                     </Typography>
                     <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
                       {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
@@ -1989,7 +1989,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
                 border: '1px solid gold'
               }}>
                 <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
-                  {language === 'am' ? 'ጠቅላላ ሽልማት' : 'Total Prize Pool'}
+                  {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
                 </Typography>
                 <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
                   {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
