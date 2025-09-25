@@ -67,6 +67,10 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
+  // Add state to track pending operations and prevent duplicates
+  const [pendingOperations, setPendingOperations] = useState<Set<number>>(new Set());
+  const [isProcessing, setIsProcessing] = useState(false);
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -316,7 +320,13 @@ const PlayerLobby = ({
     }
   };
 
+  // Enhanced togglePlayer function with comprehensive validation
   const togglePlayer = async (id: number) => {
+    // Prevent multiple simultaneous operations
+    if (isProcessing || pendingOperations.has(id)) {
+      return;
+    }
+
     if (!isClient || !webSocketService) return;
     
     if (!user) {
@@ -326,11 +336,27 @@ const PlayerLobby = ({
     }
 
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+    const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
     
-    if (isSelectedByUser) {
-      setIsLoading(true);
-      try {
-        
+    // VALIDATION 1: Cards selected by others should not be clickable
+    if (isSelectedByOthers) {
+      setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
+      setWalletError(true);
+      return;
+    }
+
+    // VALIDATION 2: Prevent duplicate operations
+    if (pendingOperations.has(id)) {
+      return;
+    }
+
+    // Add to pending operations to prevent duplicates
+    setPendingOperations(prev => new Set(prev).add(id));
+    setIsProcessing(true);
+
+    try {
+      if (isSelectedByUser) {
+        // Deselect card logic
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
         
         webSocketService.send('delete-session', {
@@ -338,86 +364,96 @@ const PlayerLobby = ({
           betAmount,
         });
 
-      } catch (error: any) {
-        console.error('Error deselecting card:', error);
-        const errorMsg = error.response?.data?.error || "Error deselecting card";
-        setErrorMessage(errorMsg);
-        setWalletError(true);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
+      } else {
+        // Select card logic
+        
+        // VALIDATION 3: Check if user already has 2 cards selected
+        if (selectedPlayers.length >= 2) {
+          setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+          setWalletError(true);
+          return;
+        }
 
-    if (occupiedCards.includes(id) && occupiedCardsByUser[id] !== user._id) {
-      setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
-      setWalletError(true);
-      return;
-    }
+        // VALIDATION 4: Check sufficient balance for the new selection
+        const totalCost = (selectedPlayers.length + 1) * betAmount;
+        if (wallet < totalCost) {
+          setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
+          setWalletError(true);
+          return;
+        }
 
-    if (selectedPlayers.length < 2) {
-      const checkBalance= selectedPlayers.length * betAmount + betAmount;
-      if (wallet < checkBalance) {
-        setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
-        setWalletError(true);
-        return;
-      }
+        // VALIDATION 5: Double-check card is not occupied (race condition protection)
+        if (occupiedCards.includes(id)) {
+          setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
+          setWalletError(true);
+          return;
+        }
 
-      setIsLoading(true);
-      try {
+        // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
 
+        // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
-        
-      } catch (error: any) {
-        console.error('Error selecting card:', error);
-        const errorMsg = error.response?.data?.error || "Error selecting card";
-        setErrorMessage(errorMsg);
-        setWalletError(true);
-      } finally {
-        setIsLoading(false);
       }
-    } else {
-      setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+      
+    } catch (error: any) {
+      console.error('Error toggling card:', error);
+      const errorMsg = error.response?.data?.error || 
+        (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
+      setErrorMessage(errorMsg);
       setWalletError(true);
+      
+      // Revert optimistic update on error
+      if (!isSelectedByUser) {
+        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
+      }
+    } finally {
+      // Remove from pending operations
+      setPendingOperations(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
   // Handle direct navigation to game (without updating session status)
   const handleDirectToGame = async () => {
-  if (!isClient || !webSocketService || !user || selectedPlayers.length === 0 || !onDirectToGame) return;
+    if (!isClient || !webSocketService || !user || selectedPlayers.length === 0 || !onDirectToGame) return;
 
-  try {
-    // 1. First call fund-wallet
-    webSocketService.send('fund-wallet', {
-      betAmount: betAmount,
-      userId: user._id
-    });
+    try {
+      // 1. First call fund-wallet
+      webSocketService.send('fund-wallet', {
+        betAmount: betAmount,
+        userId: user._id
+      });
 
-    // 2. Then call update session status to ready
-    webSocketService.send('update-session-status-by-user-bet', {
-      userId: user._id,
-      betAmount: betAmount,
-      status: 'ready'
-    });
+      // 2. Then call update session status to ready
+      webSocketService.send('update-session-status-by-user-bet', {
+        userId: user._id,
+        betAmount: betAmount,
+        status: 'ready'
+      });
 
-    // 3. Redirect to game
-    onDirectToGame(selectedPlayers, betAmount);
+      // 3. Redirect to game
+      onDirectToGame(selectedPlayers, betAmount);
 
-  } catch (error) {
-    console.error('Error in handleDirectToGame:', error);
-    setToastMessage(language === 'am' 
-      ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
-      : 'Error occurred while processing game entry'
-    );
-    setShowToast(true);
-  }
-};
+    } catch (error) {
+      console.error('Error in handleDirectToGame:', error);
+      setToastMessage(language === 'am' 
+        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
+        : 'Error occurred while processing game entry'
+      );
+      setShowToast(true);
+    }
+  };
 
   // Original method to handle canceling selections (without going back)
   const handleCancelSelections = async () => {
@@ -427,17 +463,15 @@ const PlayerLobby = ({
     
     setIsLoading(true);
     try {
-
       if (webSocketService) {
-      // First update all sessions with this bet amount to 'playing' status
-      webSocketService.send('clear-selected', {
-        betAmount: betAmount,
-        userId: user._id
-      });
-      
-    } else {
-      console.error('WebSocket service not available');
-    }
+        // First update all sessions with this bet amount to 'playing' status
+        webSocketService.send('clear-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      } else {
+        console.error('WebSocket service not available');
+      }
       
       // Clear selected players
       setSelectedPlayers([]);
@@ -523,103 +557,102 @@ const PlayerLobby = ({
         </Typography>
 
         {/* Cards */}
-<Box
-  sx={{
-    display: "flex",
-    gap: { xs: 1, sm: 2 },
-    flexDirection: "row",
-    flexWrap: "nowrap",
-  }}
->
-  {/* Players */}
-  <Card
-    sx={{
-      minWidth: { xs: 50, sm: 90 },
-      height: { xs: 40, sm: 60 },
-      borderRadius: "4px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
-      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-    }}
-  >
-    <CardContent
-      sx={{
-        textAlign: "center",
-        p: { xs: 0.5, sm: 1 },
-        "&:last-child": { pb: { xs: 0.5, sm: 1 } }, // 🔥 remove bottom padding
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{
-          fontSize: { xs: "0.6rem", sm: "0.75rem" },
-          color: "white",
-          lineHeight: 1.2, // 🔥 prevent cut-off
-        }}
-      >
-        {language === "am" ? "ተጫዋቾች" : "Players"}
-      </Typography>
-      <Typography
-        variant="h6"
-        sx={{
-          fontSize: { xs: "0.8rem", sm: "1rem" },
-          fontWeight: "bold",
-          color: "white",
-          lineHeight: 1.2,
-        }}
-      >
-        {playerCount}
-      </Typography>
-    </CardContent>
-  </Card>
+        <Box
+          sx={{
+            display: "flex",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: "row",
+            flexWrap: "nowrap",
+          }}
+        >
+          {/* Players */}
+          <Card
+            sx={{
+              minWidth: { xs: 50, sm: 90 },
+              height: { xs: 40, sm: 60 },
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            }}
+          >
+            <CardContent
+              sx={{
+                textAlign: "center",
+                p: { xs: 0.5, sm: 1 },
+                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
+                {language === "am" ? "ተጫዋቾች" : "Players"}
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
+                {playerCount}
+              </Typography>
+            </CardContent>
+          </Card>
 
-  {/* Prize Pool */}
-  <Card
-    sx={{
-      minWidth: { xs: 50, sm: 90 },
-      height: { xs: 40, sm: 60 },
-      borderRadius: "4px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "linear-gradient(145deg, #FF9800, #FFC107)",
-      boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-    }}
-  >
-    <CardContent
-      sx={{
-        textAlign: "center",
-        p: { xs: 0.5, sm: 1 },
-        "&:last-child": { pb: { xs: 0.5, sm: 1 } }, // 🔥 fix padding
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{
-          fontSize: { xs: "0.6rem", sm: "0.75rem" },
-          color: "white",
-          lineHeight: 1.2,
-        }}
-      >
-        {language === "am" ? "ደራሽ" : "Derash"}
-      </Typography>
-      <Typography
-        variant="h6"
-        sx={{
-          fontSize: { xs: "0.8rem", sm: "1rem" },
-          fontWeight: "bold",
-          color: "white",
-          lineHeight: 1.2,
-        }}
-      >
-        {prizePool.toFixed(2)}
-      </Typography>
-    </CardContent>
-  </Card>
-</Box>
-
+          {/* Prize Pool */}
+          <Card
+            sx={{
+              minWidth: { xs: 50, sm: 90 },
+              height: { xs: 40, sm: 60 },
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(145deg, #FF9800, #FFC107)",
+              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+            }}
+          >
+            <CardContent
+              sx={{
+                textAlign: "center",
+                p: { xs: 0.5, sm: 1 },
+                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
+                {language === "am" ? "ደራሽ" : "Derash"}
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
+                {prizePool.toFixed(2)}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
 
       {/* Main Game Lobby Content */}
@@ -658,15 +691,17 @@ const PlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
+            const isPending = pendingOperations.has(id);
+            const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
 
             return (
               <motion.div
                 key={id}
-                whileHover={{ scale: isSelectedByOthers ? 1 : 1.05 }}
-                whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
+                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
               >
                 <Box
-                  onClick={() => togglePlayer(id)}
+                  onClick={() => !isDisabled && togglePlayer(id)}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -677,10 +712,9 @@ const PlayerLobby = ({
                     borderRadius: '4px',
                     fontWeight: 'bold',
                     fontSize: '0.8rem',
-                    cursor: (isSelectedByOthers || isLoading || remainingTime <= 0)
-                      ? 'not-allowed'
-                      : 'pointer',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
+                    opacity: isDisabled ? 0.7 : 1,
 
                     background: isSelectedByUser
                       ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
@@ -706,16 +740,14 @@ const PlayerLobby = ({
                       ? '0 2px 4px rgba(244,67,54,0.2)'
                       : '0 2px 4px rgba(33,150,243,0.2)',
 
-                    '&:hover': {
+                    '&:hover': !isDisabled ? {
                       background: isSelectedByUser
                         ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                        : isSelectedByOthers
-                        ? 'linear-gradient(145deg, #ef9a9a, #e57373)'
                         : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
-                    },
+                    } : {},
                   }}
                 >
-                  {isLoading && isSelectedByUser ? (
+                  {isPending ? (
                     <CircularProgress size={20} />
                   ) : (
                     id
@@ -752,10 +784,9 @@ const PlayerLobby = ({
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
-              } else {
-                // 1–3 players → do nothing (waiting)
               }
             }}
+            disabled={isProcessing}
             sx={{
               flex: 2,
               py: 1,
@@ -783,7 +814,7 @@ const PlayerLobby = ({
             variant="contained"
             color="error"
             onClick={handleCancelSelections}
-            disabled={selectedPlayers.length === 0}
+            disabled={selectedPlayers.length === 0 || isProcessing}
             sx={{
               flex: 1,
               py: 1,
