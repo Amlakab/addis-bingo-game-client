@@ -127,8 +127,34 @@ const PlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
+  // Check for playing status sessions and handle timer expiration
   useEffect(() => {
     if (!isClient) return;
+    
+    // Logic 2: Check if any session has 'playing' status
+    const checkPlayingStatus = () => {
+      if (Object.keys(occupiedCardsByUser).length > 0) {
+        const userSessions = Object.entries(occupiedCardsByUser)
+          .filter(([_, userId]) => userId === user?._id)
+          .map(([cardNumber]) => parseInt(cardNumber));
+        
+        if (userSessions.length > 0) {
+          // Check if any of the user's sessions have playing status
+          webSocketService.send('get-sessions', { betAmount }, (sessions: GameSession[]) => {
+            const userPlayingSessions = sessions.filter(
+              session => session.userId._id === user?._id && session.status === 'playing'
+            );
+            
+            if (userPlayingSessions.length > 0) {
+              // User has sessions with playing status, clear selections and go back
+              handleCancelSelectionsAndGoBack();
+            }
+          });
+        }
+      }
+    };
+    
+    checkPlayingStatus();
     
     // Countdown timer
     if (remainingTime > 0) {
@@ -137,23 +163,20 @@ const PlayerLobby = ({
       }, 1000);
       return () => clearInterval(timer);
     } else {
-      // Auto-start game when timer reaches 0 if there are players
-      // This will trigger the onStartGame which should update session status
-      if (playerCount > 2) {
+      // Timer reached 0 - Logic 1: Clear selections if less than 3 players
+      if (playerCount < 3) {
+        if (selectedPlayers.length > 0) {
+          // Clear user's selections and go back to bet selection
+          handleCancelSelectionsAndGoBack();
+        } else if (onBackToLobby) {
+          onBackToLobby();
+        }
+      } else {
+        // Enough players, proceed to game
         handleDirectToGame();
-       //onStartGame(selectedPlayers, betAmount);
-      } else if (playerCount === 0 && onBackToLobby) {
-        onBackToLobby();
-      }
-      else{
-     const msg = language === 'am'
-      ? 'በጨዋታ መጀመሪያ 3 ተጫዋቾች ያስፈልጋሉ!'
-      : 'At least 3 players are required to start the game!';
-        setToastMessage(msg  );
-        setShowToast(true);
       }
     }
-  }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby]);
+  }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
   const calculateRemainingTime = (sessions: GameSession[]) => {
     // Filter sessions for current bet amount and active status
@@ -218,6 +241,16 @@ const PlayerLobby = ({
     const pool = activePlayers * betAmount * 0.8;
     setPrizePool(pool);
     setPlayerCount(activePlayers);
+    
+    // Logic 2: Check if any session has 'playing' status for current user
+    const userPlayingSessions = betSessions.filter(
+      session => session.userId._id === user?._id && session.status === 'playing'
+    );
+    
+    if (userPlayingSessions.length > 0) {
+      // User has sessions with playing status, clear selections and go back
+      handleCancelSelectionsAndGoBack();
+    }
   };
 
   const handleSessionCreated = (session: GameSession) => {
@@ -240,6 +273,47 @@ const PlayerLobby = ({
 
   const handleWalletUpdate = (newWallet: number) => {
     setWallet(newWallet);
+  };
+
+  // New function to handle canceling selections and going back
+  const handleCancelSelectionsAndGoBack = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    setIsLoading(true);
+    try {
+      // Clear selected players locally first
+      setSelectedPlayers([]);
+      
+      // Clear selections in database
+      if (webSocketService) {
+        webSocketService.send('clear-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      }
+      
+      // Show appropriate message
+      const msg = language === 'am' 
+        ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
+        : 'Your selected cards have been cleared. Returning to bet selection.';
+      setToastMessage(msg);
+      setShowToast(true);
+      
+      // Wait a moment for the user to see the message, then go back
+      setTimeout(() => {
+        if (onBackToLobby) {
+          onBackToLobby();
+        }
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const togglePlayer = async (id: number) => {
@@ -300,8 +374,6 @@ const PlayerLobby = ({
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
         
-        //setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-        
       } catch (error: any) {
         console.error('Error selecting card:', error);
         const errorMsg = error.response?.data?.error || "Error selecting card";
@@ -347,7 +419,7 @@ const PlayerLobby = ({
   }
 };
 
-  // New method to handle canceling selections
+  // Original method to handle canceling selections (without going back)
   const handleCancelSelections = async () => {
     if (!isClient || !webSocketService || !user) return;
     
@@ -676,7 +748,7 @@ const PlayerLobby = ({
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 1) {
+              if (playerCount > 2) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
@@ -737,6 +809,21 @@ const PlayerLobby = ({
             sx={{ width: '100%' }}
           >
             {errorMessage}
+          </Alert>
+        </Snackbar>
+
+        {/* Toast message for automatic clearing */}
+        <Snackbar
+          open={showToast}
+          autoHideDuration={3000}
+          onClose={() => setShowToast(false)}
+        >
+          <Alert 
+            severity="info" 
+            onClose={() => setShowToast(false)}
+            sx={{ width: '100%' }}
+          >
+            {toastMessage}
           </Alert>
         </Snackbar>
       </Box>

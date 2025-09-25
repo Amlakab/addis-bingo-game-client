@@ -165,7 +165,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
   
   try {
     // Path is relative to public folder from app perspective
-    const audioPath = `/Audio/game/${soundType}.aac`;
+    const audioPath = `/Audio/game/${soundType}.mp3`;
     
     if (audioRef.current) {
       audioRef.current.pause();

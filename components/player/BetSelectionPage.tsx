@@ -789,7 +789,7 @@ const BetSelectionPage = ({
                             : isDisabledByBalance 
                               ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
                               : (status.status === 'active' 
-                                  ? (language === 'am' ? "ጨዋታ ይጫወቱ" : "Play") 
+                                  ? (language === 'am' ? "ይጫወቱ" : "Play") 
                                   : (language === 'am' ? "ዝግጁ" : "Ready"))
                           }
                         </Button>
