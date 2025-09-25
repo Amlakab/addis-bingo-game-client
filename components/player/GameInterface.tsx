@@ -314,7 +314,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       
       setGameStopped(true);
       setGracePeriodActive(true);
-      setGracePeriodCountdown(3);
+      setGracePeriodCountdown(4);
       setIsCalling(false);
       
       setToastMessage(data.message);
