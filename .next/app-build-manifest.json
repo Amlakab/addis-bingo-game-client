@@ -27,10 +27,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/user/lobby/page.js"
     ],
-    "/user/history/page": [
+    "/spinner/spinnerlobby/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/user/history/page.js"
+      "static/chunks/app/spinner/spinnerlobby/page.js"
     ]
   }
 }

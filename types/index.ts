@@ -1,7 +1,7 @@
 export interface User {
   _id: string;
   phone: string;
-  role: 'user' |'disk-user' | 'agent' | 'admin';
+  role: 'user' |'disk-user'|'spinner-user' | 'agent' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
