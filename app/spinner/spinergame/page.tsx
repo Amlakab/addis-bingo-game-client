@@ -29,6 +29,7 @@ export default function SpinnerGame() {
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [rotation, setRotation] = useState(0);
+  const [spinDuration, setSpinDuration] = useState(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -75,40 +76,70 @@ export default function SpinnerGame() {
 
   const earnings = Math.floor(prizePool * 0.2);
 
-  // Spinner logic with fast-then-slow spin
+  // Smooth spinner logic with full rotations and 10-20 second duration
   const spinWheel = useCallback(() => {
     if (isSpinning || !user || numberOfPlayers === 0) return;
 
     setIsSpinning(true);
     setWinner(null);
+    setShowWinnerModal(false);
 
     const segmentAngle = 360 / numberOfPlayers;
-    const rotations = 3 + Math.random() * 5; // 3-8 full rotations
-    const finalRotation = rotations * 360 + Math.random() * 360;
-    const duration = 4000 + Math.random() * 4000; // 4-8s duration
+    
+    // Random target segment (1 to numberOfPlayers)
+    const targetSegment = Math.floor(Math.random() * numberOfPlayers) + 1;
+    
+    // Calculate the angle for the target segment (center of the segment)
+    const targetAngle = (targetSegment - 1) * segmentAngle + segmentAngle / 2;
+    
+    // Random number of full rotations (15-25 rotations for longer duration)
+    const fullRotations = 15 + Math.floor(Math.random() * 11); // 15-25 rotations
+    
+    // Random duration between 10-20 seconds
+    const totalDuration = 10000 + Math.random() * 10000; // 10,000 to 20,000 ms
+    
+    // Calculate final rotation to land on target segment after all rotations
+    const finalRotation = fullRotations * 360 + (360 - targetAngle);
+    
+    setSpinDuration(Math.round(totalDuration / 1000));
+
     const startTime = Date.now();
     const startRotation = rotation;
 
     const animate = () => {
       const now = Date.now();
       const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.min(elapsed / totalDuration, 1);
 
-      // Smooth fast-to-slow easing
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      const currentRotation = startRotation + finalRotation * easeOut;
+      // Ultra-smooth easing function for continuous deceleration
+      const smoothEaseOut = 1 - Math.pow(1 - progress, 3);
+
+      // Calculate current rotation - always moving forward, always slowing down
+      const currentRotation = startRotation + (finalRotation * smoothEaseOut);
+      
       setRotation(currentRotation);
 
       // Determine current position based on arrow (top = 0 deg)
-      const normalized = (360 - (currentRotation % 360)) % 360;
+      const normalizedRotation = currentRotation % 360;
+      const normalized = (360 - normalizedRotation) % 360;
       const winnerIndex = Math.floor(normalized / segmentAngle);
-      setCurrentPosition(winnerIndex + 1);
+      const newPosition = (winnerIndex % numberOfPlayers) + 1;
+      setCurrentPosition(newPosition);
 
       if (progress < 1) {
+        // Continue animation
         requestAnimationFrame(animate);
       } else {
-        setWinner(winnerIndex + 1);
-        saveGameHistory(winnerIndex + 1);
+        // Final position calculation
+        const finalNormalized = (360 - (currentRotation % 360)) % 360;
+        const finalWinnerIndex = Math.floor(finalNormalized / segmentAngle);
+        const finalWinner = (finalWinnerIndex % numberOfPlayers) + 1;
+        
+        console.log('Target Segment:', targetSegment, 'Actual Winner:', finalWinner, 'Rotations:', fullRotations, 'Duration:', Math.round(totalDuration/1000) + 's');
+        
+        setWinner(finalWinner);
+        setCurrentPosition(finalWinner);
+        saveGameHistory(finalWinner);
         setIsSpinning(false);
         setTimeout(() => setShowWinnerModal(true), 1000);
       }
@@ -119,15 +150,15 @@ export default function SpinnerGame() {
 
   const saveGameHistory = async (winnerNumber: number) => {
     if (!user) return;
-
+    const selectedNumbers = numberOfPlayers;
     setIsLoading(true);
     try {
-      const historyResponse = await api.post('/game/history', {
-        winnerId: user._id,
-        winnerCard: winnerNumber,
+      const historyResponse = await api.post('/spinner/history', {
+        winnerNumber,
         prizePool,
         numberOfPlayers,
         betAmount,
+        selectedNumbers
       });
 
       if (historyResponse.data) {
@@ -181,20 +212,38 @@ export default function SpinnerGame() {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-2xl mx-auto text-center">
         {/* Prize Pool */}
-        <div className="mb-4 flex justify-center">
-          <div className="bg-yellow-500 rounded-full w-24 h-24 flex items-center justify-center shadow-lg border-4 border-white">
+        <div className="mb-6 flex justify-center">
+          <div className="bg-yellow-500 rounded-full w-24 h-24 flex flex-col items-center justify-center shadow-lg border-4 border-white">
             <div className="text-white text-xs font-bold">Prize Pool</div>
             <div className="text-white text-lg font-bold">₹{prizePool}</div>
           </div>
         </div>
 
-        {/* Arrow at top */}
-        <div className="relative mb-2 flex justify-center">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-6 border-r-6 border-b-20 border-l-transparent border-r-transparent border-b-red-600 z-20"></div>
+        {/* Improved Arrow pointing to spinner */}
+        <div className="relative mb-4 flex justify-center">
+          <div className="flex flex-col items-center">
+            {/* Current Position Display above arrow */}
+            <div className="mb-2 bg-red-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg border-2 border-white z-20">
+              <span className="font-bold text-lg">{currentPosition}</span>
+            </div>
+            
+            {/* Enhanced Arrow pointing DOWN to spinner */}
+            <div className="flex flex-col items-center relative">
+              {/* Arrow shaft pointing down - tapered design */}
+              <div className="relative">
+                {/* Thick base */}
+                <div className="w-2 h-16 bg-red-600 relative mx-auto"></div>
+                {/* Tapered tip */}
+                <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-0 h-0 border-l-3 border-r-3 border-t-8 border-l-transparent border-r-transparent border-t-red-600"></div>
+                {/* Thin arrow line extending to spinner */}
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-0.5 h-12 bg-red-600"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Spinner */}
-        <div className="relative mb-8 flex justify-center">
+        <div className="relative mb-8 flex justify-center -mt-8">
           <div
             className="relative rounded-full shadow-lg border-4 border-gray-300 overflow-hidden"
             style={{
@@ -254,8 +303,8 @@ export default function SpinnerGame() {
           </div>
         </div>
 
-        {/* Game Info */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        {/* Game Info with Spin Duration */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <div className="text-gray-600 text-xs">Bet Amount</div>
             <div className="text-yellow-600 text-lg font-bold">₹{betAmount}</div>
@@ -263,6 +312,10 @@ export default function SpinnerGame() {
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <div className="text-gray-600 text-xs">Players</div>
             <div className="text-blue-600 text-lg font-bold">{numberOfPlayers}</div>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <div className="text-gray-600 text-xs">Spin Duration</div>
+            <div className="text-green-600 text-lg font-bold">{spinDuration}s</div>
           </div>
         </div>
 
@@ -276,7 +329,7 @@ export default function SpinnerGame() {
               : 'bg-green-500 hover:bg-green-600 text-white'
           }`}
         >
-          {isSpinning ? 'Spinning...' : 'Spin Wheel'}
+          {isSpinning ? `Spinning... (${spinDuration}s)` : 'Spin Wheel'}
         </button>
 
         {/* Winner Modal */}
@@ -298,6 +351,10 @@ export default function SpinnerGame() {
                   <div className="flex justify-between text-gray-600">
                     <span>Your Earnings:</span>
                     <span className="font-bold text-green-600">+₹{earnings}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Spin Duration:</span>
+                    <span className="font-bold">{spinDuration} seconds</span>
                   </div>
                 </div>
 

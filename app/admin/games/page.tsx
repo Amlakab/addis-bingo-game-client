@@ -424,5 +424,6 @@ export default function GamesPage() {
         </Alert>
       </Snackbar>
     </Box>
+    
   );
 }

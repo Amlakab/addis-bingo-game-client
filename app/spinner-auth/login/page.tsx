@@ -46,7 +46,7 @@ export default function LoginPage() {
         
         // Redirect based on user role
         if (user.role === 'spinner-user') {
-          router.push('/spinner/spinnerlobby');
+          router.push('/spinner/dashboard');
         }  else {
         setMessage('Login failed: User role is missing');
         toast.error('Login failed: User role is missing');

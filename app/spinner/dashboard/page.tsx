@@ -1,0 +1,353 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useAuth } from '@/lib/auth';
+import MobileHeader from '@/components/spinner-user/MobileHeader';
+import MobileNavigation from '@/components/spinner-user/MobileNavigation';
+import { formatCurrency } from '@/lib/utils';
+import { Play, Trophy, TrendingUp, Clock, Users, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import api from '@/app/utils/api';
+
+// ✅ Define Game type
+type Game = {
+  _id: string;
+  betAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+};
+
+// ✅ Define User type
+type UserType = {
+  _id: string;
+  phone: string;
+  password?: string;
+  role: 'user' |'disk-user' |'spinner-user' | 'agent' | 'admin';
+  wallet: number;
+  dailyEarnings: number;
+  weeklyEarnings: number;
+  totalEarnings: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+// ✅ Define Transaction type
+type TransactionType = {
+  _id: string;
+  userId: string | null;
+  type: 'deposit' | 'withdrawal' | 'game_purchase' | 'winning';
+  amount: number;
+  status: 'completed' | 'pending' | 'failed';
+  reference: string;
+  description: string;
+  metadata?: any;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// ✅ Define Spinner History type (matching your schema)
+type SpinnerHistoryType = {
+  _id: string;
+  winnerId: {
+    _id: string;
+    phone: string;
+  };
+  winnerNumber: number;
+  prizePool: number;
+  numberOfPlayers: number;
+  betAmount: number;
+  selectedNumbers: number[];
+  createdAt: string;
+  __v?: number;
+};
+
+// ✅ Define Recent Activity type (union of Transaction and Spinner History)
+type RecentActivityType = {
+  type: 'transaction' | 'spinner_history';
+  data: TransactionType | SpinnerHistoryType;
+  date: string;
+};
+
+// ✅ Define Game Session type for real-time status
+type GameSession = {
+  _id: string;
+  userId: string;
+  cardNumber: number;
+  betAmount: number;
+  status: string;
+  createdAt: string;
+};
+
+export default function UserDashboard() {
+  const { user: authUser } = useAuth();
+  const router = useRouter();
+  const [user, setUser] = useState<UserType | null>(authUser || null);
+  const [games, setGames] = useState<Game[]>([]);
+  const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivityType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingGames, setLoadingGames] = useState(true);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+
+  // 🔹 Fetch full user from backend using localStorage like MobileHeader
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (typeof window === "undefined") return;
+
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) return;
+
+        const parsedUser = JSON.parse(storedUser);
+        if (!parsedUser?._id) return;
+
+        const response = await api.get(`/user/${parsedUser._id}`);
+        const userData: UserType = response.data.data || response.data;
+        setUser(userData);
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // 🔹 Fetch games from backend
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        setLoadingGames(true);
+        const response = await api.get('/games');
+        const gamesData: Game[] = response.data.data || [];
+        setGames(gamesData);
+      } catch (error) {
+        console.error('Failed to load games:', error);
+      } finally {
+        setLoadingGames(false);
+      }
+    };
+
+    fetchGames();
+  }, []);
+
+  // 🔹 Setup WebSocket for real-time game sessions
+  useEffect(() => {
+    const setupWebSocket = () => {
+      const simulateWebSocketData = () => {
+        const mockSessions: GameSession[] = games.map(game => ({
+          _id: `session-${game._id}`,
+          userId: 'user123',
+          cardNumber: Math.floor(Math.random() * 25) + 1,
+          betAmount: game.betAmount,
+          status: Math.random() > 0.5 ? 'active' : 'playing',
+          createdAt: new Date().toISOString()
+        }));
+        
+        setGameSessions(mockSessions);
+      };
+
+      simulateWebSocketData();
+      const interval = setInterval(simulateWebSocketData, 5000);
+      return () => clearInterval(interval);
+    };
+
+    if (games.length > 0) {
+      setupWebSocket();
+    }
+  }, [games]);
+
+  // 🔹 CORRECTED: Fetch recent activities (transactions and spinner history)
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      if (!user?._id) return;
+      
+      try {
+        setLoadingActivities(true);
+        
+        // Fetch transactions
+        const transactionsResponse = await api.get(`/transactions/user/${user._id}?limit=10&page=1`);
+        const transactions: TransactionType[] = transactionsResponse.data.data || [];
+        
+        // ✅ CORRECTED: Use the proper spinner history route
+        const spinnerHistoryResponse = await api.get(`/spinner/history/user/${user._id}`);
+        const spinnerHistory: SpinnerHistoryType[] = spinnerHistoryResponse.data;
+        
+        // Combine and sort by date (newest first)
+        const activities: RecentActivityType[] = [
+          ...transactions.map((transaction): RecentActivityType => ({
+            type: 'transaction',
+            data: transaction,
+            date: transaction.createdAt
+          })),
+          ...spinnerHistory.map((history): RecentActivityType => ({
+            type: 'spinner_history',
+            data: history,
+            date: history.createdAt
+          }))
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        setRecentActivities(activities.slice(0, 5));
+      } catch (error) {
+        console.error('Failed to load recent activities:', error);
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+
+    if (user?._id) {
+      fetchRecentActivities();
+    }
+  }, [user?._id]);
+
+  if (!user) return null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Dashboard" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
+
+  // Helper function to format date strings
+  const formatDateString = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 w-full">
+      <MobileHeader title="Dashboard" />
+
+      <main className="px-4 px-0 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
+        {/* Welcome Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="text-center w-full mb-6 pt-4"
+        >
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h2>
+          <p className="text-gray-600">Ready to play some Spinner?</p>
+        </motion.div>
+
+        {/* Wallet Overview */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.1 }}
+          className="w-full mb-6"
+        >
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
+            <h3 className="text-white text-xl font-bold mb-4">Your Wallet</h3>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <div className="w-full">
+                <p className="text-blue-100 text-sm">Balance</p>
+                <p className="text-2xl font-bold truncate">{formatCurrency(user.wallet || 0)}</p>
+              </div>
+              <div className="w-full">
+                <p className="text-blue-100 text-sm">Total Earnings</p>
+                <p className="text-2xl font-bold truncate">{formatCurrency(user.totalEarnings || 0)}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4 w-full">
+              <div className="w-full">
+                <p className="text-blue-100 text-sm">Daily</p>
+                <p className="text-lg font-semibold truncate">{formatCurrency(user.dailyEarnings || 0)}</p>
+              </div>
+              <div className="w-full">
+                <p className="text-blue-100 text-sm">Weekly</p>
+                <p className="text-lg font-semibold truncate">{formatCurrency(user.weeklyEarnings || 0)}</p>
+              </div>
+            </div>
+            <button
+              className="w-full mt-4 bg-white text-blue-600 hover:bg-gray-100 py-2 rounded-md font-medium flex items-center justify-center"
+              onClick={() => router.push('/spinner/wallet')}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add Funds
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Recent Activity */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.4 }}
+          className="w-full mb-6"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          
+          {loadingActivities ? (
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading activities...</p>
+            </div>
+          ) : recentActivities.length === 0 ? (
+            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+              <Clock className="h-10 w-10 text-gray-400 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No Recent Activity</h4>
+              <p className="text-gray-600 text-sm">Start playing spinner games to see your activity here</p>
+            </div>
+          ) : (
+            <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+              <div className="space-y-3 w-full">
+                {recentActivities.map((activity) => (
+                  <div key={activity.type + activity.data._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 w-full">
+                    {activity.type === 'transaction' ? (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium capitalize truncate">{(activity.data as TransactionType).type.replace('_', ' ')}</p>
+                          <p className="text-sm text-gray-600 truncate">{(activity.data as TransactionType).description}</p>
+                          <p className="text-xs text-gray-400">{formatDateString(activity.date)}</p>
+                        </div>
+                        <div className={`text-right flex-shrink-0 ml-2 ${(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
+                          <p className="font-semibold truncate">{(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? '+' : '-'}{formatCurrency((activity.data as TransactionType).amount)}</p>
+                          <p className={`text-xs capitalize ${(activity.data as TransactionType).status === 'completed' ? 'text-green-500' : (activity.data as TransactionType).status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
+                            {(activity.data as TransactionType).status}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">Spinner Game</p>
+                          <p className="text-sm text-gray-600 truncate">
+                            Winner: #{((activity.data as SpinnerHistoryType).winnerNumber)} • 
+                            Players: {((activity.data as SpinnerHistoryType).numberOfPlayers)} • 
+                            Cards: {((activity.data as SpinnerHistoryType).selectedNumbers.length)}
+                          </p>
+                          <p className="text-xs text-gray-400">{formatDateString(activity.date)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className={`font-semibold truncate ${(activity.data as SpinnerHistoryType).winnerId._id === user._id ? 'text-green-600' : 'text-red-600'}`}>
+                            {(activity.data as SpinnerHistoryType).winnerId._id === user._id ? 'Won' : 'Lost'}
+                          </p>
+                          <p className="text-sm text-gray-500">Prize: {formatCurrency((activity.data as SpinnerHistoryType).prizePool)}</p>
+                          {(activity.data as SpinnerHistoryType).winnerId._id === user._id && (
+                            <p className="text-xs text-green-500">
+                              +{formatCurrency(Math.floor((activity.data as SpinnerHistoryType).prizePool * 0.8))}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </main>
+
+      <MobileNavigation />
+    </div>
+  );
+}
