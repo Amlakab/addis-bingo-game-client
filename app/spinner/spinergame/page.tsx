@@ -304,7 +304,7 @@ export default function SpinnerGame() {
         </div>
 
         {/* Game Info with Spin Duration */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        {/* <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-white rounded-lg p-3 border border-gray-200">
             <div className="text-gray-600 text-xs">Bet Amount</div>
             <div className="text-yellow-600 text-lg font-bold">₹{betAmount}</div>
@@ -317,7 +317,7 @@ export default function SpinnerGame() {
             <div className="text-gray-600 text-xs">Spin Duration</div>
             <div className="text-green-600 text-lg font-bold">{spinDuration}s</div>
           </div>
-        </div>
+        </div> */}
 
         {/* Spin Button */}
         <button

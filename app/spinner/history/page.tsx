@@ -28,7 +28,6 @@ interface Earning {
   _id: string;
   gameId: string;
   amount: number;
-  type: 'winning' | 'commission' | 'bonus';
   createdAt: string;
 }
 
@@ -54,39 +53,17 @@ export default function HistoryPage() {
         
         setGames(spinnerHistory);
         
-        // Transform spinner history into earnings format
+        // Calculate earnings as 20% of (numberOfPlayers * betAmount)
         const userEarnings: Earning[] = spinnerHistory.map(game => {
-          const isWinner = game.winnerId._id === user._id;
-          const winningAmount = Math.floor(game.prizePool * 0.8); // 80% of prize pool
-          const commissionAmount = Math.floor(game.prizePool * 0.2); // 20% commission
+          const earningAmount = Math.floor(game.numberOfPlayers * game.betAmount * 0.2);
           
-          if (isWinner) {
-            return [
-              {
-                _id: game._id + '-winning',
-                gameId: game._id,
-                amount: winningAmount,
-                type: 'winning' as const,
-                createdAt: game.createdAt
-              },
-              {
-                _id: game._id + '-commission',
-                gameId: game._id,
-                amount: commissionAmount,
-                type: 'commission' as const,
-                createdAt: game.createdAt
-              }
-            ];
-          } else {
-            return {
-              _id: game._id + '-commission',
-              gameId: game._id,
-              amount: commissionAmount,
-              type: 'commission' as const,
-              createdAt: game.createdAt
-            };
-          }
-        }).flat();
+          return {
+            _id: game._id + '-earning',
+            gameId: game._id,
+            amount: earningAmount,
+            createdAt: game.createdAt
+          };
+        });
         
         setEarnings(userEarnings);
       } catch (error: any) {
@@ -149,8 +126,7 @@ export default function HistoryPage() {
         <div className="space-y-4">
           {games.map((game) => {
             const isWinner = game.winnerId._id === user._id;
-            const userWinnings = isWinner ? Math.floor(game.prizePool * 0.8) : 0;
-            const commission = Math.floor(game.prizePool * 0.2);
+            const earningAmount = Math.floor(game.numberOfPlayers * game.betAmount * 0.2);
             
             return (
               <motion.div
@@ -175,11 +151,9 @@ export default function HistoryPage() {
                     <p className="text-sm text-gray-500">
                       Bet: {formatCurrency(game.betAmount)} • Prize: {formatCurrency(game.prizePool)}
                     </p>
-                    {isWinner && (
-                      <p className="text-sm text-green-600 font-medium">
-                        You won {formatCurrency(userWinnings)} + {formatCurrency(commission)} commission!
-                      </p>
-                    )}
+                    <p className="text-sm text-blue-600 font-medium">
+                      Earning: {formatCurrency(earningAmount)}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -202,8 +176,6 @@ export default function HistoryPage() {
 
   const EarningsHistory = () => {
     const totalEarnings = earnings.reduce((total, earning) => total + earning.amount, 0);
-    const winningEarnings = earnings.filter(e => e.type === 'winning').reduce((total, earning) => total + earning.amount, 0);
-    const commissionEarnings = earnings.filter(e => e.type === 'commission').reduce((total, earning) => total + earning.amount, 0);
 
     return (
       <motion.div
@@ -217,19 +189,9 @@ export default function HistoryPage() {
         </h2>
 
         {/* Earnings Summary */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-blue-50 p-3 rounded-lg text-center">
-            <p className="text-lg font-bold text-blue-600">{formatCurrency(totalEarnings)}</p>
-            <p className="text-xs text-blue-600">Total</p>
-          </div>
-          <div className="bg-green-50 p-3 rounded-lg text-center">
-            <p className="text-lg font-bold text-green-600">{formatCurrency(winningEarnings)}</p>
-            <p className="text-xs text-green-600">Winnings</p>
-          </div>
-          <div className="bg-yellow-50 p-3 rounded-lg text-center">
-            <p className="text-lg font-bold text-yellow-600">{formatCurrency(commissionEarnings)}</p>
-            <p className="text-xs text-yellow-600">Commission</p>
-          </div>
+        <div className="bg-green-50 p-4 rounded-lg text-center mb-6">
+          <p className="text-2xl font-bold text-green-600">{formatCurrency(totalEarnings)}</p>
+          <p className="text-sm text-green-600">Total Earnings</p>
         </div>
         
         {error ? (
@@ -261,8 +223,6 @@ export default function HistoryPage() {
           <div className="space-y-4">
             {earnings.map((earning) => {
               const game = games.find(g => g._id === earning.gameId);
-              const isWinning = earning.type === 'winning';
-              const isCommission = earning.type === 'commission';
               
               return (
                 <motion.div
@@ -272,38 +232,28 @@ export default function HistoryPage() {
                   className="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center">
-                    <div className={`p-2 rounded-full ${
-                      isWinning ? 'bg-green-100' : 'bg-yellow-100'
-                    }`}>
-                      {isWinning ? (
-                        <Trophy className="h-5 w-5 text-green-600" />
-                      ) : (
-                        <Award className="h-5 w-5 text-yellow-600" />
-                      )}
+                    <div className="p-2 rounded-full bg-green-100">
+                      <DollarSign className="h-5 w-5 text-green-600" />
                     </div>
                     <div className="ml-3">
-                      <p className="font-medium">
-                        {isWinning ? 'Game Winning' : 'Commission'}
-                      </p>
+                      <p className="font-medium">Game Earning</p>
                       <p className="text-sm text-gray-500">
                         Spinner Game #{earning.gameId.slice(-4)} • {formatDateString(earning.createdAt)}
                       </p>
                       {game && (
                         <p className="text-xs text-gray-400">
-                          {game.numberOfPlayers} players • Bet: {formatCurrency(game.betAmount)}
+                          {game.numberOfPlayers} players × {formatCurrency(game.betAmount)} bet
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold ${
-                      isWinning ? 'text-green-600' : 'text-yellow-600'
-                    }`}>
+                    <p className="font-semibold text-green-600">
                       +{formatCurrency(earning.amount)}
                     </p>
-                    <p className="text-sm text-gray-500 capitalize">{earning.type}</p>
+                    <p className="text-sm text-gray-500">Earning</p>
                     {game && (
-                      <p className="text-xs text-gray-400">#{game.winnerNumber}</p>
+                      <p className="text-xs text-gray-400">20% of pool</p>
                     )}
                   </div>
                 </motion.div>
