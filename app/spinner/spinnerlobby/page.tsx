@@ -187,7 +187,7 @@ export default function SpinnerLobby() {
           
           <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg text-center">
             <div className="text-sm opacity-90">Prize Pool</div>
-            <div className="text-2xl font-bold">₹{prizePool}</div>
+            <div className="text-2xl font-bold">{prizePool}Birr</div>
           </div>
         </motion.div>
 
@@ -202,7 +202,7 @@ export default function SpinnerLobby() {
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-700 mb-2 text-sm font-medium">Bet Amount (₹)</label>
+              <label className="block text-gray-700 mb-2 text-sm font-medium">Bet Amount (Birr)</label>
               <input
                 type="number"
                 value={betAmount}
@@ -253,10 +253,22 @@ export default function SpinnerLobby() {
                     : 'bg-white hover:bg-gray-100 border border-gray-300'
                 } rounded-lg p-1 flex flex-col items-center justify-center`}
               >
-                <div className="text-xs text-gray-800 font-bold mb-1">#{card.id}</div>
-                <div className="text-[8px] text-gray-600 text-center">₹{card.betAmount}</div>
-                <div className="text-[6px] text-green-600 font-bold text-center">Win: ₹{card.prizePool}</div>
+                {/* Card ID */}
+                <div className="text-xl sm:text-2xl text-gray-900 font-bold mb-1">
+                  #{card.id}
+                </div>
+
+                {/* Bet Amount */}
+                <div className="text-xs sm:text-sm md:text-base text-gray-600 text-center">
+                  {card.betAmount} Birr
+                </div>
+
+                {/* Prize Pool */}
+                <div className="text-[10px] sm:text-xs md:text-sm text-green-600 font-bold text-center">
+                  Win: {card.prizePool} Birr
+                </div>
               </motion.div>
+
             ))}
           </div>
         </motion.div>

@@ -162,10 +162,10 @@ export default function SpinnerGame() {
       });
 
       if (historyResponse.data) {
-        await api.put('/user/minus-wallet', {
-          userId: user._id,
-          amount: earnings,
-        });
+        // await api.put('/user/minus-wallet', {
+        //   userId: user._id,
+        //   amount: earnings,
+        // });
 
         const response = await api.get(`/user/${user._id}`);
         const userData: UserType = response.data;
@@ -215,7 +215,7 @@ export default function SpinnerGame() {
         <div className="mb-6 flex justify-center">
           <div className="bg-yellow-500 rounded-full w-24 h-24 flex flex-col items-center justify-center shadow-lg border-4 border-white">
             <div className="text-white text-xs font-bold">Prize Pool</div>
-            <div className="text-white text-lg font-bold">₹{prizePool}</div>
+            <div className="text-white text-lg font-bold">{prizePool}Birr</div>
           </div>
         </div>
 
@@ -346,16 +346,16 @@ export default function SpinnerGame() {
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between text-gray-600">
                     <span>Prize Pool:</span>
-                    <span className="font-bold">₹{prizePool}</span>
+                    <span className="font-bold">{prizePool}Birr</span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
+                  {/* <div className="flex justify-between text-gray-600">
                     <span>Your Earnings:</span>
                     <span className="font-bold text-green-600">+₹{earnings}</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Spin Duration:</span>
                     <span className="font-bold">{spinDuration} seconds</span>
-                  </div>
+                  </div> */}
                 </div>
 
                 <button

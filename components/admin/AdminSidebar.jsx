@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Users, Gamepad2, BarChart3, Wallet, 
-  X, Settings, LogOut ,History
+  X, Settings, LogOut ,History,SplineIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AccountBalance } from '@mui/icons-material';
@@ -20,7 +20,7 @@ const menuItems = [
   { name: 'Transactions', href: '/admin/transactions', icon: History },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { name: 'Feedback', href: '/admin/feedback', icon: Wallet },
-  { name: 'Wallet', href: '/admin/wallet', icon: Wallet },
+  { name: 'Spinner History', href: '/admin/spinner-history', icon: SplineIcon },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

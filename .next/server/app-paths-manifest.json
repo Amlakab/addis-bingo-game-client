@@ -1,7 +1,7 @@
 {
-  "/spinner/spinergame/page": "app/spinner/spinergame/page.js",
-  "/spinner/history/page": "app/spinner/history/page.js",
-  "/spinner/wallet/page": "app/spinner/wallet/page.js",
-  "/spinner/spinnerlobby/page": "app/spinner/spinnerlobby/page.js",
-  "/spinner/dashboard/page": "app/spinner/dashboard/page.js"
+  "/spinner/profile/page": "app/spinner/profile/page.js",
+  "/spinner-auth/login/page": "app/spinner-auth/login/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/admin/spinner-history/page": "app/admin/spinner-history/page.js",
+  "/admin/page": "app/admin/page.js"
 }

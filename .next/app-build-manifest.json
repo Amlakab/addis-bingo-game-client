@@ -11,6 +11,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/user/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/user/dashboard/page.js"
+    ],
     "/auth/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -23,6 +28,11 @@
       "static/css/app/spinner-auth/login/page.css",
       "static/chunks/app/spinner-auth/login/page.js"
     ],
+    "/spinner/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/spinner/dashboard/page.js"
+    ],
     "/spinner/spinnerlobby/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -33,50 +43,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/spinner/spinergame/page.js"
     ],
-    "/spinner/cart/page": [
+    "/spinner/history/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/spinner/cart/page.js"
-    ],
-    "/spinner/wallet/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/spinner/wallet/page.js"
+      "static/chunks/app/spinner/history/page.js"
     ],
     "/spinner/profile/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/spinner/profile/page.js"
     ],
-    "/spinner/dashboard/page": [
+    "/admin/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/spinner/dashboard/page.js"
+      "static/chunks/app/admin/page.js"
     ],
-    "/spinner/history/page": [
+    "/admin/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/spinner/history/page.js"
+      "static/chunks/app/admin/layout.js"
     ],
-    "/user/dashboard/page": [
+    "/admin/spinner-history/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/user/dashboard/page.js"
-    ],
-    "/user/profile/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/user/profile/page.js"
-    ],
-    "/user/wallet/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/user/wallet/page.js"
-    ],
-    "/user/lobby/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/user/lobby/page.js"
+      "static/chunks/app/admin/spinner-history/page.js"
     ]
   }
 }
