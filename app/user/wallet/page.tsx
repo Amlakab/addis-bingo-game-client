@@ -20,6 +20,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import api from '@/app/utils/api';
+import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -908,6 +909,7 @@ export default function WalletPage() {
         </AnimatePresence>
         <TransactionHistory />
       </div>
+      <Footer />
       <MobileNavigation />
       {showTransactionModal && <TransactionModal />}
     </div>

@@ -9,6 +9,7 @@ import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { Trophy, Calendar, Clock, Award, XCircle, CheckCircle } from 'lucide-react';
 import api from '@/app/utils/api';
+import Footer from '@/components/ui/Footer';
 
 interface GameHistory {
   _id: string;
@@ -295,6 +296,7 @@ export default function HistoryPage() {
         
         {activeTab === 'games' ? <GameHistory /> : <WinningsHistory />}
       </div>
+      <Footer />
 
       <MobileNavigation />
     </div>

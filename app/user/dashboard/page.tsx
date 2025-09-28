@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Play, Trophy, TrendingUp, Clock, Users, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/utils/api';
+import Footer from '@/components/ui/Footer';
 
 // ✅ Define Game type
 type Game = {
@@ -505,6 +506,7 @@ if (loading) {
           )}
         </motion.div>
       </main>
+      <Footer />
 
       <MobileNavigation />
     </div>

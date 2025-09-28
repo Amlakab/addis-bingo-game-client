@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import api from '@/app/utils/api';
+import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -570,6 +571,7 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </div>
+      <Footer />
 
       <MobileNavigation />
       {showPasswordModal && <PasswordChangeModal />}
