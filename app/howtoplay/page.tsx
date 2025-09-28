@@ -101,7 +101,7 @@ export default function HowToPlayPage() {
         </ul>
       </div>
         {/* Play Now Button */}
-          <div className="text-center">
+          <div className="text-center mb-12">
             <Link 
               href="/auth/register"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300"
@@ -109,7 +109,7 @@ export default function HowToPlayPage() {
               Play Now
             </Link>
           </div>
-          <Footer />
+      <Footer />
     </div>
   );
 }

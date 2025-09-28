@@ -9,6 +9,7 @@ import MobileHeader from '@/components/Layout/MobileHeader';
 import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { useAuth } from '@/lib/auth';
 import api from '@/app/utils/api';
+import Footer from '@/components/ui/Footer';
 
 interface PlayerSelection {
   id: number;
@@ -138,6 +139,7 @@ export default function LobbyPage() {
         />
       )}
     </main>
+    <Footer />
 
     {currentPage === 'bet-selection' && <MobileNavigation />}
   </div>
