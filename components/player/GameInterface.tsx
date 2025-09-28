@@ -459,7 +459,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
         const currentDate = new Date();
         const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
         
-        const remainingTime = Math.max(0, 46 - timeDifference);
+        const remainingTime = Math.max(0, 50 - timeDifference);
         setCountdown(remainingTime);
         
         if (remainingTime > 0) {

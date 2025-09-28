@@ -780,7 +780,7 @@ const PlayerLobby = ({
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 1) {
+              if (playerCount > 2) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
