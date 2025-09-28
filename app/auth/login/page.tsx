@@ -12,6 +12,7 @@ import {
   EyeOff,
   X
 } from 'lucide-react';
+import Footer from '@/components/ui/Footer';
 export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -420,6 +421,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

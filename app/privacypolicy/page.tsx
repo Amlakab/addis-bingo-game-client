@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
+import Footer from '@/components/ui/Footer';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -158,6 +159,7 @@ export default function PrivacyPolicyPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

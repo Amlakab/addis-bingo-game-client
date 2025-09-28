@@ -4,6 +4,7 @@
 import React, { useState, ReactNode } from 'react';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import Footer from '@/components/ui/Footer';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -27,6 +28,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {children}
           </div>
         </main>
+        <Footer />
       </div>
     </div>
   );

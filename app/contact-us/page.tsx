@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import FeedbackForm from '@/components/feedback/FeedbackForm';
 import FeedbackLookup from '@/components/feedback/FeedbackLookup';
+import Footer from '@/components/ui/Footer';
 
 export default function ContactUsPage() {
   const [formData, setFormData] = useState({
@@ -243,6 +244,7 @@ export default function ContactUsPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

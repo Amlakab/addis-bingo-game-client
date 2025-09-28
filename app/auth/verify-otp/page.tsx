@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import Footer from '@/components/ui/Footer';
 
 export default function VerifyOtpPage() {
   const [otp, setOtp] = useState('');
@@ -135,6 +136,7 @@ export default function VerifyOtpPage() {
           </button>
         </div>
       </form>
+      <Footer />
     </div>
   );
 }

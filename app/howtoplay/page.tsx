@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
+import Footer from '@/components/ui/Footer';
 // Page Access Instructions with images
 const AccessSteps = [
   { step: 1, title: "Home Page Access", text: "Start by accessing the Feta Bingo home page where you can explore the game options and features.", file: "/Step1.png", alt: "Home Page" },
@@ -108,6 +109,7 @@ export default function HowToPlayPage() {
               Play Now
             </Link>
           </div>
+          <Footer />
     </div>
   );
 }

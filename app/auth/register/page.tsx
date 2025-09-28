@@ -12,6 +12,7 @@ import {
   EyeOff,
   X
 } from 'lucide-react';
+import Footer from '@/components/ui/Footer';
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
     phone: '',
@@ -210,6 +211,7 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

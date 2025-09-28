@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import Navbar from '@/components/ui/Navbar';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import Footer from '@/components/ui/Footer';
 
 // Enhanced Floating elements component with many more elements
 const FloatingElements = () => {
@@ -476,6 +477,7 @@ export default function Home() {
           🎲
         </Link>
       </motion.div>
+      <Footer />
     </div>
   );
 }
