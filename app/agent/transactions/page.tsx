@@ -159,6 +159,29 @@ export default function AdminTransactionsPage() {
     }
   };
 
+  const getTransactionLink = (transaction: TransactionType) => {
+    if (!transaction.description) return null;
+
+    // Regular expression to find the specific CBE transaction link
+    const cbeUrlRegex = /(https:\/\/apps\.cbe\.com\.et:100\/\?id=[A-Z0-9]+)/g;
+    const cbeMatch = transaction.description.match(cbeUrlRegex);
+
+    // Return the found CBE link, or null if not found
+    if (cbeMatch && cbeMatch[0]) {
+      return cbeMatch[0];
+    }
+
+    // Fallback: Look for any https URL if the specific pattern isn't found
+    const genericUrlRegex = /(https:\/\/[^\s]+)/g;
+    const genericMatch = transaction.description.match(genericUrlRegex);
+
+    if (genericMatch && genericMatch[0]) {
+      return genericMatch[0];
+    }
+
+    return null;
+  };
+
   const handleViewTransaction = (transaction: TransactionType) => {
     setSelectedTransaction(transaction);
     setShowModal(true);
@@ -274,23 +297,6 @@ export default function AdminTransactionsPage() {
         {type.replace('_', ' ')}
       </span>
     );
-  };
-
-  const getTransactionLink = (transaction: TransactionType) => {
-    if (!transaction.transactionId) return null;
-    
-    // Check if transactionId is already a URL
-    if (transaction.transactionId.startsWith('http')) {
-      return transaction.transactionId;
-    }
-    
-    // Fallback to previous logic if transactionId is not a URL
-    if (transaction.reference === 'cbe') {
-      return `https://apps.cbe.com.et:100/?id=${transaction.transactionId}`;
-    } else if (transaction.reference === 'telebirr') {
-      return `https://telebirr.ethiotelecom.et/txn/${transaction.transactionId}`;
-    }
-    return null;
   };
 
   return (
@@ -736,26 +742,33 @@ export default function AdminTransactionsPage() {
                   <div className="space-y-2 md:space-y-3">
                     <div>
                       <p className="text-xs text-gray-500 font-sans">Description</p>
-                      <p className="text-xs md:text-sm font-sans">{selectedTransaction.description}</p>
+                      <p className="text-xs md:text-sm font-sans whitespace-pre-wrap break-words">
+                        {selectedTransaction.description}
+                      </p>
                     </div>
-                    {selectedTransaction.transactionId && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Transaction ID/Link</p>
-                        {getTransactionLink(selectedTransaction) ? (
-                          <a 
-                            href={getTransactionLink(selectedTransaction) as string}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center text-blue-600 hover:text-blue-800 text-xs md:text-sm break-all"
-                          >
-                            <ExternalLink className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                            {selectedTransaction.transactionId}
-                          </a>
-                        ) : (
-                          <p className="text-xs md:text-sm font-mono break-all">{selectedTransaction.transactionId}</p>
-                        )}
-                      </div>
-                    )}
+                    
+                    {/* Transaction Link - Only show if we found an https URL */}
+                    {(() => {
+                      const transactionLink = getTransactionLink(selectedTransaction);
+                      if (transactionLink) {
+                        return (
+                          <div>
+                            <p className="text-xs text-gray-500 font-sans">Transaction Link</p>
+                            <a 
+                              href={transactionLink}
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center text-blue-600 hover:text-blue-800 text-xs md:text-sm break-all"
+                            >
+                              <ExternalLink className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
+                              {transactionLink}
+                            </a>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                    
                     {selectedTransaction.reason && (
                       <div>
                         <p className="text-xs text-gray-500 font-sans">Reason</p>
