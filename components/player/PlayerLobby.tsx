@@ -64,7 +64,7 @@ const PlayerLobby = ({
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   
-  // NEW: Server time synchronization states
+  // Server time synchronization states
   const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [isTimeSynced, setIsTimeSynced] = useState(false);
   
@@ -114,7 +114,7 @@ const PlayerLobby = ({
     loadWebSocketService();
   }, []);
 
-  // NEW: Server time synchronization effect
+  // Server time synchronization effect
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
@@ -212,7 +212,7 @@ const PlayerLobby = ({
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  // UPDATED: calculateRemainingTime with server time
+  // CORRECTED: calculateRemainingTime with server time
   const calculateRemainingTime = (sessions: GameSession[]) => {
     // Filter sessions for current bet amount and active status
     const activeSessions = sessions.filter(
@@ -312,7 +312,7 @@ const PlayerLobby = ({
     setWallet(newWallet);
   };
 
-  // UPDATED: togglePlayer with server time for session creation
+  // CORRECTED: togglePlayer with proper server time handling
   const togglePlayer = async (id: number) => {
     // Prevent multiple simultaneous operations
     if (isProcessing || pendingOperations.has(id)) {
@@ -384,17 +384,19 @@ const PlayerLobby = ({
         // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
 
-        // UPDATED: Use server-adjusted time for session creation
-        const currentServerTime = isTimeSynced 
-          ? new Date(Date.now() + serverTimeOffset).toISOString()
-          : new Date().toISOString();
+        // CORRECTED: Use existing createdAt if available, otherwise use server time
+        const sessionCreationTime = createdAt 
+          ? new Date(createdAt).toISOString() 
+          : (isTimeSynced 
+              ? new Date(Date.now() + serverTimeOffset).toISOString()
+              : new Date().toISOString());
 
-        // Send creation request with server time
+        // Send creation request with proper time
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: currentServerTime
+          createdAt: sessionCreationTime
         });
       }
       
@@ -524,7 +526,7 @@ const PlayerLobby = ({
     }
   };
 
-  // NEW: Show loading while time is syncing
+  // Show loading while time is syncing
   if (!isClient || !isTimeSynced) {
     return (
       <Box sx={{ 
