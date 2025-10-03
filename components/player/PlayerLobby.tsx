@@ -63,6 +63,11 @@ const PlayerLobby = ({
   const [playerCount, setPlayerCount] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
+  
+  // NEW: Server time synchronization states
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
+  const [isTimeSynced, setIsTimeSynced] = useState(false);
+  
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
@@ -109,22 +114,30 @@ const PlayerLobby = ({
     loadWebSocketService();
   }, []);
 
-  // Fetch remaining time from server
-  const fetchRemainingTime = async () => {
+  // NEW: Server time synchronization effect
+  useEffect(() => {
     if (!isClient || !webSocketService) return;
-    
-    try {
-      webSocketService.send('get-remaining-time', { betAmount }, (response: { betAmount: number; remainingTime: number }) => {
-        if (response && response.betAmount === betAmount) {
-          setRemainingTime(response.remainingTime);
-        }
-      });
-    } catch (error) {
-      console.error('Error fetching remaining time:', error);
-      // Fallback to initial time if fetch fails
-      setRemainingTime(initialTime);
-    }
-  };
+
+    const handleServerTimeResponse = (data: { serverTime: string; timestamp: number }) => {
+      const clientTime = Date.now();
+      const serverTime = new Date(data.serverTime).getTime();
+      
+      // Calculate offset between server and client
+      const offset = serverTime - clientTime;
+      setServerTimeOffset(offset);
+      setIsTimeSynced(true);
+      
+      console.log(`Time sync: Server=${serverTime}, Client=${clientTime}, Offset=${offset}ms`);
+    };
+
+    // Request server time on connection
+    webSocketService.send('get-server-time');
+    webSocketService.on('server-time', handleServerTimeResponse);
+
+    return () => {
+      webSocketService.off('server-time', handleServerTimeResponse);
+    };
+  }, [isClient, webSocketService]);
 
   useEffect(() => {
     if (!isClient || !webSocketService) return;
@@ -137,32 +150,16 @@ const PlayerLobby = ({
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
-    webSocketService.on('remaining-time', handleRemainingTimeUpdate);
     
     // Request initial session data
     webSocketService.send('get-sessions', { betAmount });
-    
-    // Fetch initial remaining time
-    fetchRemainingTime();
-    
-    // Setup interval to periodically update remaining time (every 5 seconds)
-    const interval = setInterval(fetchRemainingTime, 5000);
     
     return () => {
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('session-created', handleSessionCreated);
       webSocketService.off('wallet-updated', handleWalletUpdate);
-      webSocketService.off('remaining-time', handleRemainingTimeUpdate);
-      clearInterval(interval);
     };
   }, [isClient, webSocketService, user, betAmount]);
-
-  // Handle remaining time update from server
-  const handleRemainingTimeUpdate = (data: { betAmount: number; remainingTime: number }) => {
-    if (data.betAmount === betAmount) {
-      setRemainingTime(data.remainingTime);
-    }
-  };
 
   // Check for playing status sessions and handle timer expiration
   useEffect(() => {
@@ -215,7 +212,47 @@ const PlayerLobby = ({
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
+  // UPDATED: calculateRemainingTime with server time
+  const calculateRemainingTime = (sessions: GameSession[]) => {
+    // Filter sessions for current bet amount and active status
+    const activeSessions = sessions.filter(
+      session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
+    );
+    
+    if (activeSessions.length === 0) {
+      // No active sessions, use the initial time from props
+      return initialTime;
+    }
+    
+    // Find the earliest createdAt time among active sessions
+    const earliestSession = activeSessions.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )[0];
+    
+    if (!earliestSession || !earliestSession.createdAt) {
+      return initialTime;
+    }
+    
+    try {
+      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+      
+      // USE SERVER-ADJUSTED TIME instead of client time
+      const currentTime = isTimeSynced ? Date.now() + serverTimeOffset : Date.now();
+      const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
+      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
+      
+      return calculatedRemainingTime;
+    } catch (error) {
+      console.error('Error calculating remaining time:', error);
+      return initialTime;
+    }
+  };
+
   const handleSessionsUpdate = (sessions: GameSession[]) => {
+    // Calculate remaining time based on session data
+    const calculatedRemainingTime = calculateRemainingTime(sessions);
+    setRemainingTime(calculatedRemainingTime);
+    
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
@@ -275,48 +312,7 @@ const PlayerLobby = ({
     setWallet(newWallet);
   };
 
-  // New function to handle canceling selections and going back
-  const handleCancelSelectionsAndGoBack = async () => {
-    if (!isClient || !webSocketService || !user) return;
-    
-    setIsLoading(true);
-    try {
-      // Clear selected players locally first
-      setSelectedPlayers([]);
-      
-      // Clear selections in database
-      if (webSocketService) {
-        webSocketService.send('clear-selected', {
-          betAmount: betAmount,
-          userId: user._id
-        });
-      }
-      
-      // Show appropriate message
-      const msg = language === 'am' 
-        ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
-        : 'Your selected cards have been cleared. Returning to bet selection.';
-      setToastMessage(msg);
-      setShowToast(true);
-      
-      // Wait a moment for the user to see the message, then go back
-      setTimeout(() => {
-        if (onBackToLobby) {
-          onBackToLobby();
-        }
-      }, 2000);
-      
-    } catch (error: any) {
-      console.error('Error canceling selections:', error);
-      const errorMsg = error.response?.data?.error || "Error canceling selections";
-      setErrorMessage(errorMsg);
-      setWalletError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Enhanced togglePlayer function with comprehensive validation
+  // UPDATED: togglePlayer with server time for session creation
   const togglePlayer = async (id: number) => {
     // Prevent multiple simultaneous operations
     if (isProcessing || pendingOperations.has(id)) {
@@ -388,12 +384,17 @@ const PlayerLobby = ({
         // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
 
-        // Send creation request
+        // UPDATED: Use server-adjusted time for session creation
+        const currentServerTime = isTimeSynced 
+          ? new Date(Date.now() + serverTimeOffset).toISOString()
+          : new Date().toISOString();
+
+        // Send creation request with server time
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          //createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
+          createdAt: currentServerTime
         });
       }
       
@@ -416,6 +417,47 @@ const PlayerLobby = ({
         return newSet;
       });
       setIsProcessing(false);
+      setIsLoading(false);
+    }
+  };
+
+  // New function to handle canceling selections and going back
+  const handleCancelSelectionsAndGoBack = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    setIsLoading(true);
+    try {
+      // Clear selected players locally first
+      setSelectedPlayers([]);
+      
+      // Clear selections in database
+      if (webSocketService) {
+        webSocketService.send('clear-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      }
+      
+      // Show appropriate message
+      const msg = language === 'am' 
+        ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
+        : 'Your selected cards have been cleared. Returning to bet selection.';
+      setToastMessage(msg);
+      setShowToast(true);
+      
+      // Wait a moment for the user to see the message, then go back
+      setTimeout(() => {
+        if (onBackToLobby) {
+          onBackToLobby();
+        }
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -482,15 +524,21 @@ const PlayerLobby = ({
     }
   };
 
-  if (!isClient) {
+  // NEW: Show loading while time is syncing
+  if (!isClient || !isTimeSynced) {
     return (
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '50vh' 
+        height: '50vh',
+        flexDirection: 'column',
+        gap: 2
       }}>
         <CircularProgress />
+        <Typography variant="body2" color="text.secondary">
+          {language === 'am' ? 'ጊዜ በማስተካከል ላይ...' : 'Synchronizing time...'}
+        </Typography>
       </Box>
     );
   }
@@ -831,7 +879,7 @@ const PlayerLobby = ({
           onClose={() => setWalletError(false)}
         >
           <Alert 
-            severity="error"
+            severity="error" 
             onClose={() => setWalletError(false)}
             sx={{ width: '100%' }}
           >
