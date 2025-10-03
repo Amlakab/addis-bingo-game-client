@@ -109,6 +109,23 @@ const PlayerLobby = ({
     loadWebSocketService();
   }, []);
 
+  // Fetch remaining time from server
+  const fetchRemainingTime = async () => {
+    if (!isClient || !webSocketService) return;
+    
+    try {
+      webSocketService.send('get-remaining-time', { betAmount }, (response: { betAmount: number; remainingTime: number }) => {
+        if (response && response.betAmount === betAmount) {
+          setRemainingTime(response.remainingTime);
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching remaining time:', error);
+      // Fallback to initial time if fetch fails
+      setRemainingTime(initialTime);
+    }
+  };
+
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
@@ -120,16 +137,32 @@ const PlayerLobby = ({
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
+    webSocketService.on('remaining-time', handleRemainingTimeUpdate);
     
     // Request initial session data
     webSocketService.send('get-sessions', { betAmount });
+    
+    // Fetch initial remaining time
+    fetchRemainingTime();
+    
+    // Setup interval to periodically update remaining time (every 5 seconds)
+    const interval = setInterval(fetchRemainingTime, 5000);
     
     return () => {
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('session-created', handleSessionCreated);
       webSocketService.off('wallet-updated', handleWalletUpdate);
+      webSocketService.off('remaining-time', handleRemainingTimeUpdate);
+      clearInterval(interval);
     };
   }, [isClient, webSocketService, user, betAmount]);
+
+  // Handle remaining time update from server
+  const handleRemainingTimeUpdate = (data: { betAmount: number; remainingTime: number }) => {
+    if (data.betAmount === betAmount) {
+      setRemainingTime(data.remainingTime);
+    }
+  };
 
   // Check for playing status sessions and handle timer expiration
   useEffect(() => {
@@ -182,44 +215,7 @@ const PlayerLobby = ({
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  const calculateRemainingTime = (sessions: GameSession[]) => {
-    // Filter sessions for current bet amount and active status
-    const activeSessions = sessions.filter(
-      session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
-    );
-    
-    if (activeSessions.length === 0) {
-      // No active sessions, use the initial time from props
-      return initialTime;
-    }
-    
-    // Find the earliest createdAt time among active sessions
-    const earliestSession = activeSessions.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    )[0];
-    
-    if (!earliestSession || !earliestSession.createdAt) {
-      return initialTime;
-    }
-    
-    try {
-      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-      const currentTime = new Date().getTime();
-      const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
-      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
-      
-      return calculatedRemainingTime;
-    } catch (error) {
-      console.error('Error calculating remaining time:', error);
-      return initialTime;
-    }
-  };
-
   const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Calculate remaining time based on session data
-    const calculatedRemainingTime = calculateRemainingTime(sessions);
-    setRemainingTime(calculatedRemainingTime);
-    
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);

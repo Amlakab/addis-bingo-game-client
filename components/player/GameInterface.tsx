@@ -846,7 +846,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
           webSocketService.send('update-session-status', {
             cardNumber: playerId,
             betAmount: bet,
-            status: 'blocked'
+            status: 'playing'
           });
         }
         
