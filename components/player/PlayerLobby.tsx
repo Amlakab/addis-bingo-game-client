@@ -393,7 +393,7 @@ const PlayerLobby = ({
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
+          //createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
       }
       
@@ -831,7 +831,7 @@ const PlayerLobby = ({
           onClose={() => setWalletError(false)}
         >
           <Alert 
-            severity="error" 
+            severity="error"
             onClose={() => setWalletError(false)}
             sx={{ width: '100%' }}
           >
