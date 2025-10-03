@@ -231,38 +231,46 @@ const PlayerLobby = ({
 
   // UPDATED: Uses server time instead of client time
   const calculateRemainingTime = (sessions: GameSession[]) => {
-    // Filter sessions for current bet amount and active status
-    const activeSessions = sessions.filter(
-      session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
-    );
+  // Filter sessions for current bet amount and active status
+  const activeSessions = sessions.filter(
+    session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
+  );
+  
+  if (activeSessions.length === 0) {
+    // No active sessions, use the initial time from props
+    return initialTime;
+  }
+  
+  // Find the earliest createdAt time among active sessions
+  const earliestSession = activeSessions.sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )[0];
+  
+  if (!earliestSession || !earliestSession.createdAt) {
+    return initialTime;
+  }
+  
+  try {
+    const sessionStartTime = new Date(earliestSession.createdAt).getTime();
     
-    if (activeSessions.length === 0) {
-      // No active sessions, use the initial time from props
-      return initialTime;
-    }
+    // FIX: Use the SAME time source for comparison
+    // If we're using server time for new sessions, we need to ensure we're comparing
+    // the session start time with the current time in the same time context
     
-    // Find the earliest createdAt time among active sessions
-    const earliestSession = activeSessions.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    )[0];
+    // Since earliestSession.createdAt is stored in database time (which should be server time),
+    // and we're using server time for new sessions, we should compare with current server time
+    const currentServerTime = getCurrentServerTime();
+    const elapsedSeconds = Math.floor((currentServerTime - sessionStartTime) / 1000);
+    const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
     
-    if (!earliestSession || !earliestSession.createdAt) {
-      return initialTime;
-    }
+    console.log(`Time calculation: Start=${sessionStartTime}, Current=${currentServerTime}, Elapsed=${elapsedSeconds}s, Remaining=${calculatedRemainingTime}s`);
     
-    try {
-      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-      // CHANGED: Use server time instead of client time
-      const currentServerTime = getCurrentServerTime();
-      const elapsedSeconds = Math.floor((currentServerTime - sessionStartTime) / 1000);
-      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
-      
-      return calculatedRemainingTime;
-    } catch (error) {
-      console.error('Error calculating remaining time:', error);
-      return initialTime;
-    }
-  };
+    return calculatedRemainingTime;
+  } catch (error) {
+    console.error('Error calculating remaining time:', error);
+    return initialTime;
+  }
+};
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
     // Calculate remaining time baseddddddd on session data
