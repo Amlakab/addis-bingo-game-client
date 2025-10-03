@@ -236,34 +236,26 @@ const PlayerLobby = ({
     session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
   );
   
-  if (activeSessions.length === 0) {
-    // No active sessions, use the initial time from props
-    return initialTime;
-  }
+  let startTime: number;
   
-  // Find the earliest createdAt time among active sessions
-  const earliestSession = activeSessions.sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  )[0];
-  
-  if (!earliestSession || !earliestSession.createdAt) {
-    return initialTime;
+  if (activeSessions.length > 0) {
+    // If there are active sessions, use the earliest session's createdAt
+    const earliestSession = activeSessions.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )[0];
+    startTime = new Date(earliestSession.createdAt).getTime();
+  } else {
+    // If no active sessions, use the createdAt prop as the start time
+    startTime = new Date(createdAt).getTime();
   }
   
   try {
-    const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-    
-    // FIX: Use the SAME time source for comparison
-    // If we're using server time for new sessions, we need to ensure we're comparing
-    // the session start time with the current time in the same time context
-    
-    // Since earliestSession.createdAt is stored in database time (which should be server time),
-    // and we're using server time for new sessions, we should compare with current server time
+    // Always use server time for current time calculation
     const currentServerTime = getCurrentServerTime();
-    const elapsedSeconds = Math.floor((currentServerTime - sessionStartTime) / 1000);
+    const elapsedSeconds = Math.floor((currentServerTime - startTime) / 1000);
     const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
     
-    console.log(`Time calculation: Start=${sessionStartTime}, Current=${currentServerTime}, Elapsed=${elapsedSeconds}s, Remaining=${calculatedRemainingTime}s`);
+    console.log(`Time calculation: Start=${startTime}, Current=${currentServerTime}, Elapsed=${elapsedSeconds}s, Remaining=${calculatedRemainingTime}s`);
     
     return calculatedRemainingTime;
   } catch (error) {
