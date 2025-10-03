@@ -70,8 +70,42 @@ const BetSelectionPage = ({
   const [isLoadingGames, setIsLoadingGames] = useState<boolean>(true);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
+  
+  // NEW: Server time states
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
+  const [isTimeSynced, setIsTimeSynced] = useState(false);
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // NEW: Server time functions
+  const syncServerTime = async () => {
+    if (!webSocketService) return;
+    
+    try {
+      const clientSendTime = Date.now();
+      
+      webSocketService.send('get-server-time', {}, (response: any) => {
+        const clientReceiveTime = Date.now();
+        const roundTripTime = clientReceiveTime - clientSendTime;
+        
+        if (response && response.serverTime) {
+          const estimatedServerTime = response.serverTime + (roundTripTime / 2);
+          const offset = estimatedServerTime - clientReceiveTime;
+          
+          setServerTimeOffset(offset);
+          setIsTimeSynced(true);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to sync time with server:', error);
+      setIsTimeSynced(false);
+    }
+  };
+
+  const getCurrentServerTime = (): number => {
+    return Date.now() + serverTimeOffset;
+  };
 
   // Animation variants for cards
   const cardVariants: Variants = {
@@ -157,6 +191,19 @@ const BetSelectionPage = ({
     loadWebSocketService();
   }, []);
 
+  // NEW: Time sync effect
+  useEffect(() => {
+    if (isClient && webSocketService) {
+      syncServerTime();
+      
+      const timeSyncInterval = setInterval(syncServerTime, 30000);
+      
+      return () => {
+        clearInterval(timeSyncInterval);
+      };
+    }
+  }, [isClient, webSocketService]);
+
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
@@ -210,7 +257,7 @@ const BetSelectionPage = ({
                   ...currentStatus, 
                   timer: 45, 
                   status: 'active',
-                  createdAt: new Date() // Set the creation time when active starts
+                  createdAt: new Date(getCurrentServerTime()) // Use server time
                 } 
               };
             }
@@ -313,8 +360,9 @@ const BetSelectionPage = ({
               
               if (earliestSession) {
                 const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-                const currentTimeUTC = new Date().getTime();
-                const elapsedSeconds = Math.floor((currentTimeUTC - sessionStartTime) / 1000);
+                // CHANGED: Use server time instead of client time
+                const currentServerTime = getCurrentServerTime();
+                const elapsedSeconds = Math.floor((currentServerTime - sessionStartTime) / 1000);
                 
                 if (earliestSession.status === 'ready') {
                   // Ready phase: 5 seconds countdown
@@ -821,43 +869,6 @@ const BetSelectionPage = ({
             }
           </Typography>
         </motion.div>
-
-        {/* Test Game Section */}
-        {/* <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.5 }}
-        >
-          <Box 
-            sx={{ 
-              mt: 4, 
-              display: "flex", 
-              flexDirection: { xs: "column", sm: "row" }, 
-              alignItems: "center", 
-              gap: 2,
-              background: "#fff",
-              p: 2,
-              borderRadius: 2,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-            }}
-          >
-            <input
-              type="number"
-              placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
-              value={testBetAmount}
-              onChange={(e) => setTestBetAmount(e.target.value)}
-              className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleTest}
-              sx={{ textTransform: "none", px: 4, py: 1 }}
-            >
-              {language === "am" ? "ፈትሽ" : "Test"}
-            </Button>
-          </Box>
-        </motion.div> */}
       </Box>
     </motion.div>
   );
