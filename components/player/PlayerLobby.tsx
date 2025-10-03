@@ -265,7 +265,7 @@ const PlayerLobby = ({
   };
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Calculate remaining time based on session data
+    // Calculate remaining time baseddddddd on session data
     const calculatedRemainingTime = calculateRemainingTime(sessions);
     setRemainingTime(calculatedRemainingTime);
     
