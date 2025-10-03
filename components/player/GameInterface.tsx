@@ -101,6 +101,10 @@ const GameInterface = ({
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
+  // NEW: Server time states
+  const [serverTimeOffset, setServerTimeOffset] = useState(0);
+  const [isTimeSynced, setIsTimeSynced] = useState(false);
+  
   // Game control state
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
@@ -119,68 +123,88 @@ const GameInterface = ({
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Function to play local Amharic audio files
-// Function to play local Amharic audio files
-// Function to play local Amharic audio files
-const playAmharicNumberAudio = (number: string) => {
-  if (!soundOn) return;
-  
-  try {
-    const [letter, num] = number.split('-');
-    // Remove the dash to match file names like B1, I16, N31, etc.
-    const audioFileName = `${letter}${num}`;
-    // Path is relative to public folder from app perspective
-    const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
+  // NEW: Server time functions
+  const syncServerTime = async () => {
+    if (!webSocketService) return;
     
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    try {
+      const clientSendTime = Date.now();
+      
+      webSocketService.send('get-server-time', {}, (response: any) => {
+        const clientReceiveTime = Date.now();
+        const roundTripTime = clientReceiveTime - clientSendTime;
+        
+        if (response && response.serverTime) {
+          const estimatedServerTime = response.serverTime + (roundTripTime / 2);
+          const offset = estimatedServerTime - clientReceiveTime;
+          
+          setServerTimeOffset(offset);
+          setIsTimeSynced(true);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to sync time with server:', error);
+      setIsTimeSynced(false);
     }
+  };
+
+  const getCurrentServerTime = (): number => {
+    return Date.now() + serverTimeOffset;
+  };
+
+  // Function to play local Amharic audio files
+  const playAmharicNumberAudio = (number: string) => {
+    if (!soundOn) return;
     
-    // Create new audio element
-    audioRef.current = new Audio(audioPath);
-    audioRef.current.play().catch(error => {
-      console.warn('Audio play failed, falling back to TTS:', error);
-      // Fallback to TTS if local audio fails
+    try {
+      const [letter, num] = number.split('-');
+      const audioFileName = `${letter}${num}`;
+      const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      
+      audioRef.current = new Audio(audioPath);
+      audioRef.current.play().catch(error => {
+        console.warn('Audio play failed, falling back to TTS:', error);
+        if (voiceService) {
+          const langCode = 'am-ET';
+          voiceService.speak(number, langCode, 1);
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error playing Amharic audio:', error);
       if (voiceService) {
         const langCode = 'am-ET';
         voiceService.speak(number, langCode, 1);
       }
-    });
-    
-  } catch (error) {
-    console.error('Error playing Amharic audio:', error);
-    // Fallback to TTS
-    if (voiceService) {
-      const langCode = 'am-ET';
-      voiceService.speak(number, langCode, 1);
     }
-  }
-};
+  };
 
-// Function to play game sound effects in Amharic
-const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
-  if (!soundOn) return;
-  
-  try {
-    // Path is relative to public folder from app perspective
-    const audioPath = `/Audio/game/${soundType}.mp3`;
+  // Function to play game sound effects in Amharic
+  const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
+    if (!soundOn) return;
     
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    try {
+      const audioPath = `/Audio/game/${soundType}.mp3`;
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      
+      audioRef.current = new Audio(audioPath);
+      audioRef.current.play().catch(error => {
+        console.warn('Game audio play failed:', error);
+      });
+      
+    } catch (error) {
+      console.error('Error playing game audio:', error);
     }
-    
-    audioRef.current = new Audio(audioPath);
-    audioRef.current.play().catch(error => {
-      console.warn('Game audio play failed:', error);
-    });
-    
-  } catch (error) {
-    console.error('Error playing game audio:', error);
-  }
-};
+  };
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -210,6 +234,19 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     
     loadBrowserModules();
   }, []);
+
+  // NEW: Time sync effect
+  useEffect(() => {
+    if (isClient && webSocketService) {
+      syncServerTime();
+      
+      const timeSyncInterval = setInterval(syncServerTime, 30000);
+      
+      return () => {
+        clearInterval(timeSyncInterval);
+      };
+    }
+  }, [isClient, webSocketService]);
 
   // Add CSS animation styles
   useEffect(() => {
@@ -441,7 +478,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
         (session) => session.status !== "active"
       ).length;
 
-      setNumberOfPlayers(activePlayers);
+      setNumberOfPlayers(activePlayers); 
       
       const pool = activePlayers * bet * 0.8;
       setPrizePool(pool);
@@ -456,8 +493,9 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
         
         setSessionCreatedAt(earliestSession);
         
-        const currentDate = new Date();
-        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
+        // CHANGED: Use server time instead of client time
+        const currentServerTime = getCurrentServerTime();
+        const timeDifference = Math.floor((currentServerTime - earliestSession.getTime()) / 1000);
         
         const remainingTime = Math.max(0, 50 - timeDifference);
         setCountdown(remainingTime);
