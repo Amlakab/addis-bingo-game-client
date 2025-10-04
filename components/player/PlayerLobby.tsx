@@ -190,17 +190,19 @@ const PlayerLobby = ({
 
 
   // Add this function to get server time
+// Add this function to get server time
 const getServerTime = async (): Promise<number> => {
   try {
-    const response = await api.get('/game/current-time');
-    const timeData = await response.json();
+    // If you are using axios
+    const response = await api.get('/game/current-time'); 
+    // Axios stores the response data in the 'data' property
+    const timeData = response.data; 
     return timeData.serverTime || Date.now();
   } catch (error) {
     console.error('Error fetching server time, using client time as fallback:', error);
     return Date.now(); // Fallback to client time if server fails
   }
 };
-
   const calculateRemainingTime = async (sessions: GameSession[]) => {
   // Filter sessions for current bet amount and active status
   const activeSessions = sessions.filter(
