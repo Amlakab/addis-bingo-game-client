@@ -278,7 +278,7 @@ const getServerTime = async (): Promise<number> => {
     
   
   if (userPlayingSessions.length > 0) {
-    // User has sessions with playing status, clear selections and go back
+    // User has sessions with playing statusss, clear selections and go back
     handleCancelSelectionsAndGoBack();
   }
 };
