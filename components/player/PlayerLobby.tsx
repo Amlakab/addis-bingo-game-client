@@ -75,7 +75,7 @@ const PlayerLobby = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   // Add this state and function to your component
 // Add this function to fetch server time directly
-const fetchServerTime = async (): Promise<number> => {
+const fetchServerTime =  (): Promise<number> => {
   if (!webSocketService) {
     throw new Error('WebSocket service not available');
   }
@@ -202,7 +202,7 @@ const fetchServerTime = async (): Promise<number> => {
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  const calculateRemainingTime = async (sessions: GameSession[]) => {
+  const calculateRemainingTime =  (sessions: GameSession[]) => {
     // Filter sessions for current bet amount and active status
     const activeSessions = sessions.filter(
       session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
@@ -224,7 +224,7 @@ const fetchServerTime = async (): Promise<number> => {
     
     try {
       const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-      const currentTime = await fetchServerTime();
+      const currentTime =  fetchServerTime();
       const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
       const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
       
@@ -411,7 +411,7 @@ const fetchServerTime = async (): Promise<number> => {
 
         // Update local stateee optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-        const currentServerTime = await fetchServerTime();
+        const currentServerTime =  fetchServerTime();
         // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
