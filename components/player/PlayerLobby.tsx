@@ -63,11 +63,6 @@ const PlayerLobby = ({
   const [playerCount, setPlayerCount] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
-  
-  // Server time states
-  const [serverTimeOffset, setServerTimeOffset] = useState(0);
-  const [isTimeSynced, setIsTimeSynced] = useState(false);
-  
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
@@ -78,57 +73,27 @@ const PlayerLobby = ({
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // Add this state and function to your component
+const [serverTime, setServerTime] = useState<number | null>(null);
 
-  // Server time synchronization function
-  const syncServerTime = async () => {
-    if (!webSocketService) return;
-    
-    try {
-      const clientSendTime = Date.now();
-      
-      webSocketService.send('get-server-time', {}, (response: any) => {
-        const clientReceiveTime = Date.now();
-        const roundTripTime = clientReceiveTime - clientSendTime;
-        
-        if (response && response.serverTime) {
-          const estimatedServerTime = response.serverTime + (roundTripTime / 2);
-          const offset = estimatedServerTime - clientReceiveTime;
-          
-          setServerTimeOffset(offset);
-          setIsTimeSynced(true);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to sync time with server:', error);
-      setIsTimeSynced(false);
-    }
-  };
-
-  const getCurrentServerTime = (): number => {
-    return Date.now() + serverTimeOffset;
-  };
-
-  // NEW: Fetch remaining time from server
-  const fetchRemainingTimeFromServer = async (): Promise<number> => {
-    if (!webSocketService) return initialTime;
-    
-    return new Promise((resolve) => {
-      webSocketService.send('get-remaining-time', 
-        { 
-          betAmount,
-          createdAt: new Date(createdAt).toISOString()
-        }, 
-        (response: any) => {
-          if (response?.error) {
-            console.error('Server time calculation error:', response.error);
-            resolve(initialTime);
-            return;
-          }
-          resolve(response.remainingTime);
-        }
-      );
+// Function to fetch server time directly
+const fetchServerTime = useCallback(async (): Promise<number> => {
+  if (!webSocketService) return Date.now();
+  
+  return new Promise((resolve) => {
+    webSocketService.send('get-server-time', {}, (response) => {
+      if (response && response.serverTime) {
+        setServerTime(response.serverTime);
+        resolve(response.serverTime);
+      } else {
+        // Fallback to current time if server time fails
+        const fallbackTime = Date.now();
+        setServerTime(fallbackTime);
+        resolve(fallbackTime);
+      }
     });
-  };
+  });
+}, [webSocketService]);
 
   // Calculate responsive button size based on screen width
   useEffect(() => {
@@ -165,20 +130,6 @@ const PlayerLobby = ({
     loadWebSocketService();
   }, []);
 
-  // Time sync effect
-  useEffect(() => {
-    if (isClient && webSocketService) {
-      syncServerTime();
-      
-      const timeSyncInterval = setInterval(syncServerTime, 30000);
-      
-      return () => {
-        clearInterval(timeSyncInterval);
-      };
-    }
-  }, [isClient, webSocketService]);
-
-  // WebSocket setup and initial data
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
@@ -200,18 +151,6 @@ const PlayerLobby = ({
       webSocketService.off('wallet-updated', handleWalletUpdate);
     };
   }, [isClient, webSocketService, user, betAmount]);
-
-  // NEW: Periodic time updates from server
-  useEffect(() => {
-    if (!isClient || !webSocketService) return;
-
-    const interval = setInterval(async () => {
-      const updatedTime = await fetchRemainingTimeFromServer();
-      setRemainingTime(updatedTime);
-    }, 2000); // Update every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [isClient, webSocketService, betAmount]);
 
   // Check for playing status sessions and handle timer expiration
   useEffect(() => {
@@ -264,10 +203,42 @@ const PlayerLobby = ({
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  // UPDATED: Use server-side time calculation
-  const handleSessionsUpdate = async (sessions: GameSession[]) => {
-    // Get remaining time from server
-    const calculatedRemainingTime = await fetchRemainingTimeFromServer();
+  const calculateRemainingTime = (sessions: GameSession[]) => {
+    // Filter sessions for current bet amount and active status
+    const activeSessions = sessions.filter(
+      session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
+    );
+    
+    if (activeSessions.length === 0) {
+      // No active sessions, use the initial time from props
+      return initialTime;
+    }
+    
+    // Find the earliest createdAt time among active sessions
+    const earliestSession = activeSessions.sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    )[0];
+    
+    if (!earliestSession || !earliestSession.createdAt) {
+      return initialTime;
+    }
+    
+    try {
+      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+      const currentTime = await fetchServerTime();
+      const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
+      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
+      
+      return calculatedRemainingTime;
+    } catch (error) {
+      console.error('Error calculating remaining time:', error);
+      return initialTime;
+    }
+  };
+
+  const handleSessionsUpdate = (sessions: GameSession[]) => {
+    // Calculate remaining time based on session data
+    const calculatedRemainingTime = calculateRemainingTime(sessions);
     setRemainingTime(calculatedRemainingTime);
     
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
@@ -307,7 +278,6 @@ const PlayerLobby = ({
     }
   };
 
-  // FIXED: handleSessionCreated - removed the incorrect player count increment
   const handleSessionCreated = (session: GameSession) => {
     if (session.betAmount === betAmount) {
       setOccupiedCards(prev => [...prev, session.cardNumber]);
@@ -317,8 +287,8 @@ const PlayerLobby = ({
         [session.cardNumber]: session.userId._id
       }));
       
-      // REMOVED: setPlayerCount(prev => prev + 1); - This was causing incorrect count
-      // REMOVED: setPrizePool(prev => prev + betAmount * 0.8); - This was causing incorrect pool
+      setPlayerCount(prev => prev + 1);
+      setPrizePool(prev => prev + betAmount * 0.8);
       
       if (user && session.userId._id === user._id) {
         setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
@@ -330,7 +300,6 @@ const PlayerLobby = ({
     setWallet(newWallet);
   };
 
-  // Rest of your functions remain exactly the same...
   // New function to handle canceling selections and going back
   const handleCancelSelectionsAndGoBack = async () => {
     if (!isClient || !webSocketService || !user) return;
@@ -443,13 +412,13 @@ const PlayerLobby = ({
 
         // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-
-        // CHANGED: Use server time instead of client time
+        const currentServerTime = await fetchServerTime();
+        // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date(getCurrentServerTime()).toISOString()
+          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date(currentServerTime).toISOString()
         });
       }
       
@@ -645,7 +614,7 @@ const PlayerLobby = ({
                   lineHeight: 1.2,
                 }}
               >
-                {language === "am" ? "ተጫዋች" : "Players"}
+                {language === "am" ? "ተጫዋቾች" : "Players"}
               </Typography>
               <Typography
                 variant="h6"
