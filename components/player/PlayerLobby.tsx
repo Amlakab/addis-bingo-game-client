@@ -77,14 +77,17 @@ const PlayerLobby = ({
 const [serverTime, setServerTime] = useState<number | null>(null);
 
 // Function to fetch server time directly
+// Update your fetchServerTime function to always return a numeric timestamp
 const fetchServerTime = useCallback(async (): Promise<number> => {
   if (!webSocketService) return Date.now();
   
   return new Promise((resolve) => {
     webSocketService.send('get-server-time', {}, (response) => {
       if (response && response.serverTime) {
-        setServerTime(response.serverTime);
-        resolve(response.serverTime);
+        // Ensure we get a numeric timestamp
+        const serverTime = Number(response.serverTime);
+        setServerTime(serverTime);
+        resolve(serverTime);
       } else {
         // Fallback to current time if server time fails
         const fallbackTime = Date.now();
