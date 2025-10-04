@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { 
   Button, Box, Typography, Card, CardContent, 
   useTheme, useMediaQuery, Alert, Snackbar, TextField,
-  CircularProgress
+  IconButton, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 
@@ -64,7 +64,7 @@ const PlayerLobby = ({
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   
-  // Server time sync
+  // Server time synchronization states
   const [serverTimeOffset, setServerTimeOffset] = useState(0);
   const [isTimeSynced, setIsTimeSynced] = useState(false);
   
@@ -72,110 +72,79 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
-  // Prevent duplicate operations
   const [pendingOperations, setPendingOperations] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // 🔁 CALLBACKS: Define BEFORE use in useEffect
-  const handleCancelSelectionsAndGoBack = useCallback(async () => {
-    if (!isClient || !webSocketService || !user) return;
+  // Server time synchronization function
+  const syncServerTime = async (): Promise<boolean> => {
+    if (!webSocketService) return false;
     
-    setIsLoading(true);
-    try {
-      setSelectedPlayers([]);
-      webSocketService.send('clear-selected', { betAmount, userId: user._id });
-      
-      const msg = language === 'am' 
-        ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
-        : 'Your selected cards have been cleared. Returning to bet selection.';
-      setToastMessage(msg);
-      setShowToast(true);
-      
-      setTimeout(() => {
-        if (onBackToLobby) onBackToLobby();
-      }, 2000);
-    } catch (error: any) {
-      console.error('Error canceling selections:', error);
-      const errorMsg = error.response?.data?.error || "Error canceling selections";
-      setErrorMessage(errorMsg);
-      setWalletError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isClient, webSocketService, user, betAmount, language, onBackToLobby]);
-
-  const handleDirectToGame = useCallback(async () => {
-    if (!isClient || !webSocketService || !user || selectedPlayers.length === 0 || !onDirectToGame) return;
-
-    try {
-      webSocketService.send('fund-wallet', { betAmount, userId: user._id });
-      webSocketService.send('update-session-status-by-user-bet', {
-        userId: user._id,
-        betAmount,
-        status: 'ready'
-      });
-      onDirectToGame(selectedPlayers, betAmount);
-    } catch (error) {
-      console.error('Error in handleDirectToGame:', error);
-      setToastMessage(language === 'am' 
-        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
-        : 'Error occurred while processing game entry'
-      );
-      setShowToast(true);
-    }
-  }, [isClient, webSocketService, user, selectedPlayers, betAmount, onDirectToGame, language]);
-
-  const handleCancelSelections = useCallback(async () => {
-    if (!isClient || !webSocketService || !user || selectedPlayers.length === 0) return;
-    
-    setIsLoading(true);
-    try {
-      webSocketService.send('clear-selected', { betAmount, userId: user._id });
-      setSelectedPlayers([]);
-    } catch (error: any) {
-      console.error('Error canceling selections:', error);
-      const errorMsg = error.response?.data?.error || "Error canceling selections";
-      setErrorMessage(errorMsg);
-      setWalletError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isClient, webSocketService, user, selectedPlayers.length, betAmount]);
-
-  // Sync server time
-  const syncServerTime = useCallback(async () => {
-    if (!webSocketService) return;
-    
-    try {
-      const clientSendTime = Date.now();
-      webSocketService.send('get-server-time', {}, (response: any) => {
-        const clientReceiveTime = Date.now();
-        const roundTripTime = clientReceiveTime - clientSendTime;
+    return new Promise((resolve) => {
+      try {
+        const clientSendTime = Date.now();
         
-        if (response && response.serverTime) {
-          const estimatedServerTime = response.serverTime + (roundTripTime / 2);
-          const offset = estimatedServerTime - clientReceiveTime;
-          setServerTimeOffset(offset);
-          setIsTimeSynced(true);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to sync time with server:', error);
-      setIsTimeSynced(false);
-    }
-  }, [webSocketService]);
+        webSocketService.send('get-server-time', {}, (response: any) => {
+          if (response?.error) {
+            console.error('Failed to sync server time:', response.error);
+            resolve(false);
+            return;
+          }
 
-  const getCurrentServerTime = useCallback((): number => {
+          const clientReceiveTime = Date.now();
+          const roundTripTime = clientReceiveTime - clientSendTime;
+          
+          if (response && response.serverTime) {
+            const estimatedServerTime = response.serverTime + (roundTripTime / 2);
+            const offset = estimatedServerTime - clientReceiveTime;
+            
+            setServerTimeOffset(offset);
+            setIsTimeSynced(true);
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        });
+      } catch (error) {
+        console.error('Error syncing server time:', error);
+        resolve(false);
+      }
+    });
+  };
+
+  const getCurrentServerTime = (): number => {
     return Date.now() + serverTimeOffset;
-  }, [serverTimeOffset]);
+  };
 
-  // Responsive button size
+  // Fetch remaining time from server
+  const fetchRemainingTimeFromServer = async (): Promise<number> => {
+    if (!webSocketService) return initialTime;
+    
+    return new Promise((resolve) => {
+      webSocketService.send('get-remaining-time', 
+        { 
+          betAmount,
+          createdAt: new Date(createdAt).toISOString()
+        }, 
+        (response: any) => {
+          if (response?.error) {
+            console.error('Server time calculation error:', response.error);
+            resolve(initialTime);
+            return;
+          }
+          resolve(response.remainingTime);
+        }
+      );
+    });
+  };
+
+  // Calculate responsive button size
   useEffect(() => {
     const calculateButtonSize = () => {
       if (!gridContainerRef.current) return;
+      
       const containerWidth = gridContainerRef.current.offsetWidth;
       const calculatedSize = Math.max(30, Math.min(50, (containerWidth - 18) / 10));
       setButtonSize(calculatedSize);
@@ -183,12 +152,16 @@ const PlayerLobby = ({
     
     calculateButtonSize();
     window.addEventListener('resize', calculateButtonSize);
-    return () => window.removeEventListener('resize', calculateButtonSize);
+    
+    return () => {
+      window.removeEventListener('resize', calculateButtonSize);
+    };
   }, []);
 
-  // Load WebSocket
+  // Set client-side flag and load WebSocket service
   useEffect(() => {
     setIsClient(true);
+    
     const loadWebSocketService = async () => {
       try {
         const wsModule = await import('@/app/utils/websocket');
@@ -197,79 +170,36 @@ const PlayerLobby = ({
         console.error('Failed to load WebSocket service:', error);
       }
     };
+    
     loadWebSocketService();
   }, []);
 
-  // Sync server time periodically
+  // Time synchronization effect
   useEffect(() => {
-    if (isClient && webSocketService) {
-      syncServerTime();
-      const interval = setInterval(syncServerTime, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isClient, webSocketService, syncServerTime]);
+    if (!isClient || !webSocketService) return;
 
-  // WebSocket listeners
+    const initializeTimeSync = async () => {
+      await syncServerTime();
+    };
+
+    initializeTimeSync();
+    
+    // Sync time every 30 seconds
+    const timeSyncInterval = setInterval(syncServerTime, 30000);
+    
+    return () => {
+      clearInterval(timeSyncInterval);
+    };
+  }, [isClient, webSocketService]);
+
+  // WebSocket listeners setup
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
-    if (user) setWallet(user.wallet || 0);
+    if (user) {
+      setWallet(user.wallet || 0);
+    }
     
-    const handleSessionsUpdate = (sessions: GameSession[]) => {
-      const betSessions = sessions.filter(session => session.betAmount === betAmount);
-      const occupied = betSessions.map(session => session.cardNumber);
-      setOccupiedCards(occupied);
-      
-      const cardUserMap: {[key: number]: string} = {};
-      betSessions.forEach(session => {
-        cardUserMap[session.cardNumber] = session.userId._id;
-      });
-      setOccupiedCardsByUser(cardUserMap);
-      
-      if (user) {
-        const userSelectedCards = betSessions
-          .filter(session => session.userId._id === user._id)
-          .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
-        setSelectedPlayers(userSelectedCards);
-      }
-      
-      const activePlayers = betSessions.filter(
-        (session) => session.status === "active" || session.status === "ready"
-      ).length;
-
-      const pool = activePlayers * betAmount * 0.8;
-      setPrizePool(pool);
-      setPlayerCount(activePlayers);
-      
-      const userPlayingSessions = betSessions.filter(
-        session => session.userId._id === user?._id && session.status === 'playing'
-      );
-      
-      if (userPlayingSessions.length > 0) {
-        handleCancelSelectionsAndGoBack();
-      }
-    };
-
-    const handleSessionCreated = (session: GameSession) => {
-      if (session.betAmount === betAmount) {
-        setOccupiedCards(prev => [...prev, session.cardNumber]);
-        setOccupiedCardsByUser(prev => ({
-          ...prev,
-          [session.cardNumber]: session.userId._id
-        }));
-        setPlayerCount(prev => prev + 1);
-        setPrizePool(prev => prev + betAmount * 0.8);
-        
-        if (user && session.userId._id === user._id) {
-          setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
-        }
-      }
-    };
-
-    const handleWalletUpdate = (newWallet: number) => {
-      setWallet(newWallet);
-    };
-
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
@@ -281,79 +211,52 @@ const PlayerLobby = ({
       webSocketService.off('session-created', handleSessionCreated);
       webSocketService.off('wallet-updated', handleWalletUpdate);
     };
-  }, [isClient, webSocketService, user, betAmount, handleCancelSelectionsAndGoBack]);
+  }, [isClient, webSocketService, user, betAmount]);
 
-  // 🔥 Unified countdown logic (MUST come AFTER handleDirectToGame & handleCancelSelectionsAndGoBack)
+  // Periodic time updates
   useEffect(() => {
-    if (!isClient || !isTimeSynced || !webSocketService) return;
+    if (!isClient || !webSocketService) return;
 
-    let countdownInterval: NodeJS.Timeout | null = null;
+    const interval = setInterval(async () => {
+      const updatedTime = await fetchRemainingTimeFromServer();
+      setRemainingTime(updatedTime);
+    }, 2000);
 
-    const cleanup = () => {
-      if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
-      }
-    };
+    return () => clearInterval(interval);
+  }, [isClient, webSocketService, betAmount]);
 
-    const startLocalCountdown = () => {
-      const startTime = new Date(createdAt).getTime();
-      const now = getCurrentServerTime();
-      const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, 45 - elapsed);
-      
-      setRemainingTime(remaining);
-
-      countdownInterval = setInterval(() => {
-        setRemainingTime(prev => {
-          if (prev <= 0) {
-            cleanup();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    };
-
-    const fetchAndStartServerCountdown = () => {
-      webSocketService.send('get-remaining-time', { betAmount }, (response: any) => {
-        if (response?.remainingTime !== undefined) {
-          const rt = Math.max(0, response.remainingTime);
-          setRemainingTime(rt);
-
-          countdownInterval = setInterval(() => {
-            setRemainingTime(prev => {
-              if (prev <= 0) {
-                cleanup();
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
-        } else {
-          startLocalCountdown();
+  // Timer countdown and game logic
+  useEffect(() => {
+    if (!isClient) return;
+    
+    const checkPlayingStatus = () => {
+      if (Object.keys(occupiedCardsByUser).length > 0) {
+        const userSessions = Object.entries(occupiedCardsByUser)
+          .filter(([_, userId]) => userId === user?._id)
+          .map(([cardNumber]) => parseInt(cardNumber));
+        
+        if (userSessions.length > 0) {
+          webSocketService.send('get-sessions', { betAmount }, (sessions: GameSession[]) => {
+            const userPlayingSessions = sessions.filter(
+              session => session.userId._id === user?._id && session.status === 'playing'
+            );
+            
+            if (userPlayingSessions.length > 0) {
+              handleCancelSelectionsAndGoBack();
+            }
+          });
         }
-      });
-    };
-
-    webSocketService.send('get-sessions', { betAmount }, (sessions: GameSession[]) => {
-      const activeSessions = sessions.filter(
-        s => s.betAmount === betAmount && (s.status === 'active' || s.status === 'ready')
-      );
-
-      if (activeSessions.length > 0) {
-        fetchAndStartServerCountdown();
-      } else {
-        startLocalCountdown();
       }
-    });
-
-    return cleanup;
-  }, [isClient, isTimeSynced, webSocketService, betAmount, createdAt, getCurrentServerTime]);
-
-  // Handle game start when time runs out
-  useEffect(() => {
-    if (remainingTime === 0) {
+    };
+    
+    checkPlayingStatus();
+    
+    if (remainingTime > 0) {
+      const timer = setInterval(() => {
+        setRemainingTime(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timer);
+    } else {
       if (playerCount < 3) {
         if (selectedPlayers.length > 0) {
           handleCancelSelectionsAndGoBack();
@@ -364,12 +267,113 @@ const PlayerLobby = ({
         handleDirectToGame();
       }
     }
-  }, [remainingTime, playerCount, selectedPlayers.length, onBackToLobby, handleCancelSelectionsAndGoBack, handleDirectToGame]);
+  }, [isClient, remainingTime, selectedPlayers, betAmount, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  // Toggle player selection
-  const togglePlayer = useCallback(async (id: number) => {
-    if (isProcessing || pendingOperations.has(id)) return;
+  // Updated sessions handler with server timing
+  const handleSessionsUpdate = async (sessions: GameSession[]) => {
+    const calculatedRemainingTime = await fetchRemainingTimeFromServer();
+    setRemainingTime(calculatedRemainingTime);
+    
+    const betSessions = sessions.filter(session => session.betAmount === betAmount);
+    const occupied = betSessions.map(session => session.cardNumber);
+    setOccupiedCards(occupied);
+
+    const cardUserMap: {[key: number]: string} = {};
+    betSessions.forEach(session => {
+      cardUserMap[session.cardNumber] = session.userId._id;
+    });
+    setOccupiedCardsByUser(cardUserMap);
+
+    if (user) {
+      const userSelectedCards = betSessions
+        .filter(session => session.userId._id === user._id)
+        .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
+      
+      setSelectedPlayers(userSelectedCards);
+    }
+
+    const activePlayers = betSessions.filter(
+      (session) => session.status === "active" || session.status === "ready"
+    ).length;
+
+    const pool = activePlayers * betAmount * 0.8;
+    setPrizePool(pool);
+    setPlayerCount(activePlayers);
+    
+    const userPlayingSessions = betSessions.filter(
+      session => session.userId._id === user?._id && session.status === 'playing'
+    );
+    
+    if (userPlayingSessions.length > 0) {
+      handleCancelSelectionsAndGoBack();
+    }
+  };
+
+  const handleSessionCreated = (session: GameSession) => {
+    if (session.betAmount === betAmount) {
+      setOccupiedCards(prev => [...prev, session.cardNumber]);
+      
+      setOccupiedCardsByUser(prev => ({
+        ...prev,
+        [session.cardNumber]: session.userId._id
+      }));
+      
+      setPlayerCount(prev => prev + 1);
+      setPrizePool(prev => prev + betAmount * 0.8);
+      
+      if (user && session.userId._id === user._id) {
+        setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
+      }
+    }
+  };
+
+  const handleWalletUpdate = (newWallet: number) => {
+    setWallet(newWallet);
+  };
+
+  const handleCancelSelectionsAndGoBack = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    setIsLoading(true);
+    try {
+      setSelectedPlayers([]);
+      
+      if (webSocketService) {
+        webSocketService.send('clear-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      }
+      
+      const msg = language === 'am' 
+        ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
+        : 'Your selected cards have been cleared. Returning to bet selection.';
+      setToastMessage(msg);
+      setShowToast(true);
+      
+      setTimeout(() => {
+        if (onBackToLobby) {
+          onBackToLobby();
+        }
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const togglePlayer = async (id: number) => {
+    if (isProcessing || pendingOperations.has(id)) {
+      return;
+    }
+
     if (!isClient || !webSocketService) return;
+    
     if (!user) {
       setErrorMessage(language === 'am' ? "እባክዎ በመጀመሪያ ይግቡ" : "Please login first!");
       setWalletError(true);
@@ -385,13 +389,22 @@ const PlayerLobby = ({
       return;
     }
 
+    if (pendingOperations.has(id)) {
+      return;
+    }
+
     setPendingOperations(prev => new Set(prev).add(id));
     setIsProcessing(true);
 
     try {
       if (isSelectedByUser) {
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
-        webSocketService.send('delete-session', { cardNumber: id, betAmount });
+        
+        webSocketService.send('delete-session', {
+          cardNumber: id,
+          betAmount,
+        });
+
       } else {
         if (selectedPlayers.length >= 2) {
           setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
@@ -413,6 +426,7 @@ const PlayerLobby = ({
         }
 
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
+
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
@@ -420,12 +434,14 @@ const PlayerLobby = ({
           createdAt: new Date(getCurrentServerTime()).toISOString()
         });
       }
+      
     } catch (error: any) {
       console.error('Error toggling card:', error);
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
       setWalletError(true);
+      
       if (!isSelectedByUser) {
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
       }
@@ -436,16 +452,73 @@ const PlayerLobby = ({
         return newSet;
       });
       setIsProcessing(false);
+      setIsLoading(false);
     }
-  }, [
-    isProcessing, pendingOperations, isClient, webSocketService, user, 
-    occupiedCardsByUser, occupiedCards, selectedPlayers.length, 
-    betAmount, wallet, language, getCurrentServerTime
-  ]);
+  };
+
+  const handleDirectToGame = async () => {
+    if (!isClient || !webSocketService || !user || selectedPlayers.length === 0 || !onDirectToGame) return;
+
+    try {
+      webSocketService.send('fund-wallet', {
+        betAmount: betAmount,
+        userId: user._id
+      });
+
+      webSocketService.send('update-session-status-by-user-bet', {
+        userId: user._id,
+        betAmount: betAmount,
+        status: 'ready'
+      });
+
+      onDirectToGame(selectedPlayers, betAmount);
+
+    } catch (error) {
+      console.error('Error in handleDirectToGame:', error);
+      setToastMessage(language === 'am' 
+        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
+        : 'Error occurred while processing game entry'
+      );
+      setShowToast(true);
+    }
+  };
+
+  const handleCancelSelections = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    if (selectedPlayers.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      if (webSocketService) {
+        webSocketService.send('clear-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      } else {
+        console.error('WebSocket service not available');
+      }
+      
+      setSelectedPlayers([]);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (!isClient) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '50vh' 
+      }}>
         <CircularProgress />
       </Box>
     );
@@ -457,7 +530,7 @@ const PlayerLobby = ({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Bet Amount and Stats Row */}
+      {/* Your existing JSX remains exactly the same */}
       <Box
         sx={{
           display: "flex",
@@ -506,7 +579,14 @@ const PlayerLobby = ({
           {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
         </Typography>
 
-        <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, flexDirection: "row", flexWrap: "nowrap" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: { xs: 1, sm: 2 },
+            flexDirection: "row",
+            flexWrap: "nowrap",
+          }}
+        >
           <Card
             sx={{
               minWidth: { xs: 50, sm: 90 },
@@ -519,11 +599,32 @@ const PlayerLobby = ({
               boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
             }}
           >
-            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 }, "&:last-child": { pb: { xs: 0.5, sm: 1 } } }}>
-              <Typography variant="body2" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white", lineHeight: 1.2 }}>
+            <CardContent
+              sx={{
+                textAlign: "center",
+                p: { xs: 0.5, sm: 1 },
+                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
                 {language === "am" ? "ተጫዋች" : "Players"}
               </Typography>
-              <Typography variant="h6" sx={{ fontSize: { xs: "0.8rem", sm: "1rem" }, fontWeight: "bold", color: "white", lineHeight: 1.2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
                 {playerCount}
               </Typography>
             </CardContent>
@@ -541,11 +642,32 @@ const PlayerLobby = ({
               boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
             }}
           >
-            <CardContent sx={{ textAlign: "center", p: { xs: 0.5, sm: 1 }, "&:last-child": { pb: { xs: 0.5, sm: 1 } } }}>
-              <Typography variant="body2" sx={{ fontSize: { xs: "0.6rem", sm: "0.75rem" }, color: "white", lineHeight: 1.2 }}>
+            <CardContent
+              sx={{
+                textAlign: "center",
+                p: { xs: 0.5, sm: 1 },
+                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
                 {language === "am" ? "ደራሽ" : "Derash"}
               </Typography>
-              <Typography variant="h6" sx={{ fontSize: { xs: "0.8rem", sm: "1rem" }, fontWeight: "bold", color: "white", lineHeight: 1.2 }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontSize: { xs: "0.8rem", sm: "1rem" },
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.2,
+                }}
+              >
                 {prizePool.toFixed(2)}
               </Typography>
             </CardContent>
@@ -553,7 +675,6 @@ const PlayerLobby = ({
         </Box>
       </Box>
 
-      {/* Main Game Lobby Content */}
       <Box sx={{ 
         p: { xs: 0.5, sm: 0.5 }, 
         textAlign: 'center',
@@ -613,26 +734,31 @@ const PlayerLobby = ({
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
                     opacity: isDisabled ? 0.7 : 1,
+
                     background: isSelectedByUser
                       ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
                       : isSelectedByOthers
                       ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
                       : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+
                     color: isSelectedByUser
                       ? 'white'
                       : isSelectedByOthers
                       ? '#d32f2f'
                       : 'text.primary',
+
                     border: isSelectedByUser
                       ? '2px solid #2E7D32'
                       : isSelectedByOthers
                       ? '2px solid #d32f2f'
                       : '1px solid #e0e0e0',
+
                     boxShadow: isSelectedByUser
                       ? '0 4px 8px rgba(76,175,80,0.3)'
                       : isSelectedByOthers
                       ? '0 2px 4px rgba(244,67,54,0.2)'
                       : '0 2px 4px rgba(33,150,243,0.2)',
+
                     '&:hover': !isDisabled ? {
                       background: isSelectedByUser
                         ? 'linear-gradient(145deg, #388E3C, #689F38)'
@@ -640,14 +766,17 @@ const PlayerLobby = ({
                     } : {},
                   }}
                 >
-                  {isPending ? <CircularProgress size={20} /> : id}
+                  {isPending ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    id
+                  )}
                 </Box>
               </motion.div>
             );
           })}
         </Box>
 
-        {/* Action Buttons */}
         <Box
           sx={{
             width: '100%',
@@ -660,10 +789,19 @@ const PlayerLobby = ({
         >
           <Button
             variant="contained"
-            color={playerCount > 2 ? 'success' : selectedPlayers.length === 0 ? 'primary' : 'warning'}
+            color={
+              playerCount > 2
+                ? 'success'
+                : selectedPlayers.length === 0
+                ? 'primary'
+                : 'warning'
+            }
             onClick={() => {
-              if (playerCount > 2) handleDirectToGame();
-              else if (selectedPlayers.length === 0 && onBackToLobby) onBackToLobby();
+              if (playerCount > 2) {
+                handleDirectToGame();
+              } else if (selectedPlayers.length === 0 && onBackToLobby) {
+                onBackToLobby();
+              }
             }}
             disabled={isProcessing}
             sx={{
@@ -676,10 +814,16 @@ const PlayerLobby = ({
             }}
           >
             {playerCount > 2
-              ? (language === 'am' ? 'ጨዋታ ጀምር' : 'Play')
+              ? language === 'am'
+                ? 'ጨዋታ ጀምር'
+                : 'Play'
               : selectedPlayers.length === 0
-              ? (language === 'am' ? 'ተመለስ' : 'Back')
-              : (language === 'am' ? 'ጠብቅ' : 'Wait')}
+              ? language === 'am'
+                ? 'ተመለስ'
+                : 'Back'
+              : language === 'am'
+              ? 'ጠብቅ'
+              : 'Wait'}
           </Button>
 
           <Button
@@ -701,14 +845,30 @@ const PlayerLobby = ({
           </Button>
         </Box>
 
-        <Snackbar open={walletError} autoHideDuration={6000} onClose={() => setWalletError(false)}>
-          <Alert severity="error" onClose={() => setWalletError(false)} sx={{ width: '100%' }}>
+        <Snackbar
+          open={walletError}
+          autoHideDuration={6000}
+          onClose={() => setWalletError(false)}
+        >
+          <Alert 
+            severity="error" 
+            onClose={() => setWalletError(false)}
+            sx={{ width: '100%' }}
+          >
             {errorMessage}
           </Alert>
         </Snackbar>
 
-        <Snackbar open={showToast} autoHideDuration={3000} onClose={() => setShowToast(false)}>
-          <Alert severity="info" onClose={() => setShowToast(false)} sx={{ width: '100%' }}>
+        <Snackbar
+          open={showToast}
+          autoHideDuration={3000}
+          onClose={() => setShowToast(false)}
+        >
+          <Alert 
+            severity="info" 
+            onClose={() => setShowToast(false)}
+            sx={{ width: '100%' }}
+          >
             {toastMessage}
           </Alert>
         </Snackbar>
