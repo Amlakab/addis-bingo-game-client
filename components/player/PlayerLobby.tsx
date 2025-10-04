@@ -414,17 +414,16 @@ const getServerTime = async (): Promise<number> => {
           setWalletError(true);
           return;
         }
-
         
-        const serverTime = await getServerTime();
-        const serverTimeISO = new Date(serverTime).toISOString();
+        // const serverTime = await getServerTime();
+        // const serverTimeISO = new Date(serverTime).toISOString();
 
         // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: createdAt ? new Date(createdAt).toISOString() : serverTimeISO
+          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date(await getServerTime()).toISOString();
         });
 
         // Update local state optimistically
