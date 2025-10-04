@@ -202,7 +202,7 @@ const fetchServerTime = async (): Promise<number> => {
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
-  const calculateRemainingTime = (sessions: GameSession[]) => {
+  const calculateRemainingTime = async (sessions: GameSession[]) => {
     // Filter sessions for current bet amount and active status
     const activeSessions = sessions.filter(
       session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
