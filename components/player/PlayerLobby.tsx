@@ -74,29 +74,31 @@ const PlayerLobby = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   // Add this state and function to your component
-const [serverTime, setServerTime] = useState<number | null>(null);
+const fetchServerTime = (): Promise<number> => {
+  if (!webSocketService) return Promise.resolve(Date.now());
 
-// Function to fetch server time directly
-// Update your fetchServerTime function to always return a numeric timestamp
-const fetchServerTime = useCallback(async (): Promise<number> => {
-  if (!webSocketService) return Date.now();
-  
   return new Promise((resolve) => {
-    webSocketService.send('get-server-time', {}, (response) => {
-      if (response && response.serverTime) {
-        // Ensure we get a numeric timestamp
-        const serverTime = Number(response.serverTime);
-        setServerTime(serverTime);
-        resolve(serverTime);
-      } else {
-        // Fallback to current time if server time fails
-        const fallbackTime = Date.now();
-        setServerTime(fallbackTime);
-        resolve(fallbackTime);
-      }
-    });
+    try {
+      webSocketService.send("get-server-time", {}, (res: any) => {
+        if (res?.serverTime) {
+          resolve(res.serverTime);
+        } else if (res?.serverTimeISO) {
+          const parsed = Date.parse(res.serverTimeISO);
+          resolve(isNaN(parsed) ? Date.now() : parsed);
+        } else {
+          resolve(Date.now());
+        }
+      });
+
+      // fallback if no response within 1.5s
+      setTimeout(() => resolve(Date.now()), 1500);
+    } catch (err) {
+      console.error("fetchServerTime error:", err);
+      resolve(Date.now());
+    }
   });
-}, [webSocketService]);
+};
+
 
   // Calculate responsive button size based on screen width
   useEffect(() => {
