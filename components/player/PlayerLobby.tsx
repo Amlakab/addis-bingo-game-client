@@ -410,7 +410,7 @@ const fetchServerTime = useCallback(async (): Promise<number> => {
           return;
         }
 
-        // Update local state optimistically
+        // Update local stateee optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
         const currentServerTime = await fetchServerTime();
         // Send creation request
