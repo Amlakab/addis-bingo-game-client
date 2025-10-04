@@ -74,26 +74,6 @@ const PlayerLobby = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Add this function to fetch server time directly
-  const fetchServerTime = async (): Promise<number> => {
-    if (!webSocketService) {
-      throw new Error('WebSocket service not available');
-    }
-
-    return new Promise((resolve, reject) => {
-      webSocketService.send('get-server-time', {}, (response: any) => {
-        if (response && response.serverTime) {
-          resolve(response.serverTime);
-        } else {
-          reject(new Error('Failed to fetch server time'));
-        }
-      });
-      
-      // Add timeout for safety
-      setTimeout(() => reject(new Error('Server time request timeout')), 5000);
-    });
-  };
-
   // Calculate responsive button size based on screen width
   useEffect(() => {
     const calculateButtonSize = () => {
@@ -196,90 +176,109 @@ const PlayerLobby = ({
           onBackToLobby();
         }
       } else {
+        if (selectedPlayers.length > 0 ) {
+          handleDirectToGame();
+        }else if (onBackToLobby) {
+          onBackToLobby();
+        }
         // Enough players, proceed to game
         handleDirectToGame();
       }
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
+
+  // Add this function to get server time
+const getServerTime = async (): Promise<number> => {
+  try {
+    const response = await fetch('/api/game/current-time');
+    const timeData = await response.json();
+    return timeData.serverTime || Date.now();
+  } catch (error) {
+    console.error('Error fetching server time, using client time as fallback:', error);
+    return Date.now(); // Fallback to client time if server fails
+  }
+};
+
   const calculateRemainingTime = async (sessions: GameSession[]) => {
-    // Filter sessions for current bet amount and active status
-    const activeSessions = sessions.filter(
-      session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
+  // Filter sessions for current bet amount and active status
+  const activeSessions = sessions.filter(
+    session => session.betAmount === betAmount && (session.status === 'active' || session.status === 'ready')
+  );
+  
+  if (activeSessions.length === 0) {
+    // No active sessions, use the initial time from props
+    return initialTime;
+  }
+  
+  // Find the earliest createdAt time among active sessions
+  const earliestSession = activeSessions.sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  )[0];
+  
+  if (!earliestSession || !earliestSession.createdAt) {
+    return initialTime;
+  }
+  
+  try {
+    // Use server time instead of client time
+    const serverTime = await getServerTime();
+    const sessionStartTime = new Date(earliestSession.createdAt).getTime();
+    const elapsedSeconds = Math.floor((serverTime - sessionStartTime) / 1000);
+    const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
+    
+    return calculatedRemainingTime;
+  } catch (error) {
+    console.error('Error calculating remaining time:', error);
+    return initialTime;
+  }
+};
+
+ const handleSessionsUpdate = async (sessions: GameSession[]) => {
+  // Calculate remaining time based on session data using server time
+  const calculatedRemainingTime = await calculateRemainingTime(sessions);
+  setRemainingTime(calculatedRemainingTime);
+  
+  const betSessions = sessions.filter(session => session.betAmount === betAmount);
+  const occupied = betSessions.map(session => session.cardNumber);
+  setOccupiedCards(occupied);
+  
+  const cardUserMap: {[key: number]: string} = {};
+  betSessions.forEach(session => {
+    cardUserMap[session.cardNumber] = session.userId._id;
+  });
+  setOccupiedCardsByUser(cardUserMap);
+  
+  if (user) {
+    const userSelectedCards = betSessions
+      .filter(session => session.userId._id === user._id)
+      .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
+    
+    setSelectedPlayers(userSelectedCards);
+  }
+  
+  const activePlayers = betSessions.filter(
+    (session) => session.status === "active" || session.status === "ready"
+  ).length;
+
+  const pool = activePlayers * betAmount * 0.8;
+  setPrizePool(pool);
+  setPlayerCount(activePlayers);
+  
+  // Logic 2: Check if any session has 'playing' status for current user
+  // const userPlayingSessions = betSessions.filter(
+  //   session => session.userId._id === user?._id && session.status === 'playing'
+  // );
+  const userPlayingSessions = betSessions.filter(
+      session => session.status === 'playing'
     );
     
-    if (activeSessions.length === 0) {
-      // No active sessions, use the initial time from props
-      return initialTime;
-    }
-    
-    // Find the earliest createdAt time among active sessions
-    const earliestSession = activeSessions.sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    )[0];
-    
-    if (!earliestSession || !earliestSession.createdAt) {
-      return initialTime;
-    }
-    
-    try {
-      const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-      const currentTime = await fetchServerTime();
-      const elapsedSeconds = Math.floor((currentTime - sessionStartTime) / 1000);
-      const calculatedRemainingTime = Math.max(0, 45 - elapsedSeconds);
-      
-      return calculatedRemainingTime;
-    } catch (error) {
-      console.error('Error calculating remaining time:', error);
-      return initialTime;
-    }
-  };
-
-  const handleSessionsUpdate = async (sessions: GameSession[]) => {
-    try {
-      // Calculate remaining time based on session data
-      const calculatedRemainingTime = await calculateRemainingTime(sessions);
-      setRemainingTime(calculatedRemainingTime);
-      
-      const betSessions = sessions.filter(session => session.betAmount === betAmount);
-      const occupied = betSessions.map(session => session.cardNumber);
-      setOccupiedCards(occupied);
-      
-      const cardUserMap: {[key: number]: string} = {};
-      betSessions.forEach(session => {
-        cardUserMap[session.cardNumber] = session.userId._id;
-      });
-      setOccupiedCardsByUser(cardUserMap);
-      
-      if (user) {
-        const userSelectedCards = betSessions
-          .filter(session => session.userId._id === user._id)
-          .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
-        
-        setSelectedPlayers(userSelectedCards);
-      }
-      
-      const activePlayers = betSessions.filter(
-        (session) => session.status === "active" || session.status === "ready"
-      ).length;
-
-      const pool = activePlayers * betAmount * 0.8;
-      setPrizePool(pool);
-      setPlayerCount(activePlayers);
-      
-      // Logic 2: Check if any session has 'playing' status for current user
-      const userPlayingSessions = betSessions.filter(
-        session => session.userId._id === user?._id && session.status === 'playing'
-      );
-      
-      if (userPlayingSessions.length > 0) {
-        // User has sessions with playing status, clear selections and go back
-        handleCancelSelectionsAndGoBack();
-      }
-    } catch (error) {
-      console.error('Error in handleSessionsUpdate:', error);
-    }
-  };
+  
+  if (userPlayingSessions.length > 0) {
+    // User has sessions with playing status, clear selections and go back
+    handleCancelSelectionsAndGoBack();
+  }
+};
 
   const handleSessionCreated = (session: GameSession) => {
     if (session.betAmount === betAmount) {
@@ -413,16 +412,21 @@ const PlayerLobby = ({
           return;
         }
 
-        // Update local state optimistically
-        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-        const currentServerTime = await fetchServerTime();
+        
+        const serverTime = await getServerTime();
+        const serverTimeISO = new Date(serverTime).toISOString();
+
         // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: new Date(currentServerTime).toISOString()
+          createdAt: createdAt ? new Date(createdAt).toISOString() : serverTimeISO
         });
+
+        // Update local state optimistically
+        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
+
       }
       
     } catch (error: any) {
@@ -797,14 +801,14 @@ const PlayerLobby = ({
           <Button
             variant="contained"
             color={
-              playerCount > 2
+              playerCount > 2 && selectedPlayers.length > 0
                 ? 'success'
                 : selectedPlayers.length === 0
                 ? 'primary'
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 2) {
+              if (playerCount > 2 && selectedPlayers.length > 0 ) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
@@ -820,7 +824,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {playerCount > 2
+            {playerCount > 2 && selectedPlayers.length > 0
               ? language === 'am'
                 ? 'ጨዋታ ጀምር'
                 : 'Play'
