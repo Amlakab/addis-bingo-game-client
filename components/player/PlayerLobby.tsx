@@ -423,7 +423,7 @@ const getServerTime = async (): Promise<number> => {
           userId: user._id,
           cardNumber: id,
           betAmount,
-          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date(await getServerTime()).toISOString();
+          createdAt: createdAt ? new Date(createdAt).toISOString() : new Date(await getServerTime()).toISOString()
         });
 
         // Update local state optimistically
