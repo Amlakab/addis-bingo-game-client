@@ -8,6 +8,7 @@ import {
   IconButton, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import api from '@/app/utils/api';
 
 interface PlayerSelection {
   id: number;
@@ -191,7 +192,7 @@ const PlayerLobby = ({
   // Add this function to get server time
 const getServerTime = async (): Promise<number> => {
   try {
-    const response = await fetch('/api/game/current-time');
+    const response = await api.get('/game/current-time');
     const timeData = await response.json();
     return timeData.serverTime || Date.now();
   } catch (error) {
