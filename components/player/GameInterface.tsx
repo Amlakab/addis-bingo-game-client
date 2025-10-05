@@ -48,6 +48,14 @@ interface GameSession {
   createdAt: string;
 }
 
+interface BetTimerState {
+  status: 'ready' | 'active' | 'in-progress';
+  timer: number;
+  playerCount: number;
+  prizePool: number;
+  createdAt: Date | null;
+}
+
 interface GameInterfaceProps {
   players: PlayerSelection[]; 
   bet: number; 
@@ -63,7 +71,7 @@ const GameInterface = ({
   bet, 
   onGameEnd,
   onBackToPlayerLobby,
-  language = 'am', // Default to Amharic
+  language = 'am',
   earningsPercentage = 20,
   setLanguage
 }: GameInterfaceProps) => {
@@ -101,7 +109,7 @@ const GameInterface = ({
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Game control state
+  // Game control state - UPDATED: Only use server timing for countdown
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -120,67 +128,58 @@ const GameInterface = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Function to play local Amharic audio files
-// Function to play local Amharic audio files
-// Function to play local Amharic audio files
-const playAmharicNumberAudio = (number: string) => {
-  if (!soundOn) return;
-  
-  try {
-    const [letter, num] = number.split('-');
-    // Remove the dash to match file names like B1, I16, N31, etc.
-    const audioFileName = `${letter}${num}`;
-    // Path is relative to public folder from app perspective
-    const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
+  const playAmharicNumberAudio = (number: string) => {
+    if (!soundOn) return;
     
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    
-    // Create new audio element
-    audioRef.current = new Audio(audioPath);
-    audioRef.current.play().catch(error => {
-      console.warn('Audio play failed, falling back to TTS:', error);
-      // Fallback to TTS if local audio fails
+    try {
+      const [letter, num] = number.split('-');
+      const audioFileName = `${letter}${num}`;
+      const audioPath = `/Audio/${letter}/${audioFileName}.aac`;
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      
+      audioRef.current = new Audio(audioPath);
+      audioRef.current.play().catch(error => {
+        console.warn('Audio play failed, falling back to TTS:', error);
+        if (voiceService) {
+          const langCode = 'am-ET';
+          voiceService.speak(number, langCode, 1);
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error playing Amharic audio:', error);
       if (voiceService) {
         const langCode = 'am-ET';
         voiceService.speak(number, langCode, 1);
       }
-    });
-    
-  } catch (error) {
-    console.error('Error playing Amharic audio:', error);
-    // Fallback to TTS
-    if (voiceService) {
-      const langCode = 'am-ET';
-      voiceService.speak(number, langCode, 1);
     }
-  }
-};
+  };
 
-// Function to play game sound effects in Amharic
-const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
-  if (!soundOn) return;
-  
-  try {
-    // Path is relative to public folder from app perspective
-    const audioPath = `/Audio/game/${soundType}.mp3`;
+  // Function to play game sound effects in Amharic
+  const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
+    if (!soundOn) return;
     
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    try {
+      const audioPath = `/Audio/game/${soundType}.mp3`;
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      
+      audioRef.current = new Audio(audioPath);
+      audioRef.current.play().catch(error => {
+        console.warn('Game audio play failed:', error);
+      });
+      
+    } catch (error) {
+      console.error('Error playing game audio:', error);
     }
-    
-    audioRef.current = new Audio(audioPath);
-    audioRef.current.play().catch(error => {
-      console.warn('Game audio play failed:', error);
-    });
-    
-  } catch (error) {
-    console.error('Error playing game audio:', error);
-  }
-};
+  };
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -258,6 +257,19 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     };
   }, [webSocketService]);
 
+  // NEW: Handler for server timer states
+  const handleTimerStatesUpdate = useCallback((timerStates: {[key: number]: BetTimerState}) => {
+    console.log('Received timer states in GameInterface:', timerStates);
+    
+    if (timerStates[bet]) {
+      const timerState = timerStates[bet];
+      // ONLY use server timing for countdown - keep existing logic for players/prize
+      setCountdown(timerState.timer);
+      
+      console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
+    }
+  }, [bet]);
+
   // Setup WebSocket listeners for game control events
   useEffect(() => {
     if (!isClient || !webSocketService) return;
@@ -285,12 +297,10 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       setCalledNumbers(data.calledNumbers);
       setIsCalling(true);
       
-      // Use local Amharic audio for number calling when language is Amharic
       if (soundOn) {
         if (language === 'am') {
           playAmharicNumberAudio(data.number);
         } else {
-          // Use TTS for English
           if (voiceService) {
             const langCode = 'en-US';
             voiceService.speak(data.number, langCode, 1);
@@ -367,7 +377,6 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       setShowToast(true);
     }
 
-    // FIXED: Game ended handler
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
@@ -385,8 +394,6 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
-        
-        // Find the winning pattern that was completed by the last called number
         const winningPatternInfo = findWinningPatternCompletedByLastNumber(card);
         
         return {
@@ -405,7 +412,6 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       const userWon = user && data.winners.some(winner => winner.id === user._id);
       
       if (userWon) {
-        // Play win sound for Amharic
         if (language === 'am') {
           playAmharicGameAudio('won');
         }
@@ -413,7 +419,6 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
           setShowWinnerModal(true);
         }, 1000);
       } else {
-        // Play not-won sound for Amharic
         if (language === 'am') {
           playAmharicGameAudio('not-won');
         }
@@ -432,11 +437,13 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       setCurrentNumber(data.currentNumber);
     };
 
+    // UPDATED: Sessions update handler - KEEP existing player/prize calculation
     const handleSessionsUpdate = (sessions: GameSession[]) => {
       const betSessions = sessions.filter(session => session.betAmount === bet);
       
       console.log('Bet sessions:', betSessions);
       
+      // KEEP existing frontend logic for player count and prize pool
       const activePlayers = betSessions.filter(
         (session) => session.status !== "active"
       ).length;
@@ -456,17 +463,8 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
         
         setSessionCreatedAt(earliestSession);
         
-        const currentDate = new Date();
-        const timeDifference = Math.floor((currentDate.getTime() - earliestSession.getTime()) / 1000);
-        
-        const remainingTime = Math.max(0, 50 - timeDifference);
-        setCountdown(remainingTime);
-        
-        if (remainingTime > 0) {
-          startCountdown(remainingTime);
-        } else {
-          startGame();
-        }
+        // Server timing will handle countdown via timer-states-update
+        // We don't calculate countdown locally anymore
       }
     };
 
@@ -483,6 +481,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     webSocketService.off('game-state', handleGameState);
     webSocketService.off('sessions-updated', handleSessionsUpdate);
     webSocketService.off('connected', handleWebSocketConnected);
+    webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
 
     webSocketService.on('number-called', handleNumberCalled);
     webSocketService.on('game-stopped', handleGameStopped);
@@ -491,8 +490,10 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     webSocketService.on('game-state', handleGameState);
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('connected', handleWebSocketConnected);
+    webSocketService.on('timer-states-update', handleTimerStatesUpdate); // NEW
 
     webSocketService.send('get-sessions', { betAmount: bet });
+    webSocketService.send('get-timer-states'); // Request initial timer states
 
     return () => {
       webSocketService.off('number-called', handleNumberCalled);
@@ -502,6 +503,7 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
       webSocketService.off('game-state', handleGameState);
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('connected', handleWebSocketConnected);
+      webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
       
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
@@ -510,7 +512,10 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [isClient, webSocketService, bet, language, user, gameStopped, soundOn, voiceService, gameStarted]);
+  }, [
+    isClient, webSocketService, bet, language, user, gameStopped, 
+    soundOn, voiceService, gameStarted, handleTimerStatesUpdate
+  ]);
 
   // Initialize and set up window size tracking
   useEffect(() => {
@@ -539,29 +544,6 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     }
   }, [calledNumbers]);
 
-  // Countdown timer function
-  const startCountdown = (initialTime: number) => {
-    setCountdown(initialTime);
-    setGameStarted(false);
-    
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-    
-    countdownIntervalRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-          }
-          startGame();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
   // Start game function
   const startGame = () => {
     setGameStarted(true);
@@ -576,6 +558,37 @@ const playAmharicGameAudio = (soundType: 'won' | 'not-won') => {
     }
   };
 
+  // UPDATED: Start countdown when server timer is available
+  useEffect(() => {
+    if (countdown > 0 && !gameStarted && !gameStopped) {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      
+      console.log(`Starting countdown with server time: ${countdown}s`);
+      
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+            }
+            startGame();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [countdown, gameStarted, gameStopped]);
+
+  
   // FIXED: Improved isNumberCalled function to handle free space
   const isNumberCalled = (number: number, letter: string) => {
     if (number === 0) return true;
