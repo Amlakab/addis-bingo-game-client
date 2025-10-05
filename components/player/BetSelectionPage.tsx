@@ -1,5 +1,5 @@
 // =============================
-// File: BetSelectionPage.tsx (SERVER-SIDE TIMING VERSION)
+// File: BetSelectionPage.tsx (FIXED CLIENT-SIDE TIMER)
 // =============================
 'use client';
 
@@ -169,58 +169,24 @@ const BetSelectionPage = ({
     // Fetch user balance on component mount
     fetchUserBalance();
 
-    // Setup WebSocket listeners
-    webSocketService.on('sessions-updated', handleSessionsUpdate);
+    // Setup WebSocket listeners for timer updates
     webSocketService.on('timer-states-update', handleTimerStatesUpdate);
     
+    // Request initial timer states
+    webSocketService.send('get-timer-states');
+    
     return () => {
-      webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('timer-states-update', handleTimerStatesUpdate);
     };
   }, [isClient, webSocketService]);
 
   // Handle server-side timer states update
   const handleTimerStatesUpdate = (timerStates: {[key: number]: BetStatus}) => {
-    setBetStatuses(timerStates);
-  };
-
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // Group sessions by bet amount
-    const sessionsByBet: {[key: number]: GameSession[]} = {};
-    
-    sessions.forEach(session => {
-      if (!sessionsByBet[session.betAmount]) {
-        sessionsByBet[session.betAmount] = [];
-      }
-      sessionsByBet[session.betAmount].push(session);
-    });
-    
-    // Update bet statuses with player counts from sessions
-    setBetStatuses(prev => {
-      const updatedStatuses = { ...prev };
-      
-      Object.keys(sessionsByBet).forEach(betAmountStr => {
-        const betAmount = parseInt(betAmountStr);
-        const sessions = sessionsByBet[betAmount];
-        
-        if (updatedStatuses[betAmount]) {
-          const activePlayers = sessions.filter(session => 
-            session.status === 'active' || session.status === 'ready' || session.status === 'playing'
-          ).length;
-          
-          const prizePool = activePlayers * betAmount * 0.8;
-          
-          // Update player count and prize pool, but keep timer and status from server
-          updatedStatuses[betAmount] = {
-            ...updatedStatuses[betAmount],
-            playerCount: activePlayers,
-            prizePool: prizePool
-          };
-        }
-      });
-      
-      return updatedStatuses;
-    });
+    console.log('Received timer states update:', timerStates);
+    setBetStatuses(prev => ({
+      ...prev,
+      ...timerStates
+    }));
   };
 
   const fetchGames = async () => {
@@ -321,6 +287,16 @@ const BetSelectionPage = ({
   // Check if user has insufficient balance for a bet
   const hasInsufficientBalance = (betAmount: number) => {
     return userBalance < betAmount;
+  };
+
+  // Calculate progress percentage for the progress bar
+  const getProgressPercentage = (status: string, timer: number) => {
+    if (status === 'ready') {
+      return ((5 - timer) / 5) * 100;
+    } else if (status === 'active') {
+      return ((45 - timer) / 45) * 100;
+    }
+    return 0;
   };
 
   if (!isClient) {
@@ -562,19 +538,15 @@ const BetSelectionPage = ({
                           transition={{ delay: 0.5, duration: 0.3 }}
                         >
                           <Box sx={{ position: 'relative', height: 6, mb: 1.5, borderRadius: 3, background: 'rgba(0,0,0,0.1)' }}>
-                            <motion.div
-                              initial={{ width: "0%" }}
-                              animate={{ width: "100%" }}
-                              transition={{ 
-                                duration: status.status === 'ready' ? 5 : 45, 
-                                ease: "linear" 
-                              }}
-                              style={{
+                            <Box
+                              sx={{
                                 height: '100%',
                                 borderRadius: 3,
+                                width: `${getProgressPercentage(status.status, status.timer)}%`,
                                 background: status.status === 'ready' 
                                   ? 'linear-gradient(90deg, #9e9e9e, #616161)' 
-                                  : 'linear-gradient(90deg, #4CAF50, #2E7D32)'
+                                  : 'linear-gradient(90deg, #4CAF50, #2E7D32)',
+                                transition: 'width 0.3s ease'
                               }}
                             />
                           </Box>
