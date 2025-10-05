@@ -562,7 +562,7 @@ const GameInterface = ({
   useEffect(() => {
   if (countdown > 0 && !gameStarted && !gameStopped) {
     // If countdown is 45, start immediately
-    if (countdown === 45) {
+    if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
       startGame();
       return; // no need to start interval
     }
