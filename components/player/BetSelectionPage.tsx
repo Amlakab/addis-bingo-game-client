@@ -1,3 +1,6 @@
+// =============================
+// File: BetSelectionPage.tsx (SERVER-SIDE TIMING VERSION)
+// =============================
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -28,7 +31,7 @@ interface GameSession {
 
 interface BetStatus {
   timer: number;
-  status: 'ready' | 'countdown' | 'active' | 'in-progress';
+  status: 'ready' | 'active' | 'in-progress';
   playerCount: number;
   prizePool: number;
   createdAt: Date | null;
@@ -168,104 +171,18 @@ const BetSelectionPage = ({
 
     // Setup WebSocket listeners
     webSocketService.on('sessions-updated', handleSessionsUpdate);
+    webSocketService.on('timer-states-update', handleTimerStatesUpdate);
     
     return () => {
       webSocketService.off('sessions-updated', handleSessionsUpdate);
+      webSocketService.off('timer-states-update', handleTimerStatesUpdate);
     };
   }, [isClient, webSocketService]);
 
-  useEffect(() => {
-    if (!isClient || !webSocketService || betOptions.length === 0) return;
-    
-    // Initialize bet statuses
-    const initialStatuses: {[key: number]: BetStatus} = {};
-    betOptions.forEach(bet => {
-      initialStatuses[bet] = {
-        timer: 5, // Start with 5s ready period
-        status: 'ready',
-        playerCount: 0,
-        prizePool: 0,
-        createdAt: null
-      };
-    });
-    
-    setBetStatuses(initialStatuses);
-    
-    // Set up timers for each bet
-    const timerIntervals: NodeJS.Timeout[] = [];
-    
-    betOptions.forEach(bet => {
-      const interval = setInterval(() => {
-        setBetStatuses(prev => {
-          const currentStatus = prev[bet];
-          
-          if (currentStatus.status === 'ready') {
-            const newTime = currentStatus.timer - 1;
-            
-            if (newTime <= 0) {
-              // Transition from ready to active (start 45s countdown)
-              return { 
-                ...prev, 
-                [bet]: { 
-                  ...currentStatus, 
-                  timer: 45, 
-                  status: 'active',
-                  createdAt: new Date() // Set the creation time when active starts
-                } 
-              };
-            }
-            
-            return { 
-              ...prev, 
-              [bet]: { 
-                ...currentStatus, 
-                timer: newTime 
-              } 
-            };
-          }
-          
-          if (currentStatus.status === 'active') {
-            const newTime = currentStatus.timer - 1;
-            
-            if (newTime <= 0) {
-              // Transition from active back to ready (5s)
-              return { 
-                ...prev, 
-                [bet]: { 
-                  ...currentStatus, 
-                  timer: 5, 
-                  status: 'ready',
-                  createdAt: null
-                } 
-              };
-            }
-            
-            return { 
-              ...prev, 
-              [bet]: { 
-                ...currentStatus, 
-                timer: newTime 
-              } 
-            };
-          }
-          
-          // in-progress state - no timer changes
-          return { ...prev };
-        });
-      }, 1000);
-      
-      timerIntervals.push(interval);
-    });
-
-    // Request initial session data for all bet amounts
-    betOptions.forEach(bet => {
-      webSocketService.send('get-sessions', { betAmount: bet });
-    });
-
-    return () => {
-      timerIntervals.forEach(interval => clearInterval(interval));
-    };
-  }, [isClient, webSocketService, betOptions]);
+  // Handle server-side timer states update
+  const handleTimerStatesUpdate = (timerStates: {[key: number]: BetStatus}) => {
+    setBetStatuses(timerStates);
+  };
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
     // Group sessions by bet amount
@@ -278,7 +195,7 @@ const BetSelectionPage = ({
       sessionsByBet[session.betAmount].push(session);
     });
     
-    // Update bet statuses for each bet amount
+    // Update bet statuses with player counts from sessions
     setBetStatuses(prev => {
       const updatedStatuses = { ...prev };
       
@@ -287,70 +204,17 @@ const BetSelectionPage = ({
         const sessions = sessionsByBet[betAmount];
         
         if (updatedStatuses[betAmount]) {
-          // ALWAYS calculate player count and prize pool (for display)
           const activePlayers = sessions.filter(session => 
             session.status === 'active' || session.status === 'ready' || session.status === 'playing'
           ).length;
           
-          const gameInProgress = sessions.some(session => session.status === 'playing');
           const prizePool = activePlayers * betAmount * 0.8;
           
-          // Only update timer and status logic if there are active sessions
-          let timer = updatedStatuses[betAmount].timer;
-          let createdAt = updatedStatuses[betAmount].createdAt;
-          let status = updatedStatuses[betAmount].status;
-          
-          if (activePlayers > 0) {
-            // Find the earliest createdAt time among active sessions
-            const activeSessions = sessions.filter(session => 
-              session.status === 'active' || session.status === 'ready'
-            );
-            
-            if (activeSessions.length > 0) {
-              const earliestSession = activeSessions.sort((a, b) => 
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-              )[0];
-              
-              if (earliestSession) {
-                const sessionStartTime = new Date(earliestSession.createdAt).getTime();
-                const currentTimeUTC = new Date().getTime();
-                const elapsedSeconds = Math.floor((currentTimeUTC - sessionStartTime) / 1000);
-                
-                if (earliestSession.status === 'ready') {
-                  // Ready phase: 5 seconds countdown
-                  const remainingTime = Math.max(0, 5 - elapsedSeconds);
-                  timer = remainingTime;
-                  status = 'ready';
-                } else if (earliestSession.status === 'active') {
-                  // Active phase: 45 seconds countdown
-                  const remainingTime = Math.max(0, 45 - elapsedSeconds);
-                  timer = remainingTime;
-                  status = 'active';
-                }
-                
-                createdAt = new Date(earliestSession.createdAt);
-              }
-            }
-          }
-          
-          // Update game status based on whether game is in progress
-          if (gameInProgress) {
-            status = 'in-progress';
-          } else if (activePlayers === 0) {
-            // If no active players, reset to ready state
-            status = 'ready';
-            timer = 5;
-            createdAt = null;
-          }
-          
-          // Update player count, prize pool, and status
+          // Update player count and prize pool, but keep timer and status from server
           updatedStatuses[betAmount] = {
             ...updatedStatuses[betAmount],
-            timer,
-            status,
-            createdAt,
-            playerCount: activePlayers, // Always show actual player count
-            prizePool: prizePool        // Always show actual prize pool
+            playerCount: activePlayers,
+            prizePool: prizePool
           };
         }
       });
@@ -368,6 +232,19 @@ const BetSelectionPage = ({
       // Extract bet amounts and sort them in ascending order
       const betAmounts = games.map(game => game.betAmount).sort((a, b) => a - b);
       setBetOptions(betAmounts);
+      
+      // Initialize bet statuses with default values
+      const initialStatuses: {[key: number]: BetStatus} = {};
+      betAmounts.forEach(bet => {
+        initialStatuses[bet] = {
+          timer: 5,
+          status: 'ready',
+          playerCount: 0,
+          prizePool: 0,
+          createdAt: null
+        };
+      });
+      setBetStatuses(initialStatuses);
     } catch (error) {
       console.error('Error fetching games:', error);
     } finally {
@@ -439,29 +316,6 @@ const BetSelectionPage = ({
         default: return status;
       }
     }
-  };
-
-  const [testBetAmount, setTestBetAmount] = useState("");
-  const handleTest = () => {
-    if (!webSocketService) return;
-
-    const value = parseInt(testBetAmount, 10);
-    if (!value || value <= 0) {
-      alert(language === "am" ? "ትክክለኛ ውርርድ ያስገቡ" : "Enter a valid bet amount");
-      return;
-    }
-
-    // ✅ Send test-game event
-    webSocketService.send("test-game", { betAmount: value });
-
-    console.log("Sent test-game with betAmount:", value);
-    alert(
-      language === "am"
-        ? `ፈትሽ ተልኳል: ${value}`
-        : `Test sent with betAmount: ${value}`
-    );
-
-    setTestBetAmount(""); // clear input after test
   };
 
   // Check if user has insufficient balance for a bet
@@ -821,43 +675,6 @@ const BetSelectionPage = ({
             }
           </Typography>
         </motion.div>
-
-        {/* Test Game Section */}
-        {/* <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.5 }}
-        >
-          <Box 
-            sx={{ 
-              mt: 4, 
-              display: "flex", 
-              flexDirection: { xs: "column", sm: "row" }, 
-              alignItems: "center", 
-              gap: 2,
-              background: "#fff",
-              p: 2,
-              borderRadius: 2,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
-            }}
-          >
-            <input
-              type="number"
-              placeholder={language === "am" ? "የተጫዋች ውርርድ" : "Enter bet amount"}
-              value={testBetAmount}
-              onChange={(e) => setTestBetAmount(e.target.value)}
-              className="w-full sm:w-1/2 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleTest}
-              sx={{ textTransform: "none", px: 4, py: 1 }}
-            >
-              {language === "am" ? "ፈትሽ" : "Test"}
-            </Button>
-          </Box>
-        </motion.div> */}
       </Box>
     </motion.div>
   );
