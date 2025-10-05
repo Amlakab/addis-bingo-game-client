@@ -1,5 +1,5 @@
 // =============================
-// File: BetSelectionPage.tsx (CORRECTED CLIENT-SIDE)
+// File: BetSelectionPage.tsx (FULLY CORRECTED)
 // =============================
 'use client';
 
@@ -174,7 +174,7 @@ const BetSelectionPage = ({
 
   const handlePlayClick = (bet: number) => {
     const status = betStatuses[bet];
-    if ((status.status === 'active' || status.status === 'ready') && status.createdAt) {
+    if (status.status === 'active' && status.createdAt) {
       onPlay(bet, status.timer, status.playerCount, status.createdAt);
     }
   };
@@ -191,15 +191,15 @@ const BetSelectionPage = ({
   const getStatusText = (status: string, timer: number) => {
     if (language === 'am') {
       switch (status) {
-        case 'ready': return `ዝግጁ ${timer}s`;
-        case 'active': return `ቀሪ ${timer}s`;
+        case 'ready': return `ዝግጁ ${timer}ሰ`;
+        case 'active': return `ቀሪ ${timer}ሰ`;
         case 'in-progress': return 'በጨዋታ ውስጥ';
         default: return status;
       }
     } else {
       switch (status) {
         case 'ready': return `Ready ${timer}s`;
-        case 'active': return `Active ${timer}s left`;
+        case 'active': return `Active ${timer}s`;
         case 'in-progress': return 'In Progress';
         default: return status;
       }
@@ -208,9 +208,9 @@ const BetSelectionPage = ({
 
   const getProgressPercentage = (status: string, timer: number) => {
     if (status === 'ready') {
-      return ((5 - timer) / 5) * 100;
+      return Math.max(0, Math.min(100, ((5 - timer) / 5) * 100));
     } else if (status === 'active') {
-      return ((45 - timer) / 45) * 100;
+      return Math.max(0, Math.min(100, ((45 - timer) / 45) * 100));
     }
     return 0;
   };
@@ -313,8 +313,7 @@ const BetSelectionPage = ({
               createdAt: null
             };
             
-            // Only disable if status is in-progress OR insufficient balance (only after balance is loaded)
-            const isDisabledByStatus = status.status === 'in-progress';
+            const isDisabledByStatus = status.status === 'in-progress' || status.status === 'ready';
             const isDisabledByBalance = !isLoadingBalance && hasInsufficientBalance(bet);
             const isDisabled = isDisabledByStatus || isDisabledByBalance;
             const canPlay = status.status === 'active' && !isDisabledByBalance;
@@ -325,8 +324,8 @@ const BetSelectionPage = ({
                 initial={{ opacity: 0, y: 50, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: index * 0.1, duration: 0.5 }}
-                whileHover={{ scale: 1.03, y: -5 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: canPlay ? 1.03 : 1, y: canPlay ? -5 : 0 }}
+                whileTap={{ scale: canPlay ? 0.98 : 1 }}
                 style={{ 
                   width: isMobile ? 'calc(50% - 8px)' : 'calc(33.333% - 16px)', 
                   minWidth: 140,
@@ -336,12 +335,12 @@ const BetSelectionPage = ({
                 <Card 
                   sx={{ 
                     borderRadius: 2,
-                    boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+                    boxShadow: canPlay ? '0 4px 14px rgba(0,0,0,0.15)' : '0 4px 14px rgba(0,0,0,0.08)',
                     background: '#ffffff',
-                    opacity: isDisabledByStatus ? 0.7 : 1,
+                    opacity: isDisabled ? 0.7 : 1,
                     position: 'relative',
                     overflow: 'visible',
-                    border: `1px solid ${isDisabled ? '#e0e0e0' : '#e0e0e0'}`,
+                    border: canPlay ? '2px solid #4caf50' : '1px solid #e0e0e0',
                     height: '100%',
                     transition: 'all 0.3s ease',
                   }}
@@ -435,7 +434,7 @@ const BetSelectionPage = ({
                       size="small"
                       disabled={isDisabled || isLoadingBalance}
                       onClick={() => handlePlayClick(bet)}
-                      startIcon={!isDisabledByBalance && !isLoadingBalance ? <SportsEsports /> : undefined}
+                      startIcon={!isDisabledByBalance && !isLoadingBalance && canPlay ? <SportsEsports /> : undefined}
                       sx={{
                         textTransform: 'none',
                         background: isLoadingBalance
@@ -488,7 +487,9 @@ const BetSelectionPage = ({
                           ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
                           : (status.status === 'active' 
                               ? (language === 'am' ? "ይጫወቱ" : "Play") 
-                              : (language === 'am' ? "ዝግጁ" : "Ready"))
+                              : status.status === 'ready'
+                                ? (language === 'am' ? "ዝግጁ" : "Ready")
+                                : (language === 'am' ? "በጨዋታ ውስጥ" : "In Progress"))
                       }
                     </Button>
                   </CardContent>
