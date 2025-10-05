@@ -187,7 +187,7 @@ const PlayerLobby = ({
     checkPlayingStatus();
     
     // Timer logic - now using server-provided time
-    if (remainingTime <= 0) {
+    if (remainingTime <= 0 || remainingTime === 45) {
       // Timer reached 0 - Logic 1: Clear selections if less than 3 players
       if (playerCount < 3) {
         if (selectedPlayers.length > 0) {
@@ -235,6 +235,15 @@ const PlayerLobby = ({
       // User has sessions with playing status, clear selections and go back
       handleCancelSelectionsAndGoBack();
     }
+
+    // if(playerCount < 3) {
+    //   setToastMessage(language === 'am' 
+    //     ? 'በቂ ተጫዋቾች አልሆኑም። የተመረጡት ካርዶች ተፈትተዋል።' 
+    //     : 'Not enough players. Your selected cards have been cleared.'
+    //   );
+    //   setShowToast(true);
+    //   handleCancelSelectionsAndGoBack();
+    // }
   };
 
   const handleSessionCreated = (session: GameSession) => {
