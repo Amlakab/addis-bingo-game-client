@@ -560,33 +560,39 @@ const GameInterface = ({
 
   // UPDATED: Start countdown when server timer is available
   useEffect(() => {
-    if (countdown > 0 && !gameStarted && !gameStopped) {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-      
-      console.log(`Starting countdown with server time: ${countdown}s`);
-      
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-            }
-            startGame();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  if (countdown > 0 && !gameStarted && !gameStopped) {
+    // If countdown is 45, start immediately
+    if (countdown === 45) {
+      startGame();
+      return; // no need to start interval
     }
-    
-    return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-      }
-    };
-  }, [countdown, gameStarted, gameStopped]);
+
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    console.log(`Starting countdown with server time: ${countdown}s`);
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
+          startGame();  // <-- Start when countdown reaches 0
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  return () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+  };
+}, [countdown, gameStarted, gameStopped]);
 
   
   // FIXED: Improved isNumberCalled function to handle free space
