@@ -1,5 +1,5 @@
 // =============================
-// File: BetSelectionPage.tsx (FULLY CORRECTED)
+// File: BetSelectionPage.tsx (FRONTEND CALCULATION)
 // =============================
 'use client';
 
@@ -63,6 +63,7 @@ const BetSelectionPage = ({
 }: BetSelectionPageProps) => {
   const [betOptions, setBetOptions] = useState<number[]>([]);
   const [betStatuses, setBetStatuses] = useState<{[key: number]: BetStatus}>({});
+  const [allSessions, setAllSessions] = useState<GameSession[]>([]);
   const [userBalance, setUserBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [isLoadingGames, setIsLoadingGames] = useState<boolean>(true);
@@ -95,21 +96,90 @@ const BetSelectionPage = ({
     // Fetch user balance on component mount
     fetchUserBalance();
 
-    // Setup WebSocket listener for timer updates
+    // Setup WebSocket listeners
     const handleTimerStatesUpdate = (timerStates: {[key: number]: BetStatus}) => {
       console.log('Received timer states update:', timerStates);
-      setBetStatuses(timerStates);
+      
+      // Merge timer states with our calculated player counts and prize pools
+      const updatedStatuses: {[key: number]: BetStatus} = {};
+      
+      Object.keys(timerStates).forEach(betAmountStr => {
+        const betAmount = parseInt(betAmountStr);
+        const serverState = timerStates[betAmount];
+        
+        // Calculate player count and prize pool locally
+        const { playerCount, prizePool } = calculateBetStats(betAmount);
+        
+        updatedStatuses[betAmount] = {
+          ...serverState,
+          playerCount,
+          prizePool
+        };
+      });
+      
+      setBetStatuses(updatedStatuses);
+    };
+
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      console.log('Received sessions update:', sessions);
+      setAllSessions(sessions);
+      
+      // Recalculate all bet stats when sessions change
+      recalculateAllBetStats(sessions);
     };
 
     webSocketService.on('timer-states-update', handleTimerStatesUpdate);
+    webSocketService.on('sessions-updated', handleSessionsUpdate);
     
-    // Request initial timer states
+    // Request initial data
     webSocketService.send('get-timer-states');
+    webSocketService.send('get-sessions', {});
 
     return () => {
       webSocketService.off('timer-states-update', handleTimerStatesUpdate);
+      webSocketService.off('sessions-updated', handleSessionsUpdate);
     };
   }, [isClient, webSocketService]);
+
+  // Calculate player count and prize pool for a specific bet amount
+  const calculateBetStats = (betAmount: number) => {
+    const activeSessions = allSessions.filter(
+      session => session.betAmount === betAmount && 
+      ['active', 'ready', 'playing'].includes(session.status)
+    );
+    
+    const playerCount = activeSessions.length;
+    const prizePool = playerCount * betAmount * 0.8;
+    
+    return { playerCount, prizePool };
+  };
+
+  // Recalculate stats for all bet amounts
+  const recalculateAllBetStats = (sessions: GameSession[]) => {
+    const updatedStatuses: {[key: number]: BetStatus} = {};
+    
+    betOptions.forEach(betAmount => {
+      const activeSessions = sessions.filter(
+        session => session.betAmount === betAmount && 
+        ['active', 'ready', 'playing'].includes(session.status)
+      );
+      
+      const playerCount = activeSessions.length;
+      const prizePool = playerCount * betAmount * 0.8;
+      
+      updatedStatuses[betAmount] = {
+        ...(betStatuses[betAmount] || {
+          timer: 5,
+          status: 'ready',
+          createdAt: null
+        }),
+        playerCount,
+        prizePool
+      };
+    });
+    
+    setBetStatuses(updatedStatuses);
+  };
 
   const fetchGames = async () => {
     try {
