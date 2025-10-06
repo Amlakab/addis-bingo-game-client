@@ -264,8 +264,13 @@ const GameInterface = ({
     if (timerStates[bet]) {
       const timerState = timerStates[bet];
       // ONLY use server timing for countdown - keep existing logic for players/prize
-      setCountdown(timerState.timer);
-      
+      //setCountdown(timerState.timer);
+      const serverTimer = timerState.timer;
+      let shifted = (serverTimer - 41 + 46) % 46;
+      const adjustedTimer = serverTimer + shifted;
+
+      setCountdown(adjustedTimer);
+
       console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
     }
   }, [bet]);
