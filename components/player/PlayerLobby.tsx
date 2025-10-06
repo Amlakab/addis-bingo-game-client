@@ -196,9 +196,19 @@ const PlayerLobby = ({
         } else if (onBackToLobby) {
           onBackToLobby();
         }
-      } else {
+      } else { 
+        if(selectedPlayers.length > 0 ) {
+          // Enough players and user has selections, proceed to game
+          handleDirectToGame();
+        }
+        else {
+          // Enough players but user has no selections, just go back to lobby
+          if (onBackToLobby) {
+            onBackToLobby();
+          }
+        }
         // Enough players, proceed to game
-        handleDirectToGame();
+        //handleDirectToGame();
       }
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
@@ -760,14 +770,14 @@ const PlayerLobby = ({
           <Button
             variant="contained"
             color={
-              playerCount > 2
+              playerCount > 2 && selectedPlayers.length > 0
                 ? 'success'
                 : selectedPlayers.length === 0
                 ? 'primary'
                 : 'warning'
             }
             onClick={() => {
-              if (playerCount > 2) {
+              if (playerCount > 2 && selectedPlayers.length > 0 && onDirectToGame) {
                 handleDirectToGame();
               } else if (selectedPlayers.length === 0 && onBackToLobby) {
                 onBackToLobby();
@@ -783,7 +793,7 @@ const PlayerLobby = ({
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
             }}
           >
-            {playerCount > 2
+            {playerCount > 2 && selectedPlayers.length > 0
               ? language === 'am'
                 ? 'ጨዋታ ጀምር'
                 : 'Play'
