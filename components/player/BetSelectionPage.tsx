@@ -20,15 +20,6 @@ interface BetSelectionPageProps {
   language?: 'en' | 'am';
 }
 
-interface GameSession {
-  _id: string;
-  userId: string;
-  cardNumber: number;
-  betAmount: number;
-  status: string;
-  createdAt: string;
-}
-
 interface BetStatus {
   timer: number;
   status: 'ready' | 'active' | 'in-progress';
