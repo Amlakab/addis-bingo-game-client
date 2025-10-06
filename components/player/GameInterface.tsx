@@ -266,10 +266,12 @@ const GameInterface = ({
       // ONLY use server timing for countdown - keep existing logic for players/prize
       //setCountdown(timerState.timer);
       const serverTimer = timerState.timer;
-      let shifted = (serverTimer - 41 + 46) % 46;
+      //let shifted = (serverTimer - 41 + 46) % 46;
       //const adjustedTimer = serverTimer + shifted;
 
-      setCountdown(shifted);
+      //setCountdown(shifted);
+
+      setCountdown(serverTimer);
 
       console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
     }
@@ -471,6 +473,29 @@ const GameInterface = ({
         // Server timing will handle countdown via timer-states-update
         // We don't calculate countdown locally anymore
       }
+
+      // NEW: Check if there are sessions with 'playing' status and restart game if needed
+      const hasPlayingSessions = betSessions.some(session => session.status === "playing");
+      if (hasPlayingSessions && !gameStarted && !gameStopped) {
+        restartGame();
+      }
+    };
+
+    // NEW: restartGame function
+    const restartGame = () => {
+      setGameStarted(true);
+      
+      if (webSocketService) {
+        webSocketService.send('update-session-status-by-bet', {
+          betAmount: bet,
+          status: 'playing'
+        });
+        
+        // Optionally send a restart signal to the server if needed
+        //webSocketService.send('restart-game', { betAmount: bet });
+      }
+
+
     };
 
     const handleWebSocketConnected = () => {
