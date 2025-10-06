@@ -3,7 +3,7 @@
 // =============================
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Box, Typography, Card, CardContent, Button,
   useTheme, useMediaQuery, Chip, Skeleton
@@ -18,6 +18,15 @@ import api from '@/app/utils/api';
 interface BetSelectionPageProps {
   onPlay: (betAmount: number, timeRemaining: number, players: number, createdAt: Date) => void;
   language?: 'en' | 'am';
+}
+
+interface GameSession {
+  _id: string;
+  userId: string;
+  cardNumber: number;
+  betAmount: number;
+  status: string;
+  createdAt: string;
 }
 
 interface BetStatus {
@@ -61,6 +70,9 @@ const BetSelectionPage = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // Track which bets have been reset to avoid multiple calls
+  const resetTrackerRef = useRef<{[key: number]: boolean}>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -101,6 +113,39 @@ const BetSelectionPage = ({
       webSocketService.off('timer-states-update', handleTimerStatesUpdate);
     };
   }, [isClient, webSocketService]);
+
+  // ✅ AUTO-RESET FUNCTIONALITY: Reset every bet at exactly 45 seconds
+  useEffect(() => {
+    if (!isClient || !webSocketService) return;
+
+    Object.entries(betStatuses).forEach(([betAmount, status]) => {
+      const bet = Number(betAmount);
+      
+      // Reset when timer is exactly 45 seconds (start of active phase)
+      if (status.status === 'active' && status.timer === 45) {
+        // Check if we already reset this bet to avoid multiple calls
+        if (!resetTrackerRef.current[bet]) {
+          console.log(`🔄 Auto-resetting game at 45 seconds for bet ${bet}`);
+          
+          // Call reset-game event for this bet amount
+          webSocketService.send('reset-game', { betAmount: bet });
+          
+          // Mark this bet as reset to prevent multiple calls
+          resetTrackerRef.current[bet] = true;
+          
+          // Clear the reset flag after a short delay to allow next cycle
+          setTimeout(() => {
+            resetTrackerRef.current[bet] = false;
+          }, 2000);
+        }
+      }
+      
+      // Reset the tracker when game goes back to ready state
+      if (status.status === 'ready') {
+        resetTrackerRef.current[bet] = false;
+      }
+    });
+  }, [betStatuses, isClient, webSocketService]);
 
   const fetchGames = async () => {
     try {
