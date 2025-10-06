@@ -267,9 +267,9 @@ const GameInterface = ({
       //setCountdown(timerState.timer);
       const serverTimer = timerState.timer;
       let shifted = (serverTimer - 41 + 46) % 46;
-      const adjustedTimer = serverTimer + shifted;
+      //const adjustedTimer = serverTimer + shifted;
 
-      setCountdown(adjustedTimer);
+      setCountdown(shifted);
 
       console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
     }
