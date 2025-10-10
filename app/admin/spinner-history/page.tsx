@@ -16,7 +16,10 @@ import api from '@/app/utils/api';
 
 interface SpinnerHistory {
   _id: string;
-  winnerId: string;
+  winnerId: {
+    _id: string;
+    phone: string;
+  };
   winnerNumber: number;
   prizePool: number;
   numberOfPlayers: number;
@@ -68,10 +71,10 @@ export default function SpinnerHistoryPage() {
   useEffect(() => {
     if (spinnerHistory && spinnerHistory.length > 0) {
       const filtered = spinnerHistory.filter(game =>
+        game.winnerId.phone.includes(searchTerm) ||
         game.winnerNumber.toString().includes(searchTerm) ||
         game.betAmount.toString().includes(searchTerm) ||
-        game._id.includes(searchTerm) ||
-        game.winnerId.includes(searchTerm)
+        game._id.includes(searchTerm)
       );
       setFilteredHistory(filtered);
       setCurrentPage(1); // Reset to first page when search changes
@@ -161,10 +164,6 @@ export default function SpinnerHistoryPage() {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
-  };
-
-  const formatWinnerId = (winnerId: string) => {
-    return `User-${winnerId.substring(winnerId.length - 6)}`;
   };
 
   const toggleExpandGame = (gameId: string) => {
@@ -294,7 +293,7 @@ export default function SpinnerHistoryPage() {
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
-            placeholder="Search by winning number, bet amount, or user ID..."
+            placeholder="Search spinner games..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -380,10 +379,10 @@ export default function SpinnerHistoryPage() {
                         {/* Winner Info */}
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                           <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                            Winner ID:
+                            Winner:
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem' }}>
-                            {formatWinnerId(game.winnerId)}
+                            {game.winnerId.phone}
                           </Typography>
                         </Box>
                         

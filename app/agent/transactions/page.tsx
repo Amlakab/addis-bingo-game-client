@@ -548,9 +548,9 @@ export default function AdminTransactionsPage() {
                   <tr key={transaction._id} className="hover:bg-gray-50">
                     <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                       <div>
-                        {/* <div className="text-sm font-medium text-gray-900 font-sans">
+                        <div className="text-sm font-medium text-gray-900 font-sans">
                           {transaction.userId.name || 'Unknown'}
-                        </div> */}
+                        </div>
                         <div className="text-sm text-gray-500 font-sans">
                           {transaction.userId.phone}
                         </div>

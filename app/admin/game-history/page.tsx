@@ -18,7 +18,10 @@ import api from '@/app/utils/api';
 
 interface GameHistory {
   _id: string;
-  winnerId: string;
+  winnerId: {
+    _id: string;
+    phone: string;
+  };
   winnerCard: number;
   prizePool: number;
   numberOfPlayers: number;
@@ -63,10 +66,10 @@ export default function GameHistoryPage() {
   useEffect(() => {
     if (gameHistory && gameHistory.length > 0) {
       const filtered = gameHistory.filter(game =>
+        game.winnerId.phone.includes(searchTerm) ||
         game.winnerCard.toString().includes(searchTerm) ||
         game.betAmount.toString().includes(searchTerm) ||
-        game._id.includes(searchTerm) ||
-        game.winnerId.includes(searchTerm)
+        game._id.includes(searchTerm)
       );
       setFilteredHistory(filtered);
     } else {
@@ -148,10 +151,6 @@ export default function GameHistoryPage() {
       style: 'currency',
       currency: 'USD'
     }).format(amount);
-  };
-
-  const formatWinnerId = (winnerId: string) => {
-    return `User-${winnerId.substring(winnerId.length - 6)}`;
   };
 
   const toggleExpandGame = (gameId: string) => {
@@ -263,7 +262,7 @@ export default function GameHistoryPage() {
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
-            placeholder="Search by card, bet amount, or user ID..."
+            placeholder="Search games..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
@@ -321,7 +320,7 @@ export default function GameHistoryPage() {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Winner:</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {formatWinnerId(game.winnerId)}
+                          {game.winnerId.phone}
                         </Typography>
                       </Box>
                       
@@ -387,7 +386,7 @@ export default function GameHistoryPage() {
                 <TableHead>
                   <TableRow sx={{ background: 'linear-gradient(145deg, #3498db, #2980b9)' }}>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Date</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Winner ID</TableCell>
+                    <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Winner Phone</TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Winner Card</TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Bet Amount</TableCell>
                     <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>Players</TableCell>
@@ -405,7 +404,7 @@ export default function GameHistoryPage() {
                           {formatDate(game.createdAt)}
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
-                          {formatWinnerId(game.winnerId)}
+                          {game.winnerId.phone}
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
                           <Chip
