@@ -28,8 +28,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             {children}
           </div>
         </main>
-        <Footer />
+        
       </div>
+      <Footer />
     </div>
   );
 }
