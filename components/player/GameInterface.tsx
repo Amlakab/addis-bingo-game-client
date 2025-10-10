@@ -593,6 +593,20 @@ const GameInterface = ({
   if (countdown > 0 && !gameStarted && !gameStopped) {
     // If countdown is 45, start immediately
     if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
+      // Check if minimum players requirement is met
+      if (numberOfPlayers < 3) {
+        const message = language === 'am' 
+          ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
+          : 'Not enough players! Returning to lobby';
+        setToastMessage(message);
+        setShowToast(true);
+        
+        // Wait a bit then return to lobby
+        setTimeout(() => {
+          handleBackToLobbyWithRefund();
+        }, 2000);
+        return;
+      }
       startGame();
       return; // no need to start interval
     }
@@ -609,6 +623,22 @@ const GameInterface = ({
           if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current);
           }
+          
+          // Check if minimum players requirement is met before starting game
+          if (numberOfPlayers < 3) {
+            const message = language === 'am' 
+              ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
+              : 'Not enough players! Returning to lobby';
+            setToastMessage(message);
+            setShowToast(true);
+            
+            // Wait a bit then return to lobby
+            setTimeout(() => {
+              handleBackToLobbyWithRefund();
+            }, 2000);
+            return 0;
+          }
+          
           startGame();  // <-- Start when countdown reaches 0
           return 0;
         }
@@ -622,7 +652,7 @@ const GameInterface = ({
       clearInterval(countdownIntervalRef.current);
     }
   };
-}, [countdown, gameStarted, gameStopped]);
+}, [countdown, gameStarted, gameStopped, numberOfPlayers, language]); // Added numberOfPlayers and language dependencies
 
   
   // FIXED: Improved isNumberCalled function to handle free space
@@ -634,163 +664,322 @@ const GameInterface = ({
   };
 
   // FIXED: Find which pattern was COMPLETED by the last called number
-  const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
-    const transposedCard = transposeCard(card);
+const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
+  const transposedCard = transposeCard(card);
+  
+  // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
+  const [lastLetter, lastNumStr] = currentNumber.split('-');
+  const lastNum = parseInt(lastNumStr);
+  
+  // Check rows - find the row that contains the last number and see if it's now complete
+  for (let row = 0; row < 5; row++) {
+    let containsLastNumber = false;
+    let isRowComplete = true;
     
-    // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
-    const [lastLetter, lastNumStr] = currentNumber.split('-');
-    const lastNum = parseInt(lastNumStr);
-    
-    // Check rows
-    for (let row = 0; row < 5; row++) {
-      let isWinningRow = true;
-      let lastNumberIsInThisRow = false;
-      
-      for (let col = 0; col < 5; col++) {
-        const number = transposedCard[row][col];
-        const letter = "BINGO"[col];
-        const isFreeSpace = (col === 2 && row === 2);
-        
-        // Check if this cell contains the last called number
-        if (letter === lastLetter && number === lastNum) {
-          lastNumberIsInThisRow = true;
-        }
-        
-        if (!isFreeSpace && !isNumberCalled(number, letter)) {
-          isWinningRow = false;
-          break;
-        }
-      }
-      
-      // This row wins AND contains the last called number
-      if (isWinningRow && lastNumberIsInThisRow) {
-        const rowCells = [];
-        for (let col = 0; col < 5; col++) {
-          rowCells.push({row, col});
-        }
-        return { pattern: 'row', cells: rowCells };
-      }
-    }
-    
-    // Check columns
     for (let col = 0; col < 5; col++) {
-      let isWinningCol = true;
-      let lastNumberIsInThisCol = false;
+      const number = transposedCard[row][col];
+      const letter = "BINGO"[col];
+      const isFreeSpace = (col === 2 && row === 2);
       
+      // Check if this cell contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        containsLastNumber = true;
+      }
+      
+      // Check if this cell is marked (called or free space)
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isRowComplete = false;
+      }
+    }
+    
+    // This row wins AND contains the last called number
+    if (isRowComplete && containsLastNumber) {
+      const rowCells = [];
+      for (let col = 0; col < 5; col++) {
+        rowCells.push({row, col});
+      }
+      return { pattern: 'row', cells: rowCells };
+    }
+  }
+  
+  // Check columns - find the column that contains the last number and see if it's now complete
+  for (let col = 0; col < 5; col++) {
+    let containsLastNumber = false;
+    let isColComplete = true;
+    
+    for (let row = 0; row < 5; row++) {
+      const number = transposedCard[row][col];
+      const letter = "BINGO"[col];
+      const isFreeSpace = (col === 2 && row === 2);
+      
+      // Check if this cell contains the last called number
+      if (letter === lastLetter && number === lastNum) {
+        containsLastNumber = true;
+      }
+      
+      // Check if this cell is marked (called or free space)
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isColComplete = false;
+      }
+    }
+    
+    // This column wins AND contains the last called number
+    if (isColComplete && containsLastNumber) {
+      const colCells = [];
       for (let row = 0; row < 5; row++) {
-        const number = transposedCard[row][col];
-        const letter = "BINGO"[col];
-        const isFreeSpace = (col === 2 && row === 2);
-        
-        // Check if this cell contains the last called number
-        if (letter === lastLetter && number === lastNum) {
-          lastNumberIsInThisCol = true;
-        }
-        
-        if (!isFreeSpace && !isNumberCalled(number, letter)) {
-          isWinningCol = false;
-          break;
-        }
+        colCells.push({row, col});
       }
-      
-      // This column wins AND contains the last called number
-      if (isWinningCol && lastNumberIsInThisCol) {
-        const colCells = [];
-        for (let row = 0; row < 5; row++) {
-          colCells.push({row, col});
-        }
-        return { pattern: 'column', cells: colCells };
-      }
+      return { pattern: 'column', cells: colCells };
+    }
+  }
+  
+  // Check main diagonal - see if it contains the last number and is complete
+  let containsLastNumberInMainDiagonal = false;
+  let isMainDiagonalComplete = true;
+  
+  for (let i = 0; i < 5; i++) {
+    const number = transposedCard[i][i];
+    const letter = "BINGO"[i];
+    const isFreeSpace = (i === 2);
+    
+    // Check if this cell contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      containsLastNumberInMainDiagonal = true;
     }
     
-    // Check main diagonal
-    let isWinningMainDiagonal = true;
-    let lastNumberIsInMainDiagonal = false;
-    
+    // Check if this cell is marked (called or free space)
+    if (!isFreeSpace && !isNumberCalled(number, letter)) {
+      isMainDiagonalComplete = false;
+    }
+  }
+  
+  if (isMainDiagonalComplete && containsLastNumberInMainDiagonal) {
+    const mainDiagonalCells = [];
     for (let i = 0; i < 5; i++) {
-      const number = transposedCard[i][i];
-      const letter = "BINGO"[i];
-      const isFreeSpace = (i === 2);
-      
-      // Check if this cell contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        lastNumberIsInMainDiagonal = true;
-      }
-      
-      if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isWinningMainDiagonal = false;
-        break;
-      }
+      mainDiagonalCells.push({row: i, col: i});
+    }
+    return { pattern: 'diagonal', cells: mainDiagonalCells };
+  }
+  
+  // Check anti-diagonal - see if it contains the last number and is complete
+  let containsLastNumberInAntiDiagonal = false;
+  let isAntiDiagonalComplete = true;
+  
+  for (let i = 0; i < 5; i++) {
+    const number = transposedCard[i][4 - i];
+    const letter = "BINGO"[i];
+    const isFreeSpace = (i === 2);
+    
+    // Check if this cell contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      containsLastNumberInAntiDiagonal = true;
     }
     
-    if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
-      const mainDiagonalCells = [];
-      for (let i = 0; i < 5; i++) {
-        mainDiagonalCells.push({row: i, col: i});
-      }
-      return { pattern: 'diagonal', cells: mainDiagonalCells };
+    // Check if this cell is marked (called or free space)
+    if (!isFreeSpace && !isNumberCalled(number, letter)) {
+      isAntiDiagonalComplete = false;
     }
-    
-    // Check anti-diagonal
-    let isWinningAntiDiagonal = true;
-    let lastNumberIsInAntiDiagonal = false;
-    
+  }
+  
+  if (isAntiDiagonalComplete && containsLastNumberInAntiDiagonal) {
+    const antiDiagonalCells = [];
     for (let i = 0; i < 5; i++) {
-      const number = transposedCard[i][4 - i];
-      const letter = "BINGO"[i];
-      const isFreeSpace = (i === 2);
-      
-      // Check if this cell contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        lastNumberIsInAntiDiagonal = true;
-      }
-      
-      if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isWinningAntiDiagonal = false;
-        break;
-      }
+      antiDiagonalCells.push({row: i, col: 4 - i});
+    }
+    return { pattern: 'diagonal', cells: antiDiagonalCells };
+  }
+  
+  // Check corners - see if the last number is a corner and all corners are complete
+  const corners = [
+    {row: 0, col: 0}, 
+    {row: 0, col: 4},
+    {row: 4, col: 0}, 
+    {row: 4, col: 4}
+  ];
+  
+  let containsLastNumberInCorners = false;
+  let isCornersComplete = true;
+  
+  for (const corner of corners) {
+    const number = transposedCard[corner.row][corner.col];
+    const letter = "BINGO"[corner.col];
+    
+    // Check if this corner contains the last called number
+    if (letter === lastLetter && number === lastNum) {
+      containsLastNumberInCorners = true;
     }
     
-    if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
-      const antiDiagonalCells = [];
-      for (let i = 0; i < 5; i++) {
-        antiDiagonalCells.push({row: i, col: 4 - i});
-      }
-      return { pattern: 'diagonal', cells: antiDiagonalCells };
+    // Check if this corner is marked
+    if (!isNumberCalled(number, letter)) {
+      isCornersComplete = false;
     }
+  }
+  
+  if (isCornersComplete && containsLastNumberInCorners) {
+    return { pattern: 'corners', cells: corners };
+  }
+  
+  return { pattern: 'row', cells: [] };
+};
+
+  // // FIXED: Find which pattern was COMPLETED by the last called number
+  // const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
+  //   const transposedCard = transposeCard(card);
     
-    // Check corners
-    const corners = [
-      {row: 0, col: 0}, 
-      {row: 0, col: 4},
-      {row: 4, col: 0}, 
-      {row: 4, col: 4}
-    ];
+  //   // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
+  //   const [lastLetter, lastNumStr] = currentNumber.split('-');
+  //   const lastNum = parseInt(lastNumStr);
     
-    let isWinningCorners = true;
-    let lastNumberIsInCorners = false;
-    
-    for (const corner of corners) {
-      const number = transposedCard[corner.row][corner.col];
-      const letter = "BINGO"[corner.col];
+  //   // Check rows
+  //   for (let row = 0; row < 5; row++) {
+  //     let isWinningRow = true;
+  //     let lastNumberIsInThisRow = false;
       
-      // Check if this corner contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        lastNumberIsInCorners = true;
-      }
+  //     for (let col = 0; col < 5; col++) {
+  //       const number = transposedCard[row][col];
+  //       const letter = "BINGO"[col];
+  //       const isFreeSpace = (col === 2 && row === 2);
+        
+  //       // Check if this cell contains the last called number
+  //       if (letter === lastLetter && number === lastNum) {
+  //         lastNumberIsInThisRow = true;
+  //       }
+        
+  //       if (!isFreeSpace && !isNumberCalled(number, letter)) {
+  //         isWinningRow = false;
+  //         break;
+  //       }
+  //     }
       
-      if (!isNumberCalled(number, letter)) {
-        isWinningCorners = false;
-        break;
-      }
-    }
+  //     // This row wins AND contains the last called number
+  //     if (isWinningRow && lastNumberIsInThisRow) {
+  //       const rowCells = [];
+  //       for (let col = 0; col < 5; col++) {
+  //         rowCells.push({row, col});
+  //       }
+  //       return { pattern: 'row', cells: rowCells };
+  //     }
+  //   }
     
-    if (isWinningCorners && lastNumberIsInCorners) {
-      return { pattern: 'corners', cells: corners };
-    }
+  //   // Check columns
+  //   for (let col = 0; col < 5; col++) {
+  //     let isWinningCol = true;
+  //     let lastNumberIsInThisCol = false;
+      
+  //     for (let row = 0; row < 5; row++) {
+  //       const number = transposedCard[row][col];
+  //       const letter = "BINGO"[col];
+  //       const isFreeSpace = (col === 2 && row === 2);
+        
+  //       // Check if this cell contains the last called number
+  //       if (letter === lastLetter && number === lastNum) {
+  //         lastNumberIsInThisCol = true;
+  //       }
+        
+  //       if (!isFreeSpace && !isNumberCalled(number, letter)) {
+  //         isWinningCol = false;
+  //         break;
+  //       }
+  //     }
+      
+  //     // This column wins AND contains the last called number
+  //     if (isWinningCol && lastNumberIsInThisCol) {
+  //       const colCells = [];
+  //       for (let row = 0; row < 5; row++) {
+  //         colCells.push({row, col});
+  //       }
+  //       return { pattern: 'column', cells: colCells };
+  //     }
+  //   }
     
-    return { pattern: 'row', cells: [] };
-  };
+  //   // Check main diagonal
+  //   let isWinningMainDiagonal = true;
+  //   let lastNumberIsInMainDiagonal = false;
+    
+  //   for (let i = 0; i < 5; i++) {
+  //     const number = transposedCard[i][i];
+  //     const letter = "BINGO"[i];
+  //     const isFreeSpace = (i === 2);
+      
+  //     // Check if this cell contains the last called number
+  //     if (letter === lastLetter && number === lastNum) {
+  //       lastNumberIsInMainDiagonal = true;
+  //     }
+      
+  //     if (!isFreeSpace && !isNumberCalled(number, letter)) {
+  //       isWinningMainDiagonal = false;
+  //       break;
+  //     }
+  //   }
+    
+  //   if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
+  //     const mainDiagonalCells = [];
+  //     for (let i = 0; i < 5; i++) {
+  //       mainDiagonalCells.push({row: i, col: i});
+  //     }
+  //     return { pattern: 'diagonal', cells: mainDiagonalCells };
+  //   }
+    
+  //   // Check anti-diagonal
+  //   let isWinningAntiDiagonal = true;
+  //   let lastNumberIsInAntiDiagonal = false;
+    
+  //   for (let i = 0; i < 5; i++) {
+  //     const number = transposedCard[i][4 - i];
+  //     const letter = "BINGO"[i];
+  //     const isFreeSpace = (i === 2);
+      
+  //     // Check if this cell contains the last called number
+  //     if (letter === lastLetter && number === lastNum) {
+  //       lastNumberIsInAntiDiagonal = true;
+  //     }
+      
+  //     if (!isFreeSpace && !isNumberCalled(number, letter)) {
+  //       isWinningAntiDiagonal = false;
+  //       break;
+  //     }
+  //   }
+    
+  //   if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
+  //     const antiDiagonalCells = [];
+  //     for (let i = 0; i < 5; i++) {
+  //       antiDiagonalCells.push({row: i, col: 4 - i});
+  //     }
+  //     return { pattern: 'diagonal', cells: antiDiagonalCells };
+  //   }
+    
+  //   // Check corners
+  //   const corners = [
+  //     {row: 0, col: 0}, 
+  //     {row: 0, col: 4},
+  //     {row: 4, col: 0}, 
+  //     {row: 4, col: 4}
+  //   ];
+    
+  //   let isWinningCorners = true;
+  //   let lastNumberIsInCorners = false;
+    
+  //   for (const corner of corners) {
+  //     const number = transposedCard[corner.row][corner.col];
+  //     const letter = "BINGO"[corner.col];
+      
+  //     // Check if this corner contains the last called number
+  //     if (letter === lastLetter && number === lastNum) {
+  //       lastNumberIsInCorners = true;
+  //     }
+      
+  //     if (!isNumberCalled(number, letter)) {
+  //       isWinningCorners = false;
+  //       break;
+  //     }
+  //   }
+    
+  //   if (isWinningCorners && lastNumberIsInCorners) {
+  //     return { pattern: 'corners', cells: corners };
+  //   }
+    
+  //   return { pattern: 'row', cells: [] };
+  // };
 
   // FIXED: Check for winner - ONLY win if last called number completes a pattern
   const checkForWinner = (playerId: number) => {

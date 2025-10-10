@@ -1,4 +1,4 @@
-// File: C:\Users\A\Desktop\bruk\client\app\layout.tsx
+// File: /home/amlakie/Desktop/games/online-bingo-app/addis-bingo-game-client/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
