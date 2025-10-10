@@ -577,25 +577,8 @@ const GameInterface = ({
 
   // Start game function
   const startGame = () => {
-    setGameStarted(true);
-    
-    if (webSocketService) {
-      webSocketService.send('update-session-status-by-bet', {
-        betAmount: bet,
-        status: 'playing'
-      });
-      
-      webSocketService.send('start-game', { betAmount: bet });
-    }
-  };
 
-  // UPDATED: Start countdown when server timer is available
-  useEffect(() => {
-  if (countdown > 0 && !gameStarted && !gameStopped) {
-    // First, check if we're at countdown=3 and validate players
-    if (countdown === 3) {
-      setIsReady(true);
-      if (numberOfPlayers < 3) {
+    if (numberOfPlayers < 3) {
         const message = language === 'am' 
           ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
           : 'Not enough players! Returning to lobby';
@@ -612,32 +595,27 @@ const GameInterface = ({
         }, 2000);
         return;
       } else {
-        // Enough players (>= 3), set ready state
-        setIsReady(true);
-        const message = language === 'am' 
-          ? 'ጨዋታው ዝግጁ ነው!' 
-          : 'Game is ready!';
-        setToastMessage(message);
-        setShowToast(true);
-      }
+        setGameStarted(true);
+    
+        if (webSocketService) {
+          webSocketService.send('update-session-status-by-bet', {
+            betAmount: bet,
+            status: 'playing'
+          });
+          
+          webSocketService.send('start-game', { betAmount: bet });
+        }
     }
+  };
 
-    // If countdown is 45-40, start immediately (but only if we passed the 3-second check)
+// UPDATED: Start countdown when server timer is available
+  useEffect(() => {
+  if (countdown > 0 && !gameStarted && !gameStopped) {
+    if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===45){
+      setIsReady(true);
+    }
+    // If countdown is 45, start immediately
     if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
-      // Check if minimum players requirement is met
-      if (numberOfPlayers < 3) {
-        const message = language === 'am' 
-          ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
-          : 'Not enough players! Returning to lobby';
-        setToastMessage(message);
-        setShowToast(true);
-        
-        // Wait a bit then return to lobby
-        setTimeout(() => {
-          handleBackToLobbyWithRefund();
-        }, 2000);
-        return;
-      }
       startGame();
       return; // no need to start interval
     }
@@ -650,54 +628,10 @@ const GameInterface = ({
 
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
-        // Check at 3 seconds if we have enough players
-        if (prev === 3) {
-          if (numberOfPlayers < 3) {
-            const message = language === 'am' 
-              ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
-              : 'Not enough players! Returning to lobby';
-            setToastMessage(message);
-            setShowToast(true);
-            
-            // Clear interval and return to lobby
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-            }
-            
-            setTimeout(() => {
-              handleBackToLobbyWithRefund();
-            }, 2000);
-            return 3; // Keep showing 3 seconds
-          } else {
-            // Enough players (>= 3), set ready state
-            setIsReady(true);
-            const message = language === 'am' 
-              ? 'ጨዋታው ዝግጁ ነው!' 
-              : 'Game is ready!';
-            setToastMessage(message);
-            setShowToast(true);
-          }
-        }
-        
         if (prev <= 1) {
           if (countdownIntervalRef.current) {
             clearInterval(countdownIntervalRef.current);
           }
-          
-          // Final check before starting game
-          if (numberOfPlayers < 3) {
-            const message = language === 'am' 
-              ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
-              : 'Not enough players! Returning to lobby';
-            setToastMessage(message);
-            setShowToast(true);
-            
-            setTimeout(() => {
-              handleBackToLobbyWithRefund();
-            }, 2000);
-            return 0;
-          }
-          
           startGame();  // <-- Start when countdown reaches 0
           return 0;
         }
@@ -711,7 +645,7 @@ const GameInterface = ({
       clearInterval(countdownIntervalRef.current);
     }
   };
-}, [countdown, gameStarted, gameStopped, numberOfPlayers, language]); // Added numberOfPlayers and language dependencies
+}, [countdown, gameStarted, gameStopped]);
 
   
   // FIXED: Improved isNumberCalled function to handle free space
