@@ -484,6 +484,7 @@ const GameInterface = ({
 
     // NEW: restartGame function
     const restartGame = () => {
+      setIsReady(true);
       setGameStarted(true);
       
       if (webSocketService) {
@@ -578,23 +579,23 @@ const GameInterface = ({
   // Start game function
   const startGame = () => {
 
-    if (numberOfPlayers < 3) {
-        const message = language === 'am' 
-          ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
-          : 'Not enough players! Returning to lobby';
-        setToastMessage(message);
-        setShowToast(true);
+    // if (numberOfPlayers < 3) {
+    //     const message = language === 'am' 
+    //       ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
+    //       : 'Not enough players! Returning to lobby';
+    //     setToastMessage(message);
+    //     setShowToast(true);
         
-        // Clear any existing interval
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-        }
+    //     // Clear any existing interval
+    //     if (countdownIntervalRef.current) {
+    //       clearInterval(countdownIntervalRef.current);
+    //     }
         
-        setTimeout(() => {
-          handleBackToLobbyWithRefund();
-        }, 2000);
-        return;
-      } else {
+    //     setTimeout(() => {
+    //       handleBackToLobbyWithRefund();
+    //     }, 2000);
+    //     return;
+    //   } else {
         setGameStarted(true);
     
         if (webSocketService) {
@@ -605,7 +606,7 @@ const GameInterface = ({
           
           webSocketService.send('start-game', { betAmount: bet });
         }
-    }
+     //}
   };
 
 // UPDATED: Start countdown when server timer is available
