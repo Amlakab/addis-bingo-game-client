@@ -112,6 +112,7 @@ const GameInterface = ({
   // Game control state - UPDATED: Only use server timing for countdown
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
   const [sessionCreatedAt, setSessionCreatedAt] = useState<Date | null>(null);
   const [gameStopped, setGameStopped] = useState(false);
@@ -591,7 +592,37 @@ const GameInterface = ({
   // UPDATED: Start countdown when server timer is available
   useEffect(() => {
   if (countdown > 0 && !gameStarted && !gameStopped) {
-    // If countdown is 45, start immediately
+    // First, check if we're at countdown=3 and validate players
+    if (countdown === 3) {
+      setIsReady(true);
+      if (numberOfPlayers < 3) {
+        const message = language === 'am' 
+          ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
+          : 'Not enough players! Returning to lobby';
+        setToastMessage(message);
+        setShowToast(true);
+        
+        // Clear any existing interval
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+        }
+        
+        setTimeout(() => {
+          handleBackToLobbyWithRefund();
+        }, 2000);
+        return;
+      } else {
+        // Enough players (>= 3), set ready state
+        setIsReady(true);
+        const message = language === 'am' 
+          ? 'ጨዋታው ዝግጁ ነው!' 
+          : 'Game is ready!';
+        setToastMessage(message);
+        setShowToast(true);
+      }
+    }
+
+    // If countdown is 45-40, start immediately (but only if we passed the 3-second check)
     if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
       // Check if minimum players requirement is met
       if (numberOfPlayers < 3) {
@@ -619,12 +650,8 @@ const GameInterface = ({
 
     countdownIntervalRef.current = setInterval(() => {
       setCountdown(prev => {
-        if (prev <= 1) {
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-          }
-          
-          // Check if minimum players requirement is met before starting game
+        // Check at 3 seconds if we have enough players
+        if (prev === 3) {
           if (numberOfPlayers < 3) {
             const message = language === 'am' 
               ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
@@ -632,7 +659,39 @@ const GameInterface = ({
             setToastMessage(message);
             setShowToast(true);
             
-            // Wait a bit then return to lobby
+            // Clear interval and return to lobby
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+            }
+            
+            setTimeout(() => {
+              handleBackToLobbyWithRefund();
+            }, 2000);
+            return 3; // Keep showing 3 seconds
+          } else {
+            // Enough players (>= 3), set ready state
+            setIsReady(true);
+            const message = language === 'am' 
+              ? 'ጨዋታው ዝግጁ ነው!' 
+              : 'Game is ready!';
+            setToastMessage(message);
+            setShowToast(true);
+          }
+        }
+        
+        if (prev <= 1) {
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+          }
+          
+          // Final check before starting game
+          if (numberOfPlayers < 3) {
+            const message = language === 'am' 
+              ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
+              : 'Not enough players! Returning to lobby';
+            setToastMessage(message);
+            setShowToast(true);
+            
             setTimeout(() => {
               handleBackToLobbyWithRefund();
             }, 2000);
@@ -1582,7 +1641,7 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
             })}
           </Box>
           
-          {!gameStarted && (
+          {!isReady && (
             <Button 
               variant="contained" 
               color="error"
