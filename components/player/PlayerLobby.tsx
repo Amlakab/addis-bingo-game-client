@@ -187,7 +187,7 @@ const PlayerLobby = ({
     checkPlayingStatus();
     
     // Timer logic - now using server-provided time
-    if (remainingTime === 3 || remainingTime === 2 || remainingTime === 1 || remainingTime === 0) {
+    if (remainingTime === 4 || remainingTime === 3 || remainingTime === 2 || remainingTime === 1 || remainingTime === 0) {
       // Timer reached 0 - Logic 1: Clear selections if less than 3 players
       if (playerCount < 3) {
         if (selectedPlayers.length > 0) {
