@@ -606,7 +606,7 @@ const GameInterface = ({
 
   // UPDATED: Start countdown when server timer is available
   useEffect(() => {
-    if (!gameStarted && !gameStopped) {
+    if (countdown > 0 && !gameStarted && !gameStopped) {
       if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===45){
         setIsReady(true);
       }
@@ -622,18 +622,18 @@ const GameInterface = ({
 
       console.log(`Starting countdown with server time: ${countdown}s`);
 
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            if (countdownIntervalRef.current) {
-              clearInterval(countdownIntervalRef.current);
-            }
-            startGame();  // <-- Start when countdown reaches 0
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      // countdownIntervalRef.current = setInterval(() => {
+      //   setCountdown(prev => {
+      //     if (prev <= 1) {
+      //       if (countdownIntervalRef.current) {
+      //         clearInterval(countdownIntervalRef.current);
+      //       }
+      //       startGame();  // <-- Start when countdown reaches 0
+      //       return 0;
+      //     }
+      //     return prev - 1;
+      //   });
+      // }, 1000);
     }
 
     return () => {
