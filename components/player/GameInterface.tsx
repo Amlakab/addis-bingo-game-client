@@ -988,14 +988,14 @@ const GameInterface = ({
     }
 
     // Check connection status
-    if (!isConnected) {
-      const message = language === 'am' 
-        ? 'እባክዎ ግንኙነት እስቲ ያረጋግጡ! እየመለሰ ነው...' 
-        : 'Please check connection! Reconnecting...';
-      setToastMessage(message);
-      setShowToast(true);
-      return;
-    }
+    // if (!isConnected) {
+    //   const message = language === 'am' 
+    //     ? 'እባክዎ ግንኙነት እስቲ ያረጋግጡ! እየመለሰ ነው...' 
+    //     : 'Please check connection! Reconnecting...';
+    //   setToastMessage(message);
+    //   setShowToast(true);
+    //   return;
+    // }
 
     // Wait if still processing number calls
     if (isProcessingRef.current && retryCount < 3) {
