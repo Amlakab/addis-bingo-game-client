@@ -78,6 +78,10 @@ const GameInterface = ({
   // State declarations
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
+  // CRITICAL FIX: Add server state tracking
+  const [serverCalledNumbers, setServerCalledNumbers] = useState<string[]>([]);
+  const [serverCurrentNumber, setServerCurrentNumber] = useState<string>("");
+  
   const [isCalling, setIsCalling] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
@@ -109,7 +113,7 @@ const GameInterface = ({
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Game control state
+  // Game control state - UPDATED: Only use server timing for countdown
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -121,25 +125,12 @@ const GameInterface = ({
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
-  // Connection and validation state
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
-  const [lastServerSync, setLastServerSync] = useState<Date | null>(null);
-  const [pendingBingoClaims, setPendingBingoClaims] = useState<number[]>([]);
-  const [serverGameState, setServerGameState] = useState<{
-    calledNumbers: string[];
-    currentNumber: string;
-    lastUpdated: Date;
-  } | null>(null);
-
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const connectionRetryRef = useRef<NodeJS.Timeout | null>(null);
-  const stateSyncRef = useRef<NodeJS.Timeout | null>(null);
-  const bingoValidationRef = useRef<{[key: number]: number}>({});
 
   // Function to play local Amharic audio files
   const playAmharicNumberAudio = (number: string) => {
@@ -240,11 +231,6 @@ const GameInterface = ({
         50% { background-color: rgba(255,215,0,0.8); }
         100% { background-color: rgba(76,175,80,0.3); }
       }
-      @keyframes connection-pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-      }
     `;
     document.head.appendChild(styleSheet);
 
@@ -253,60 +239,30 @@ const GameInterface = ({
     };
   }, [isClient]);
 
-  // Enhanced connection management
+  // Setup WebSocket connection state
   useEffect(() => {
     if (!webSocketService) return;
 
     const handleConnect = () => {
       setIsConnected(true);
-      setConnectionStatus('connected');
-      setLastServerSync(new Date());
-      console.log('WebSocket connected - GameInterface');
-      
-      // Request fresh game state on reconnect
-      webSocketService.send('get-game-state', { betAmount: bet });
-      webSocketService.send('get-sessions', { betAmount: bet });
-      webSocketService.send('get-timer-states');
+      console.log('WebSocket connected');
     };
 
     const handleDisconnect = () => {
       setIsConnected(false);
-      setConnectionStatus('disconnected');
-      console.log('WebSocket disconnected - GameInterface');
-      
-      // Auto-reconnect logic
-      if (connectionRetryRef.current) {
-        clearTimeout(connectionRetryRef.current);
-      }
-      
-      connectionRetryRef.current = setTimeout(() => {
-        console.log('Attempting to reconnect...');
-        setConnectionStatus('connecting');
-      }, 3000);
-    };
-
-    const handleReconnect = () => {
-      console.log('WebSocket reconnected - GameInterface');
-      setConnectionStatus('connected');
-      setLastServerSync(new Date());
+      console.log('WebSocket disconnected');
     };
 
     webSocketService.on('connect', handleConnect);
     webSocketService.on('disconnect', handleDisconnect);
-    webSocketService.on('reconnect', handleReconnect);
 
     return () => {
       webSocketService.off('connect', handleConnect);
       webSocketService.off('disconnect', handleDisconnect);
-      webSocketService.off('reconnect', handleReconnect);
-      
-      if (connectionRetryRef.current) {
-        clearTimeout(connectionRetryRef.current);
-      }
     };
-  }, [webSocketService, bet]);
+  }, [webSocketService]);
 
-  // Server timer state handler
+  // NEW: Handler for server timer states
   const handleTimerStatesUpdate = useCallback((timerStates: {[key: number]: BetTimerState}) => {
     console.log('Received timer states in GameInterface:', timerStates);
     
@@ -317,42 +273,13 @@ const GameInterface = ({
     }
   }, [bet]);
 
-  // State synchronization with server
-  const syncWithServerState = useCallback((serverState: { calledNumbers: string[], currentNumber: string }) => {
-    console.log('Syncing with server state:', serverState);
-    
-    setCalledNumbers(serverState.calledNumbers);
-    setCurrentNumber(serverState.currentNumber);
-    setServerGameState({
-      calledNumbers: serverState.calledNumbers,
-      currentNumber: serverState.currentNumber,
-      lastUpdated: new Date()
-    });
-    setLastServerSync(new Date());
-  }, []);
-
-  // Enhanced number validation
-  const validateNumberCall = useCallback((newNumber: string, serverCalledNumbers: string[]) => {
-    // If we have no current number or it's different, accept it
-    if (!currentNumber || currentNumber !== newNumber) {
-      return true;
-    }
-    
-    // If numbers are the same but calledNumbers differ, sync with server
-    if (JSON.stringify(calledNumbers) !== JSON.stringify(serverCalledNumbers)) {
-      console.log('Number call validation: Syncing called numbers with server');
-      return true;
-    }
-    
-    return false;
-  }, [currentNumber, calledNumbers]);
-
   // Setup WebSocket listeners for game control events
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
     console.log('Setting up game control WebSocket listeners for bet:', bet);
 
+    // FIXED: Update server state immediately when numbers are called
     const handleNumberCalled = (data: { 
       betAmount: number; 
       number: string; 
@@ -362,12 +289,6 @@ const GameInterface = ({
       
       if (isProcessingRef.current || gameStopped) return;
       
-      // Validate the number call
-      if (!validateNumberCall(data.number, data.calledNumbers)) {
-        console.log('Number call validation failed - ignoring duplicate');
-        return;
-      }
-      
       isProcessingRef.current = true;
       
       if (numberCalledRef.current === data.number) {
@@ -376,12 +297,12 @@ const GameInterface = ({
       }
       
       numberCalledRef.current = data.number;
+      setCurrentNumber(data.number);
+      setCalledNumbers(data.calledNumbers);
       
-      // Update state with server data
-      syncWithServerState({
-        calledNumbers: data.calledNumbers,
-        currentNumber: data.number
-      });
+      // CRITICAL FIX: Update server state immediately
+      setServerCurrentNumber(data.number);
+      setServerCalledNumbers(data.calledNumbers);
       
       setIsCalling(true);
       
@@ -397,9 +318,8 @@ const GameInterface = ({
       }
       
       setTimeout(() => {
-        setIsCalling(false);
         isProcessingRef.current = false;
-      }, 100);
+      }, 50);
     };
 
     const handleGameStopped = (data: { 
@@ -464,7 +384,7 @@ const GameInterface = ({
       
       setToastMessage(winnerMessage);
       setShowToast(true);
-    };
+    }
 
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
@@ -480,7 +400,6 @@ const GameInterface = ({
       }
       
       setSubmittedBingoCards([]);
-      setPendingBingoClaims([]);
       
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
@@ -516,6 +435,7 @@ const GameInterface = ({
       }
     };
 
+    // FIXED: Also update server state in game-state handler
     const handleGameState = (data: { 
       betAmount: number; 
       calledNumbers: string[]; 
@@ -523,18 +443,21 @@ const GameInterface = ({
     }) => {
       if (data.betAmount !== bet) return;
       
-      console.log('Received full game state from server:', data);
-      syncWithServerState({
-        calledNumbers: data.calledNumbers,
-        currentNumber: data.currentNumber
-      });
+      setCalledNumbers(data.calledNumbers);
+      setCurrentNumber(data.currentNumber);
+      
+      // CRITICAL FIX: Sync server state
+      setServerCurrentNumber(data.currentNumber);
+      setServerCalledNumbers(data.calledNumbers);
     };
 
+    // UPDATED: Sessions update handler - KEEP existing player/prize calculation
     const handleSessionsUpdate = (sessions: GameSession[]) => {
       const betSessions = sessions.filter(session => session.betAmount === bet);
       
       console.log('Bet sessions:', betSessions);
       
+      // KEEP existing frontend logic for player count and prize pool
       const activePlayers = betSessions.filter(
         (session) => session.status !== "active"
       ).length;
@@ -553,14 +476,19 @@ const GameInterface = ({
         }, new Date(betSessions[0].createdAt));
         
         setSessionCreatedAt(earliestSession);
+        
+        // Server timing will handle countdown via timer-states-update
+        // We don't calculate countdown locally anymore
       }
 
+      // NEW: Check if there are sessions with 'playing' status and restart game if needed
       const hasPlayingSessions = betSessions.some(session => session.status === "playing");
       if (hasPlayingSessions && !gameStarted && !gameStopped) {
         restartGame();
       }
     };
 
+    // NEW: restartGame function
     const restartGame = () => {
       setIsReady(true);
       setGameStarted(true);
@@ -578,29 +506,6 @@ const GameInterface = ({
       console.log('WebSocket connected in GameInterface');
     };
 
-    const handleBingoValidation = (data: {
-      betAmount: number;
-      cardNumber: number;
-      isValid: boolean;
-      message: string;
-    }) => {
-      if (data.betAmount !== bet) return;
-      
-      console.log('BINGO validation result:', data);
-      
-      setPendingBingoClaims(prev => prev.filter(id => id !== data.cardNumber));
-      
-      if (data.isValid) {
-        setToastMessage(data.message);
-        setShowToast(true);
-      } else {
-        setBlockedPlayers(prev => [...prev, data.cardNumber]);
-        setLoserMessage(data.message);
-        setLoserCardId(data.cardNumber);
-        setShowLoserModal(true);
-      }
-    };
-
     // Set up all listeners
     webSocketService.off('number-called', handleNumberCalled);
     webSocketService.off('game-stopped', handleGameStopped);
@@ -609,8 +514,7 @@ const GameInterface = ({
     webSocketService.off('game-state', handleGameState);
     webSocketService.off('sessions-updated', handleSessionsUpdate);
     webSocketService.off('connected', handleWebSocketConnected);
-    webSocketService.off('timer-states-update', handleTimerStatesUpdate);
-    webSocketService.off('bingo-validation', handleBingoValidation);
+    webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
 
     webSocketService.on('number-called', handleNumberCalled);
     webSocketService.on('game-stopped', handleGameStopped);
@@ -619,13 +523,10 @@ const GameInterface = ({
     webSocketService.on('game-state', handleGameState);
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('connected', handleWebSocketConnected);
-    webSocketService.on('timer-states-update', handleTimerStatesUpdate);
-    webSocketService.on('bingo-validation', handleBingoValidation);
+    webSocketService.on('timer-states-update', handleTimerStatesUpdate); // NEW
 
-    // Request initial state
     webSocketService.send('get-sessions', { betAmount: bet });
-    webSocketService.send('get-game-state', { betAmount: bet });
-    webSocketService.send('get-timer-states');
+    webSocketService.send('get-timer-states'); // Request initial timer states
 
     return () => {
       webSocketService.off('number-called', handleNumberCalled);
@@ -635,8 +536,7 @@ const GameInterface = ({
       webSocketService.off('game-state', handleGameState);
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('connected', handleWebSocketConnected);
-      webSocketService.off('timer-states-update', handleTimerStatesUpdate);
-      webSocketService.off('bingo-validation', handleBingoValidation);
+      webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
       
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
@@ -644,17 +544,10 @@ const GameInterface = ({
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
       }
-      if (connectionRetryRef.current) {
-        clearTimeout(connectionRetryRef.current);
-      }
-      if (stateSyncRef.current) {
-        clearTimeout(stateSyncRef.current);
-      }
     };
   }, [
     isClient, webSocketService, bet, language, user, gameStopped, 
-    soundOn, voiceService, gameStarted, handleTimerStatesUpdate,
-    validateNumberCall, syncWithServerState
+    soundOn, voiceService, gameStarted, handleTimerStatesUpdate
   ]);
 
   // Initialize and set up window size tracking
@@ -684,22 +577,18 @@ const GameInterface = ({
     }
   }, [calledNumbers]);
 
-  // State synchronization timer
+  // Add debugging for state synchronization
   useEffect(() => {
-    if (!gameStarted || gameStopped) return;
-
-    stateSyncRef.current = setInterval(() => {
-      if (webSocketService && isConnected) {
-        webSocketService.send('get-game-state', { betAmount: bet });
-      }
-    }, 10000); // Sync every 10 seconds
-
-    return () => {
-      if (stateSyncRef.current) {
-        clearInterval(stateSyncRef.current);
-      }
-    };
-  }, [gameStarted, gameStopped, webSocketService, isConnected, bet]);
+    if (serverCurrentNumber !== currentNumber || serverCalledNumbers.length !== calledNumbers.length) {
+      console.warn('State synchronization issue detected:', {
+        serverCurrentNumber,
+        clientCurrentNumber: currentNumber,
+        serverCalledCount: serverCalledNumbers.length,
+        clientCalledCount: calledNumbers.length,
+        isEqual: serverCurrentNumber === currentNumber && serverCalledNumbers.length === calledNumbers.length
+      });
+    }
+  }, [serverCurrentNumber, currentNumber, serverCalledNumbers.length, calledNumbers.length]);
 
   // Start game function
   const startGame = () => {
@@ -715,16 +604,16 @@ const GameInterface = ({
     }
   };
 
-  // Enhanced countdown with connection awareness
+  // UPDATED: Start countdown when server timer is available
   useEffect(() => {
     if (countdown > 0 && !gameStarted && !gameStopped) {
-      if(countdown === 4 || countdown === 3 || countdown === 2 || countdown === 1 || countdown === 0 || countdown === 45){
+      if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===45){
         setIsReady(true);
       }
-      
+      // If countdown is 45, start immediately
       if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
         startGame();
-        return;
+        return; // no need to start interval
       }
 
       if (countdownIntervalRef.current) {
@@ -739,7 +628,7 @@ const GameInterface = ({
             if (countdownIntervalRef.current) {
               clearInterval(countdownIntervalRef.current);
             }
-            startGame();
+            startGame();  // <-- Start when countdown reaches 0
             return 0;
           }
           return prev - 1;
@@ -754,28 +643,23 @@ const GameInterface = ({
     };
   }, [countdown, gameStarted, gameStopped]);
 
-  // Enhanced number checking with server fallback
-  const isNumberCalled = useCallback((number: number, letter: string) => {
+  // FIXED: Use SERVER state for win checking
+  const isNumberCalled = (number: number, letter: string) => {
     if (number === 0) return true;
     
     const fullNumber = `${letter}-${number}`;
-    
-    // Use server state if available, otherwise use local state
-    if (serverGameState) {
-      return serverGameState.calledNumbers.includes(fullNumber);
-    }
-    
-    return calledNumbers.includes(fullNumber);
-  }, [calledNumbers, serverGameState]);
+    return serverCalledNumbers.includes(fullNumber);
+  };
 
-  // Enhanced winning pattern detection
+  // FIXED: Find which pattern was COMPLETED by the last called number - USING SERVER STATE
   const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
     const transposedCard = transposeCard(card);
     
-    const [lastLetter, lastNumStr] = currentNumber.split('-');
+    // CRITICAL FIX: Use SERVER current number, not client state
+    const [lastLetter, lastNumStr] = serverCurrentNumber.split('-');
     const lastNum = parseInt(lastNumStr);
     
-    // Check rows
+    // Check rows - find the row that contains the last number and see if it's now complete
     for (let row = 0; row < 5; row++) {
       let containsLastNumber = false;
       let isRowComplete = true;
@@ -785,15 +669,18 @@ const GameInterface = ({
         const letter = "BINGO"[col];
         const isFreeSpace = (col === 2 && row === 2);
         
+        // Check if this cell contains the last called number
         if (letter === lastLetter && number === lastNum) {
           containsLastNumber = true;
         }
         
+        // Check if this cell is marked (called or free space)
         if (!isFreeSpace && !isNumberCalled(number, letter)) {
           isRowComplete = false;
         }
       }
       
+      // This row wins AND contains the last called number
       if (isRowComplete && containsLastNumber) {
         const rowCells = [];
         for (let col = 0; col < 5; col++) {
@@ -803,7 +690,7 @@ const GameInterface = ({
       }
     }
     
-    // Check columns
+    // Check columns - find the column that contains the last number and see if it's now complete
     for (let col = 0; col < 5; col++) {
       let containsLastNumber = false;
       let isColComplete = true;
@@ -813,15 +700,18 @@ const GameInterface = ({
         const letter = "BINGO"[col];
         const isFreeSpace = (col === 2 && row === 2);
         
+        // Check if this cell contains the last called number
         if (letter === lastLetter && number === lastNum) {
           containsLastNumber = true;
         }
         
+        // Check if this cell is marked (called or free space)
         if (!isFreeSpace && !isNumberCalled(number, letter)) {
           isColComplete = false;
         }
       }
       
+      // This column wins AND contains the last called number
       if (isColComplete && containsLastNumber) {
         const colCells = [];
         for (let row = 0; row < 5; row++) {
@@ -831,7 +721,7 @@ const GameInterface = ({
       }
     }
     
-    // Check main diagonal
+    // Check main diagonal - see if it contains the last number and is complete
     let containsLastNumberInMainDiagonal = false;
     let isMainDiagonalComplete = true;
     
@@ -840,10 +730,12 @@ const GameInterface = ({
       const letter = "BINGO"[i];
       const isFreeSpace = (i === 2);
       
+      // Check if this cell contains the last called number
       if (letter === lastLetter && number === lastNum) {
         containsLastNumberInMainDiagonal = true;
       }
       
+      // Check if this cell is marked (called or free space)
       if (!isFreeSpace && !isNumberCalled(number, letter)) {
         isMainDiagonalComplete = false;
       }
@@ -857,7 +749,7 @@ const GameInterface = ({
       return { pattern: 'diagonal', cells: mainDiagonalCells };
     }
     
-    // Check anti-diagonal
+    // Check anti-diagonal - see if it contains the last number and is complete
     let containsLastNumberInAntiDiagonal = false;
     let isAntiDiagonalComplete = true;
     
@@ -866,10 +758,12 @@ const GameInterface = ({
       const letter = "BINGO"[i];
       const isFreeSpace = (i === 2);
       
+      // Check if this cell contains the last called number
       if (letter === lastLetter && number === lastNum) {
         containsLastNumberInAntiDiagonal = true;
       }
       
+      // Check if this cell is marked (called or free space)
       if (!isFreeSpace && !isNumberCalled(number, letter)) {
         isAntiDiagonalComplete = false;
       }
@@ -883,7 +777,7 @@ const GameInterface = ({
       return { pattern: 'diagonal', cells: antiDiagonalCells };
     }
     
-    // Check corners
+    // Check corners - see if the last number is a corner and all corners are complete
     const corners = [
       {row: 0, col: 0}, 
       {row: 0, col: 4},
@@ -898,10 +792,12 @@ const GameInterface = ({
       const number = transposedCard[corner.row][corner.col];
       const letter = "BINGO"[corner.col];
       
+      // Check if this corner contains the last called number
       if (letter === lastLetter && number === lastNum) {
         containsLastNumberInCorners = true;
       }
       
+      // Check if this corner is marked
       if (!isNumberCalled(number, letter)) {
         isCornersComplete = false;
       }
@@ -914,7 +810,7 @@ const GameInterface = ({
     return { pattern: 'row', cells: [] };
   };
 
-  // Enhanced BINGO validation with connection awareness
+  // FIXED: Check for winner - ONLY win if last called number completes a pattern
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
@@ -964,8 +860,8 @@ const GameInterface = ({
     };
   };
 
-  // Robust BINGO handler with enhanced validation
-  const handleBingo = async (playerId: number, retryCount = 0) => {
+  // FIXED: BINGO handler with synchronization delay
+  const handleBingo = async (playerId: number) => {
     if (!gameStarted) {
       const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
       setToastMessage(message);
@@ -980,58 +876,31 @@ const GameInterface = ({
       return;
     }
 
-    if (pendingBingoClaims.includes(playerId)) {
-      const message = language === 'am' ? 'ይህ ካርድ እየተረጋገጠ ነው...' : 'This card is being validated...';
-      setToastMessage(message);
-      setShowToast(true);
-      return;
-    }
-
-    // Check connection status
-    // if (!isConnected) {
-    //   const message = language === 'am' 
-    //     ? 'እባክዎ ግንኙነት እስቲ ያረጋግጡ! እየመለሰ ነው...' 
-    //     : 'Please check connection! Reconnecting...';
-    //   setToastMessage(message);
-    //   setShowToast(true);
-    //   return;
-    // }
-
-    // Wait if still processing number calls
-    if (isProcessingRef.current && retryCount < 3) {
-      setTimeout(() => {
-        handleBingo(playerId, retryCount + 1);
-      }, 500);
-      return;
-    }
-
+    // CRITICAL FIX: Add small delay to ensure WebSocket messages are processed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const result = checkForWinner(playerId);
     
     if (result.isWinner) {
       try {
-        console.log(`Player ${playerId} claims BINGO! Validating with server...`);
-        console.log('Current game state at BINGO:', { 
-          currentNumber, 
-          calledNumbers: calledNumbers.length,
-          lastCalledNumbers: calledNumbers.slice(-3),
-          connectionStatus,
-          lastServerSync
+        console.log(`Player ${playerId} claims BINGO! Sending to server...`);
+        console.log('Server state at time of BINGO:', {
+          currentNumber: serverCurrentNumber,
+          calledNumbersCount: serverCalledNumbers.length,
+          lastFewNumbers: serverCalledNumbers.slice(-3)
         });
         
         setSubmittedBingoCards(prev => [...prev, playerId]);
-        setPendingBingoClaims(prev => [...prev, playerId]);
         
         if (webSocketService) {
-          // Send validation request first
-          webSocketService.send('validate-bingo', {
+          webSocketService.send('end-game', {
             betAmount: bet,
-            cardNumber: playerId,
-            userId: result.userId!,
-            currentNumber: currentNumber,
-            calledNumbers: calledNumbers
+            winnerId: result.userId!,
+            winnerCard: playerId,
+            prizePool: numberOfPlayers * bet * 0.8
           });
           
-          console.log(`BINGO validation requested for card ${playerId}`);
+          console.log(`BINGO submitted for card ${playerId}`);
           
         } else {
           throw new Error('WebSocket not available');
@@ -1045,54 +914,47 @@ const GameInterface = ({
         setToastMessage(errorMessage);
         setShowToast(true);
         setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
-        setPendingBingoClaims(prev => prev.filter(id => id !== playerId));
       }
     } else {
-      // Enhanced logging for debugging
-      console.log(`BINGO validation failed for card ${playerId}`, {
-        currentNumber,
-        calledNumbersCount: calledNumbers.length,
-        connectionStatus,
-        lastServerSync,
-        checkResult: result
+      // Log why the win check failed for debugging
+      console.log(`BINGO failed for card ${playerId}. Current server state:`, {
+        serverCurrentNumber,
+        serverCalledNumbersCount: serverCalledNumbers.length,
+        clientCurrentNumber: currentNumber,
+        clientCalledNumbersCount: calledNumbers.length
       });
       
-      // If connection is good but validation failed, block the player
-      if (isConnected) {
-        try {
-          if (webSocketService) {
-            webSocketService.send('update-session-status', {
-              cardNumber: playerId,
-              betAmount: bet,
-              status: 'playing'
-            });
-          }
-          
-          setBlockedPlayers([...blockedPlayers, playerId]);
-          setLoserMessage(result.message);
-          setLoserCardId(playerId);
-          setShowLoserModal(true);
-          
-          if (soundOn) {
-            if (language === 'am') {
-              playAmharicGameAudio('not-won');
-            } else {
-              if (voiceService) {
-                const langCode = 'en-US';
-                voiceService.speak('No winner found!', langCode, 1);
-              }
+      try {
+        if (webSocketService) {
+          webSocketService.send('update-session-status', {
+            cardNumber: playerId,
+            betAmount: bet,
+            status: 'playing'
+          });
+        }
+        
+        setBlockedPlayers([...blockedPlayers, playerId]);
+        setLoserMessage(result.message);
+        setLoserCardId(playerId);
+        setShowLoserModal(true);
+        
+        // Use local Amharic audio for game sounds
+        if (soundOn) {
+          if (language === 'am') {
+            playAmharicGameAudio('not-won');
+          } else {
+            if (voiceService) {
+              const langCode = 'en-US';
+              voiceService.speak(
+                'No winner found!', 
+                langCode, 
+                1
+              );
             }
           }
-        } catch (error) {
-          console.error('Error blocking player:', error);
         }
-      } else {
-        // If connection is bad, show connection error
-        const message = language === 'am' 
-          ? 'ግንኙነት ችግር አለ! እባክዎ ደግመው ይሞክሩ' 
-          : 'Connection issue! Please try again';
-        setToastMessage(message);
-        setShowToast(true);
+      } catch (error) {
+        console.error('Error blocking player:', error);
       }
     }
   };
@@ -1163,7 +1025,7 @@ const GameInterface = ({
 
   const userCards = getUserCards();
 
-  // Winner Card Component
+  // FIXED: Winner Card Component - shows pattern completed by last called number
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
@@ -1248,7 +1110,7 @@ const GameInterface = ({
               </Box>
             ))}
             
-            {/* Card numbers */}
+            {/* Card numbers - ONLY border the pattern completed by last called number */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
@@ -1349,43 +1211,6 @@ const GameInterface = ({
       flexDirection: 'column'
     }}>
       
-      {/* Connection Status Indicator */}
-      <Box sx={{
-        p: 0.5,
-        mb: 1,
-        borderRadius: 1,
-        background: connectionStatus === 'connected' 
-          ? 'rgba(76,175,80,0.2)' 
-          : connectionStatus === 'connecting'
-          ? 'rgba(255,152,0,0.2)'
-          : 'rgba(244,67,54,0.2)',
-        border: `1px solid ${
-          connectionStatus === 'connected' 
-          ? '#4CAF50' 
-          : connectionStatus === 'connecting'
-          ? '#FF9800'
-          : '#f44336'
-        }`,
-        animation: connectionStatus === 'connecting' ? 'connection-pulse 2s infinite' : 'none'
-      }}>
-        <Typography variant="caption" sx={{ 
-          color: connectionStatus === 'connected' 
-            ? '#4CAF50' 
-            : connectionStatus === 'connecting'
-            ? '#FF9800'
-            : '#f44336',
-          fontWeight: 'bold'
-        }}>
-          {connectionStatus === 'connected' 
-            ? '✅ ' + (language === 'am' ? 'ተገናኝቷል' : 'Connected')
-            : connectionStatus === 'connecting'
-            ? '🔄 ' + (language === 'am' ? 'በመገናኘት ላይ...' : 'Connecting...')
-            : '❌ ' + (language === 'am' ? 'ግንኙነት ተቋርጧል' : 'Disconnected')
-          }
-          {lastServerSync && ` | ${language === 'am' ? 'የተዘመነ' : 'Synced'}: ${lastServerSync.toLocaleTimeString()}`}
-        </Typography>
-      </Box>
-
       {/* Grace Period Indicator */}
       {gracePeriodActive && (
         <Box sx={{
@@ -1721,23 +1546,14 @@ const GameInterface = ({
                 const card = getCardById(player.id);
                 const isBlocked = blockedPlayers.includes(player.id);
                 const hasSubmittedBingo = submittedBingoCards.includes(player.id);
-                const isPendingValidation = pendingBingoClaims.includes(player.id);
                 
                 return (
                   <Card 
                     key={player.id} 
                     sx={{ 
                       p: 1, 
-                      background: isBlocked 
-                        ? 'rgba(244,67,54,0.1)' 
-                        : isPendingValidation
-                        ? 'rgba(255,152,0,0.1)'
-                        : 'rgba(255,255,255,0.8)',
-                      border: isBlocked 
-                        ? '2px solid #f44336' 
-                        : isPendingValidation
-                        ? '2px solid #FF9800'
-                        : '1px solid #e0e0e0',
+                      background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
+                      border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
                       borderRadius: 2
                     }}
                   >
@@ -1745,7 +1561,6 @@ const GameInterface = ({
                       {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                       {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
                       {hasSubmittedBingo && ` (${language === 'am' ? 'ቀርቧል' : 'Submitted'})`}
-                      {isPendingValidation && ` (${language === 'am' ? 'በመረጋገጥ ላይ...' : 'Validating...'})`}
                     </Typography>
                         
                         {/* BINGO Card */}
@@ -1820,17 +1635,15 @@ const GameInterface = ({
                             variant="contained" 
                             color="success"
                             onClick={() => handleBingo(player.id)}
-                            disabled={isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation}
+                            disabled={isBlocked || !gameStarted || submittedBingoCards.includes(player.id)}
                             fullWidth
                             size="small"
                             sx={{ 
                               fontSize: '0.8rem',
-                              opacity: (isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation) ? 0.6 : 1
+                              opacity: (isBlocked || !gameStarted || submittedBingoCards.includes(player.id)) ? 0.6 : 1
                             }}
                           >
-                            {isPendingValidation ? 
-                              (language === 'am' ? 'በመረጋገጥ ላይ...' : 'VALIDATING...') :
-                              hasSubmittedBingo ? 
+                            {submittedBingoCards.includes(player.id) ? 
                               (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
                               'BINGO'
                             }
@@ -1846,17 +1659,11 @@ const GameInterface = ({
       {/* Toast Message */}
       <Snackbar
         open={showToast}
-        autoHideDuration={3000}
+        autoHideDuration={2000}
         onClose={() => setShowToast(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          severity={
-            toastMessage.includes('አሸንፏል') || toastMessage.includes('wins') ? 'success' :
-            toastMessage.includes('ግንኙነት') || toastMessage.includes('Connection') ? 'warning' : 'info'
-          } 
-          sx={{ width: '100%' }}
-        >
+        <Alert severity="success" sx={{ width: '100%' }}>
           {toastMessage}
         </Alert>
       </Snackbar>
