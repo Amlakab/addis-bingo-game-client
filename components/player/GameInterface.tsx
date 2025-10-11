@@ -1820,12 +1820,12 @@ const GameInterface = ({
                             variant="contained" 
                             color="success"
                             onClick={() => handleBingo(player.id)}
-                            disabled={isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation || !isConnected}
+                            disabled={isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation}
                             fullWidth
                             size="small"
                             sx={{ 
                               fontSize: '0.8rem',
-                              opacity: (isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation || !isConnected) ? 0.6 : 1
+                              opacity: (isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation) ? 0.6 : 1
                             }}
                           >
                             {isPendingValidation ? 
