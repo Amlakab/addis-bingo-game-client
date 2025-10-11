@@ -109,7 +109,7 @@ const GameInterface = ({
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Game control state - UPDATED: Only use server timing for countdown
+  // Game control state
   const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -121,12 +121,25 @@ const GameInterface = ({
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
+  // Connection and validation state
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const [lastServerSync, setLastServerSync] = useState<Date | null>(null);
+  const [pendingBingoClaims, setPendingBingoClaims] = useState<number[]>([]);
+  const [serverGameState, setServerGameState] = useState<{
+    calledNumbers: string[];
+    currentNumber: string;
+    lastUpdated: Date;
+  } | null>(null);
+
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const connectionRetryRef = useRef<NodeJS.Timeout | null>(null);
+  const stateSyncRef = useRef<NodeJS.Timeout | null>(null);
+  const bingoValidationRef = useRef<{[key: number]: number}>({});
 
   // Function to play local Amharic audio files
   const playAmharicNumberAudio = (number: string) => {
@@ -227,6 +240,11 @@ const GameInterface = ({
         50% { background-color: rgba(255,215,0,0.8); }
         100% { background-color: rgba(76,175,80,0.3); }
       }
+      @keyframes connection-pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
     `;
     document.head.appendChild(styleSheet);
 
@@ -235,48 +253,99 @@ const GameInterface = ({
     };
   }, [isClient]);
 
-  // Setup WebSocket connection state
+  // Enhanced connection management
   useEffect(() => {
     if (!webSocketService) return;
 
     const handleConnect = () => {
       setIsConnected(true);
-      console.log('WebSocket connected');
+      setConnectionStatus('connected');
+      setLastServerSync(new Date());
+      console.log('WebSocket connected - GameInterface');
+      
+      // Request fresh game state on reconnect
+      webSocketService.send('get-game-state', { betAmount: bet });
+      webSocketService.send('get-sessions', { betAmount: bet });
+      webSocketService.send('get-timer-states');
     };
 
     const handleDisconnect = () => {
       setIsConnected(false);
-      console.log('WebSocket disconnected');
+      setConnectionStatus('disconnected');
+      console.log('WebSocket disconnected - GameInterface');
+      
+      // Auto-reconnect logic
+      if (connectionRetryRef.current) {
+        clearTimeout(connectionRetryRef.current);
+      }
+      
+      connectionRetryRef.current = setTimeout(() => {
+        console.log('Attempting to reconnect...');
+        setConnectionStatus('connecting');
+      }, 3000);
+    };
+
+    const handleReconnect = () => {
+      console.log('WebSocket reconnected - GameInterface');
+      setConnectionStatus('connected');
+      setLastServerSync(new Date());
     };
 
     webSocketService.on('connect', handleConnect);
     webSocketService.on('disconnect', handleDisconnect);
+    webSocketService.on('reconnect', handleReconnect);
 
     return () => {
       webSocketService.off('connect', handleConnect);
       webSocketService.off('disconnect', handleDisconnect);
+      webSocketService.off('reconnect', handleReconnect);
+      
+      if (connectionRetryRef.current) {
+        clearTimeout(connectionRetryRef.current);
+      }
     };
-  }, [webSocketService]);
+  }, [webSocketService, bet]);
 
-  // NEW: Handler for server timer states
+  // Server timer state handler
   const handleTimerStatesUpdate = useCallback((timerStates: {[key: number]: BetTimerState}) => {
     console.log('Received timer states in GameInterface:', timerStates);
     
     if (timerStates[bet]) {
       const timerState = timerStates[bet];
-      // ONLY use server timing for countdown - keep existing logic for players/prize
-      //setCountdown(timerState.timer);
-      const serverTimer = timerState.timer;
-      //let shifted = (serverTimer - 41 + 46) % 46;
-      //const adjustedTimer = serverTimer + shifted;
-
-      //setCountdown(shifted);
-
-      setCountdown(serverTimer);
-
+      setCountdown(timerState.timer);
       console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
     }
   }, [bet]);
+
+  // State synchronization with server
+  const syncWithServerState = useCallback((serverState: { calledNumbers: string[], currentNumber: string }) => {
+    console.log('Syncing with server state:', serverState);
+    
+    setCalledNumbers(serverState.calledNumbers);
+    setCurrentNumber(serverState.currentNumber);
+    setServerGameState({
+      calledNumbers: serverState.calledNumbers,
+      currentNumber: serverState.currentNumber,
+      lastUpdated: new Date()
+    });
+    setLastServerSync(new Date());
+  }, []);
+
+  // Enhanced number validation
+  const validateNumberCall = useCallback((newNumber: string, serverCalledNumbers: string[]) => {
+    // If we have no current number or it's different, accept it
+    if (!currentNumber || currentNumber !== newNumber) {
+      return true;
+    }
+    
+    // If numbers are the same but calledNumbers differ, sync with server
+    if (JSON.stringify(calledNumbers) !== JSON.stringify(serverCalledNumbers)) {
+      console.log('Number call validation: Syncing called numbers with server');
+      return true;
+    }
+    
+    return false;
+  }, [currentNumber, calledNumbers]);
 
   // Setup WebSocket listeners for game control events
   useEffect(() => {
@@ -293,6 +362,12 @@ const GameInterface = ({
       
       if (isProcessingRef.current || gameStopped) return;
       
+      // Validate the number call
+      if (!validateNumberCall(data.number, data.calledNumbers)) {
+        console.log('Number call validation failed - ignoring duplicate');
+        return;
+      }
+      
       isProcessingRef.current = true;
       
       if (numberCalledRef.current === data.number) {
@@ -301,8 +376,13 @@ const GameInterface = ({
       }
       
       numberCalledRef.current = data.number;
-      setCurrentNumber(data.number);
-      setCalledNumbers(data.calledNumbers);
+      
+      // Update state with server data
+      syncWithServerState({
+        calledNumbers: data.calledNumbers,
+        currentNumber: data.number
+      });
+      
       setIsCalling(true);
       
       if (soundOn) {
@@ -317,8 +397,9 @@ const GameInterface = ({
       }
       
       setTimeout(() => {
+        setIsCalling(false);
         isProcessingRef.current = false;
-      }, 50);
+      }, 100);
     };
 
     const handleGameStopped = (data: { 
@@ -383,7 +464,7 @@ const GameInterface = ({
       
       setToastMessage(winnerMessage);
       setShowToast(true);
-    }
+    };
 
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
@@ -399,6 +480,7 @@ const GameInterface = ({
       }
       
       setSubmittedBingoCards([]);
+      setPendingBingoClaims([]);
       
       const formattedWinners: Winner[] = data.winners.map(winner => {
         const card = getCardById(winner.card);
@@ -441,17 +523,18 @@ const GameInterface = ({
     }) => {
       if (data.betAmount !== bet) return;
       
-      setCalledNumbers(data.calledNumbers);
-      setCurrentNumber(data.currentNumber);
+      console.log('Received full game state from server:', data);
+      syncWithServerState({
+        calledNumbers: data.calledNumbers,
+        currentNumber: data.currentNumber
+      });
     };
 
-    // UPDATED: Sessions update handler - KEEP existing player/prize calculation
     const handleSessionsUpdate = (sessions: GameSession[]) => {
       const betSessions = sessions.filter(session => session.betAmount === bet);
       
       console.log('Bet sessions:', betSessions);
       
-      // KEEP existing frontend logic for player count and prize pool
       const activePlayers = betSessions.filter(
         (session) => session.status !== "active"
       ).length;
@@ -470,19 +553,14 @@ const GameInterface = ({
         }, new Date(betSessions[0].createdAt));
         
         setSessionCreatedAt(earliestSession);
-        
-        // Server timing will handle countdown via timer-states-update
-        // We don't calculate countdown locally anymore
       }
 
-      // NEW: Check if there are sessions with 'playing' status and restart game if needed
       const hasPlayingSessions = betSessions.some(session => session.status === "playing");
       if (hasPlayingSessions && !gameStarted && !gameStopped) {
         restartGame();
       }
     };
 
-    // NEW: restartGame function
     const restartGame = () => {
       setIsReady(true);
       setGameStarted(true);
@@ -492,17 +570,35 @@ const GameInterface = ({
           betAmount: bet,
           status: 'playing'
         });
-        
-        // Optionally send a restart signal to the server if needed
-        //webSocketService.send('restart-game', { betAmount: bet });
       }
-
-
     };
 
     const handleWebSocketConnected = () => {
       setIsWebSocketConnected(true);
       console.log('WebSocket connected in GameInterface');
+    };
+
+    const handleBingoValidation = (data: {
+      betAmount: number;
+      cardNumber: number;
+      isValid: boolean;
+      message: string;
+    }) => {
+      if (data.betAmount !== bet) return;
+      
+      console.log('BINGO validation result:', data);
+      
+      setPendingBingoClaims(prev => prev.filter(id => id !== data.cardNumber));
+      
+      if (data.isValid) {
+        setToastMessage(data.message);
+        setShowToast(true);
+      } else {
+        setBlockedPlayers(prev => [...prev, data.cardNumber]);
+        setLoserMessage(data.message);
+        setLoserCardId(data.cardNumber);
+        setShowLoserModal(true);
+      }
     };
 
     // Set up all listeners
@@ -513,7 +609,8 @@ const GameInterface = ({
     webSocketService.off('game-state', handleGameState);
     webSocketService.off('sessions-updated', handleSessionsUpdate);
     webSocketService.off('connected', handleWebSocketConnected);
-    webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
+    webSocketService.off('timer-states-update', handleTimerStatesUpdate);
+    webSocketService.off('bingo-validation', handleBingoValidation);
 
     webSocketService.on('number-called', handleNumberCalled);
     webSocketService.on('game-stopped', handleGameStopped);
@@ -522,10 +619,13 @@ const GameInterface = ({
     webSocketService.on('game-state', handleGameState);
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('connected', handleWebSocketConnected);
-    webSocketService.on('timer-states-update', handleTimerStatesUpdate); // NEW
+    webSocketService.on('timer-states-update', handleTimerStatesUpdate);
+    webSocketService.on('bingo-validation', handleBingoValidation);
 
+    // Request initial state
     webSocketService.send('get-sessions', { betAmount: bet });
-    webSocketService.send('get-timer-states'); // Request initial timer states
+    webSocketService.send('get-game-state', { betAmount: bet });
+    webSocketService.send('get-timer-states');
 
     return () => {
       webSocketService.off('number-called', handleNumberCalled);
@@ -535,7 +635,8 @@ const GameInterface = ({
       webSocketService.off('game-state', handleGameState);
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('connected', handleWebSocketConnected);
-      webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
+      webSocketService.off('timer-states-update', handleTimerStatesUpdate);
+      webSocketService.off('bingo-validation', handleBingoValidation);
       
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
@@ -543,10 +644,17 @@ const GameInterface = ({
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
       }
+      if (connectionRetryRef.current) {
+        clearTimeout(connectionRetryRef.current);
+      }
+      if (stateSyncRef.current) {
+        clearTimeout(stateSyncRef.current);
+      }
     };
   }, [
     isClient, webSocketService, bet, language, user, gameStopped, 
-    soundOn, voiceService, gameStarted, handleTimerStatesUpdate
+    soundOn, voiceService, gameStarted, handleTimerStatesUpdate,
+    validateNumberCall, syncWithServerState
   ]);
 
   // Initialize and set up window size tracking
@@ -576,406 +684,237 @@ const GameInterface = ({
     }
   }, [calledNumbers]);
 
+  // State synchronization timer
+  useEffect(() => {
+    if (!gameStarted || gameStopped) return;
+
+    stateSyncRef.current = setInterval(() => {
+      if (webSocketService && isConnected) {
+        webSocketService.send('get-game-state', { betAmount: bet });
+      }
+    }, 10000); // Sync every 10 seconds
+
+    return () => {
+      if (stateSyncRef.current) {
+        clearInterval(stateSyncRef.current);
+      }
+    };
+  }, [gameStarted, gameStopped, webSocketService, isConnected, bet]);
+
   // Start game function
   const startGame = () => {
+    setGameStarted(true);
 
-    // if (numberOfPlayers < 3) {
-    //     const message = language === 'am' 
-    //       ? 'ተጫዋቾች በቂ አይደሉም! ወደ ሎቢ ትመለሳለህ' 
-    //       : 'Not enough players! Returning to lobby';
-    //     setToastMessage(message);
-    //     setShowToast(true);
-        
-    //     // Clear any existing interval
-    //     if (countdownIntervalRef.current) {
-    //       clearInterval(countdownIntervalRef.current);
-    //     }
-        
-    //     setTimeout(() => {
-    //       handleBackToLobbyWithRefund();
-    //     }, 2000);
-    //     return;
-    //   } else {
-        setGameStarted(true);
-    
-        if (webSocketService) {
-          webSocketService.send('update-session-status-by-bet', {
-            betAmount: bet,
-            status: 'playing'
-          });
-          
-          webSocketService.send('start-game', { betAmount: bet });
-        }
-     //}
-  };
-
-// UPDATED: Start countdown when server timer is available
-  useEffect(() => {
-  if (countdown > 0 && !gameStarted && !gameStopped) {
-    if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===45){
-      setIsReady(true);
-    }
-    // If countdown is 45, start immediately
-    if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
-      startGame();
-      return; // no need to start interval
-    }
-
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-    }
-
-    console.log(`Starting countdown with server time: ${countdown}s`);
-
-    countdownIntervalRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-          }
-          startGame();  // <-- Start when countdown reaches 0
-          return 0;
-        }
-        return prev - 1;
+    if (webSocketService) {
+      webSocketService.send('update-session-status-by-bet', {
+        betAmount: bet,
+        status: 'playing'
       });
-    }, 1000);
-  }
-
-  return () => {
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
+      
+      webSocketService.send('start-game', { betAmount: bet });
     }
   };
-}, [countdown, gameStarted, gameStopped]);
 
-  
-  // FIXED: Improved isNumberCalled function to handle free space
-  const isNumberCalled = (number: number, letter: string) => {
+  // Enhanced countdown with connection awareness
+  useEffect(() => {
+    if (countdown > 0 && !gameStarted && !gameStopped) {
+      if(countdown === 4 || countdown === 3 || countdown === 2 || countdown === 1 || countdown === 0 || countdown === 45){
+        setIsReady(true);
+      }
+      
+      if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
+        startGame();
+        return;
+      }
+
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+
+      console.log(`Starting countdown with server time: ${countdown}s`);
+
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current);
+            }
+            startGame();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, [countdown, gameStarted, gameStopped]);
+
+  // Enhanced number checking with server fallback
+  const isNumberCalled = useCallback((number: number, letter: string) => {
     if (number === 0) return true;
     
     const fullNumber = `${letter}-${number}`;
+    
+    // Use server state if available, otherwise use local state
+    if (serverGameState) {
+      return serverGameState.calledNumbers.includes(fullNumber);
+    }
+    
     return calledNumbers.includes(fullNumber);
+  }, [calledNumbers, serverGameState]);
+
+  // Enhanced winning pattern detection
+  const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
+    const transposedCard = transposeCard(card);
+    
+    const [lastLetter, lastNumStr] = currentNumber.split('-');
+    const lastNum = parseInt(lastNumStr);
+    
+    // Check rows
+    for (let row = 0; row < 5; row++) {
+      let containsLastNumber = false;
+      let isRowComplete = true;
+      
+      for (let col = 0; col < 5; col++) {
+        const number = transposedCard[row][col];
+        const letter = "BINGO"[col];
+        const isFreeSpace = (col === 2 && row === 2);
+        
+        if (letter === lastLetter && number === lastNum) {
+          containsLastNumber = true;
+        }
+        
+        if (!isFreeSpace && !isNumberCalled(number, letter)) {
+          isRowComplete = false;
+        }
+      }
+      
+      if (isRowComplete && containsLastNumber) {
+        const rowCells = [];
+        for (let col = 0; col < 5; col++) {
+          rowCells.push({row, col});
+        }
+        return { pattern: 'row', cells: rowCells };
+      }
+    }
+    
+    // Check columns
+    for (let col = 0; col < 5; col++) {
+      let containsLastNumber = false;
+      let isColComplete = true;
+      
+      for (let row = 0; row < 5; row++) {
+        const number = transposedCard[row][col];
+        const letter = "BINGO"[col];
+        const isFreeSpace = (col === 2 && row === 2);
+        
+        if (letter === lastLetter && number === lastNum) {
+          containsLastNumber = true;
+        }
+        
+        if (!isFreeSpace && !isNumberCalled(number, letter)) {
+          isColComplete = false;
+        }
+      }
+      
+      if (isColComplete && containsLastNumber) {
+        const colCells = [];
+        for (let row = 0; row < 5; row++) {
+          colCells.push({row, col});
+        }
+        return { pattern: 'column', cells: colCells };
+      }
+    }
+    
+    // Check main diagonal
+    let containsLastNumberInMainDiagonal = false;
+    let isMainDiagonalComplete = true;
+    
+    for (let i = 0; i < 5; i++) {
+      const number = transposedCard[i][i];
+      const letter = "BINGO"[i];
+      const isFreeSpace = (i === 2);
+      
+      if (letter === lastLetter && number === lastNum) {
+        containsLastNumberInMainDiagonal = true;
+      }
+      
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isMainDiagonalComplete = false;
+      }
+    }
+    
+    if (isMainDiagonalComplete && containsLastNumberInMainDiagonal) {
+      const mainDiagonalCells = [];
+      for (let i = 0; i < 5; i++) {
+        mainDiagonalCells.push({row: i, col: i});
+      }
+      return { pattern: 'diagonal', cells: mainDiagonalCells };
+    }
+    
+    // Check anti-diagonal
+    let containsLastNumberInAntiDiagonal = false;
+    let isAntiDiagonalComplete = true;
+    
+    for (let i = 0; i < 5; i++) {
+      const number = transposedCard[i][4 - i];
+      const letter = "BINGO"[i];
+      const isFreeSpace = (i === 2);
+      
+      if (letter === lastLetter && number === lastNum) {
+        containsLastNumberInAntiDiagonal = true;
+      }
+      
+      if (!isFreeSpace && !isNumberCalled(number, letter)) {
+        isAntiDiagonalComplete = false;
+      }
+    }
+    
+    if (isAntiDiagonalComplete && containsLastNumberInAntiDiagonal) {
+      const antiDiagonalCells = [];
+      for (let i = 0; i < 5; i++) {
+        antiDiagonalCells.push({row: i, col: 4 - i});
+      }
+      return { pattern: 'diagonal', cells: antiDiagonalCells };
+    }
+    
+    // Check corners
+    const corners = [
+      {row: 0, col: 0}, 
+      {row: 0, col: 4},
+      {row: 4, col: 0}, 
+      {row: 4, col: 4}
+    ];
+    
+    let containsLastNumberInCorners = false;
+    let isCornersComplete = true;
+    
+    for (const corner of corners) {
+      const number = transposedCard[corner.row][corner.col];
+      const letter = "BINGO"[corner.col];
+      
+      if (letter === lastLetter && number === lastNum) {
+        containsLastNumberInCorners = true;
+      }
+      
+      if (!isNumberCalled(number, letter)) {
+        isCornersComplete = false;
+      }
+    }
+    
+    if (isCornersComplete && containsLastNumberInCorners) {
+      return { pattern: 'corners', cells: corners };
+    }
+    
+    return { pattern: 'row', cells: [] };
   };
 
-  // FIXED: Find which pattern was COMPLETED by the last called number
-const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
-  const transposedCard = transposeCard(card);
-  
-  // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
-  const [lastLetter, lastNumStr] = currentNumber.split('-');
-  const lastNum = parseInt(lastNumStr);
-  
-  // Check rows - find the row that contains the last number and see if it's now complete
-  for (let row = 0; row < 5; row++) {
-    let containsLastNumber = false;
-    let isRowComplete = true;
-    
-    for (let col = 0; col < 5; col++) {
-      const number = transposedCard[row][col];
-      const letter = "BINGO"[col];
-      const isFreeSpace = (col === 2 && row === 2);
-      
-      // Check if this cell contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        containsLastNumber = true;
-      }
-      
-      // Check if this cell is marked (called or free space)
-      if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isRowComplete = false;
-      }
-    }
-    
-    // This row wins AND contains the last called number
-    if (isRowComplete && containsLastNumber) {
-      const rowCells = [];
-      for (let col = 0; col < 5; col++) {
-        rowCells.push({row, col});
-      }
-      return { pattern: 'row', cells: rowCells };
-    }
-  }
-  
-  // Check columns - find the column that contains the last number and see if it's now complete
-  for (let col = 0; col < 5; col++) {
-    let containsLastNumber = false;
-    let isColComplete = true;
-    
-    for (let row = 0; row < 5; row++) {
-      const number = transposedCard[row][col];
-      const letter = "BINGO"[col];
-      const isFreeSpace = (col === 2 && row === 2);
-      
-      // Check if this cell contains the last called number
-      if (letter === lastLetter && number === lastNum) {
-        containsLastNumber = true;
-      }
-      
-      // Check if this cell is marked (called or free space)
-      if (!isFreeSpace && !isNumberCalled(number, letter)) {
-        isColComplete = false;
-      }
-    }
-    
-    // This column wins AND contains the last called number
-    if (isColComplete && containsLastNumber) {
-      const colCells = [];
-      for (let row = 0; row < 5; row++) {
-        colCells.push({row, col});
-      }
-      return { pattern: 'column', cells: colCells };
-    }
-  }
-  
-  // Check main diagonal - see if it contains the last number and is complete
-  let containsLastNumberInMainDiagonal = false;
-  let isMainDiagonalComplete = true;
-  
-  for (let i = 0; i < 5; i++) {
-    const number = transposedCard[i][i];
-    const letter = "BINGO"[i];
-    const isFreeSpace = (i === 2);
-    
-    // Check if this cell contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      containsLastNumberInMainDiagonal = true;
-    }
-    
-    // Check if this cell is marked (called or free space)
-    if (!isFreeSpace && !isNumberCalled(number, letter)) {
-      isMainDiagonalComplete = false;
-    }
-  }
-  
-  if (isMainDiagonalComplete && containsLastNumberInMainDiagonal) {
-    const mainDiagonalCells = [];
-    for (let i = 0; i < 5; i++) {
-      mainDiagonalCells.push({row: i, col: i});
-    }
-    return { pattern: 'diagonal', cells: mainDiagonalCells };
-  }
-  
-  // Check anti-diagonal - see if it contains the last number and is complete
-  let containsLastNumberInAntiDiagonal = false;
-  let isAntiDiagonalComplete = true;
-  
-  for (let i = 0; i < 5; i++) {
-    const number = transposedCard[i][4 - i];
-    const letter = "BINGO"[i];
-    const isFreeSpace = (i === 2);
-    
-    // Check if this cell contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      containsLastNumberInAntiDiagonal = true;
-    }
-    
-    // Check if this cell is marked (called or free space)
-    if (!isFreeSpace && !isNumberCalled(number, letter)) {
-      isAntiDiagonalComplete = false;
-    }
-  }
-  
-  if (isAntiDiagonalComplete && containsLastNumberInAntiDiagonal) {
-    const antiDiagonalCells = [];
-    for (let i = 0; i < 5; i++) {
-      antiDiagonalCells.push({row: i, col: 4 - i});
-    }
-    return { pattern: 'diagonal', cells: antiDiagonalCells };
-  }
-  
-  // Check corners - see if the last number is a corner and all corners are complete
-  const corners = [
-    {row: 0, col: 0}, 
-    {row: 0, col: 4},
-    {row: 4, col: 0}, 
-    {row: 4, col: 4}
-  ];
-  
-  let containsLastNumberInCorners = false;
-  let isCornersComplete = true;
-  
-  for (const corner of corners) {
-    const number = transposedCard[corner.row][corner.col];
-    const letter = "BINGO"[corner.col];
-    
-    // Check if this corner contains the last called number
-    if (letter === lastLetter && number === lastNum) {
-      containsLastNumberInCorners = true;
-    }
-    
-    // Check if this corner is marked
-    if (!isNumberCalled(number, letter)) {
-      isCornersComplete = false;
-    }
-  }
-  
-  if (isCornersComplete && containsLastNumberInCorners) {
-    return { pattern: 'corners', cells: corners };
-  }
-  
-  return { pattern: 'row', cells: [] };
-};
-
-  // // FIXED: Find which pattern was COMPLETED by the last called number
-  // const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: WinPattern; cells: {row: number, col: number}[] } => {
-  //   const transposedCard = transposeCard(card);
-    
-  //   // Extract letter and number from currentNumber (e.g., "B-12" -> letter: "B", num: 12)
-  //   const [lastLetter, lastNumStr] = currentNumber.split('-');
-  //   const lastNum = parseInt(lastNumStr);
-    
-  //   // Check rows
-  //   for (let row = 0; row < 5; row++) {
-  //     let isWinningRow = true;
-  //     let lastNumberIsInThisRow = false;
-      
-  //     for (let col = 0; col < 5; col++) {
-  //       const number = transposedCard[row][col];
-  //       const letter = "BINGO"[col];
-  //       const isFreeSpace = (col === 2 && row === 2);
-        
-  //       // Check if this cell contains the last called number
-  //       if (letter === lastLetter && number === lastNum) {
-  //         lastNumberIsInThisRow = true;
-  //       }
-        
-  //       if (!isFreeSpace && !isNumberCalled(number, letter)) {
-  //         isWinningRow = false;
-  //         break;
-  //       }
-  //     }
-      
-  //     // This row wins AND contains the last called number
-  //     if (isWinningRow && lastNumberIsInThisRow) {
-  //       const rowCells = [];
-  //       for (let col = 0; col < 5; col++) {
-  //         rowCells.push({row, col});
-  //       }
-  //       return { pattern: 'row', cells: rowCells };
-  //     }
-  //   }
-    
-  //   // Check columns
-  //   for (let col = 0; col < 5; col++) {
-  //     let isWinningCol = true;
-  //     let lastNumberIsInThisCol = false;
-      
-  //     for (let row = 0; row < 5; row++) {
-  //       const number = transposedCard[row][col];
-  //       const letter = "BINGO"[col];
-  //       const isFreeSpace = (col === 2 && row === 2);
-        
-  //       // Check if this cell contains the last called number
-  //       if (letter === lastLetter && number === lastNum) {
-  //         lastNumberIsInThisCol = true;
-  //       }
-        
-  //       if (!isFreeSpace && !isNumberCalled(number, letter)) {
-  //         isWinningCol = false;
-  //         break;
-  //       }
-  //     }
-      
-  //     // This column wins AND contains the last called number
-  //     if (isWinningCol && lastNumberIsInThisCol) {
-  //       const colCells = [];
-  //       for (let row = 0; row < 5; row++) {
-  //         colCells.push({row, col});
-  //       }
-  //       return { pattern: 'column', cells: colCells };
-  //     }
-  //   }
-    
-  //   // Check main diagonal
-  //   let isWinningMainDiagonal = true;
-  //   let lastNumberIsInMainDiagonal = false;
-    
-  //   for (let i = 0; i < 5; i++) {
-  //     const number = transposedCard[i][i];
-  //     const letter = "BINGO"[i];
-  //     const isFreeSpace = (i === 2);
-      
-  //     // Check if this cell contains the last called number
-  //     if (letter === lastLetter && number === lastNum) {
-  //       lastNumberIsInMainDiagonal = true;
-  //     }
-      
-  //     if (!isFreeSpace && !isNumberCalled(number, letter)) {
-  //       isWinningMainDiagonal = false;
-  //       break;
-  //     }
-  //   }
-    
-  //   if (isWinningMainDiagonal && lastNumberIsInMainDiagonal) {
-  //     const mainDiagonalCells = [];
-  //     for (let i = 0; i < 5; i++) {
-  //       mainDiagonalCells.push({row: i, col: i});
-  //     }
-  //     return { pattern: 'diagonal', cells: mainDiagonalCells };
-  //   }
-    
-  //   // Check anti-diagonal
-  //   let isWinningAntiDiagonal = true;
-  //   let lastNumberIsInAntiDiagonal = false;
-    
-  //   for (let i = 0; i < 5; i++) {
-  //     const number = transposedCard[i][4 - i];
-  //     const letter = "BINGO"[i];
-  //     const isFreeSpace = (i === 2);
-      
-  //     // Check if this cell contains the last called number
-  //     if (letter === lastLetter && number === lastNum) {
-  //       lastNumberIsInAntiDiagonal = true;
-  //     }
-      
-  //     if (!isFreeSpace && !isNumberCalled(number, letter)) {
-  //       isWinningAntiDiagonal = false;
-  //       break;
-  //     }
-  //   }
-    
-  //   if (isWinningAntiDiagonal && lastNumberIsInAntiDiagonal) {
-  //     const antiDiagonalCells = [];
-  //     for (let i = 0; i < 5; i++) {
-  //       antiDiagonalCells.push({row: i, col: 4 - i});
-  //     }
-  //     return { pattern: 'diagonal', cells: antiDiagonalCells };
-  //   }
-    
-  //   // Check corners
-  //   const corners = [
-  //     {row: 0, col: 0}, 
-  //     {row: 0, col: 4},
-  //     {row: 4, col: 0}, 
-  //     {row: 4, col: 4}
-  //   ];
-    
-  //   let isWinningCorners = true;
-  //   let lastNumberIsInCorners = false;
-    
-  //   for (const corner of corners) {
-  //     const number = transposedCard[corner.row][corner.col];
-  //     const letter = "BINGO"[corner.col];
-      
-  //     // Check if this corner contains the last called number
-  //     if (letter === lastLetter && number === lastNum) {
-  //       lastNumberIsInCorners = true;
-  //     }
-      
-  //     if (!isNumberCalled(number, letter)) {
-  //       isWinningCorners = false;
-  //       break;
-  //     }
-  //   }
-    
-  //   if (isWinningCorners && lastNumberIsInCorners) {
-  //     return { pattern: 'corners', cells: corners };
-  //   }
-    
-  //   return { pattern: 'row', cells: [] };
-  // };
-
-  // FIXED: Check for winner - ONLY win if last called number completes a pattern
+  // Enhanced BINGO validation with connection awareness
   const checkForWinner = (playerId: number) => {
     const player = players.find(p => p.id === playerId);
     if (!player) {
@@ -1025,8 +964,8 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
     };
   };
 
-  // BINGO handler
-  const handleBingo = async (playerId: number) => {
+  // Robust BINGO handler with enhanced validation
+  const handleBingo = async (playerId: number, retryCount = 0) => {
     if (!gameStarted) {
       const message = language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!';
       setToastMessage(message);
@@ -1041,23 +980,58 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
       return;
     }
 
+    if (pendingBingoClaims.includes(playerId)) {
+      const message = language === 'am' ? 'ይህ ካርድ እየተረጋገጠ ነው...' : 'This card is being validated...';
+      setToastMessage(message);
+      setShowToast(true);
+      return;
+    }
+
+    // Check connection status
+    if (!isConnected) {
+      const message = language === 'am' 
+        ? 'እባክዎ ግንኙነት እስቲ ያረጋግጡ! እየመለሰ ነው...' 
+        : 'Please check connection! Reconnecting...';
+      setToastMessage(message);
+      setShowToast(true);
+      return;
+    }
+
+    // Wait if still processing number calls
+    if (isProcessingRef.current && retryCount < 3) {
+      setTimeout(() => {
+        handleBingo(playerId, retryCount + 1);
+      }, 500);
+      return;
+    }
+
     const result = checkForWinner(playerId);
     
     if (result.isWinner) {
       try {
-        console.log(`Player ${playerId} claims BINGO! Sending to server...`);
+        console.log(`Player ${playerId} claims BINGO! Validating with server...`);
+        console.log('Current game state at BINGO:', { 
+          currentNumber, 
+          calledNumbers: calledNumbers.length,
+          lastCalledNumbers: calledNumbers.slice(-3),
+          connectionStatus,
+          lastServerSync
+        });
         
         setSubmittedBingoCards(prev => [...prev, playerId]);
+        setPendingBingoClaims(prev => [...prev, playerId]);
         
         if (webSocketService) {
-          webSocketService.send('end-game', {
+          // Send validation request first
+          webSocketService.send('validate-bingo', {
             betAmount: bet,
-            winnerId: result.userId!,
-            winnerCard: playerId,
-            prizePool: numberOfPlayers * bet * 0.8
+            cardNumber: playerId,
+            userId: result.userId!,
+            currentNumber: currentNumber,
+            calledNumbers: calledNumbers
           });
           
-          console.log(`BINGO submitted for card ${playerId}`);
+          console.log(`BINGO validation requested for card ${playerId}`);
           
         } else {
           throw new Error('WebSocket not available');
@@ -1071,39 +1045,54 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
         setToastMessage(errorMessage);
         setShowToast(true);
         setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
+        setPendingBingoClaims(prev => prev.filter(id => id !== playerId));
       }
     } else {
-      try {
-        if (webSocketService) {
-          webSocketService.send('update-session-status', {
-            cardNumber: playerId,
-            betAmount: bet,
-            status: 'playing'
-          });
-        }
-        
-        setBlockedPlayers([...blockedPlayers, playerId]);
-        setLoserMessage(result.message);
-        setLoserCardId(playerId);
-        setShowLoserModal(true);
-        
-        // Use local Amharic audio for game sounds
-        if (soundOn) {
-          if (language === 'am') {
-            playAmharicGameAudio('not-won');
-          } else {
-            if (voiceService) {
-              const langCode = 'en-US';
-              voiceService.speak(
-                'No winner found!', 
-                langCode, 
-                1
-              );
+      // Enhanced logging for debugging
+      console.log(`BINGO validation failed for card ${playerId}`, {
+        currentNumber,
+        calledNumbersCount: calledNumbers.length,
+        connectionStatus,
+        lastServerSync,
+        checkResult: result
+      });
+      
+      // If connection is good but validation failed, block the player
+      if (isConnected) {
+        try {
+          if (webSocketService) {
+            webSocketService.send('update-session-status', {
+              cardNumber: playerId,
+              betAmount: bet,
+              status: 'playing'
+            });
+          }
+          
+          setBlockedPlayers([...blockedPlayers, playerId]);
+          setLoserMessage(result.message);
+          setLoserCardId(playerId);
+          setShowLoserModal(true);
+          
+          if (soundOn) {
+            if (language === 'am') {
+              playAmharicGameAudio('not-won');
+            } else {
+              if (voiceService) {
+                const langCode = 'en-US';
+                voiceService.speak('No winner found!', langCode, 1);
+              }
             }
           }
+        } catch (error) {
+          console.error('Error blocking player:', error);
         }
-      } catch (error) {
-        console.error('Error blocking player:', error);
+      } else {
+        // If connection is bad, show connection error
+        const message = language === 'am' 
+          ? 'ግንኙነት ችግር አለ! እባክዎ ደግመው ይሞክሩ' 
+          : 'Connection issue! Please try again';
+        setToastMessage(message);
+        setShowToast(true);
       }
     }
   };
@@ -1174,7 +1163,7 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
 
   const userCards = getUserCards();
 
-  // FIXED: Winner Card Component - shows pattern completed by last called number
+  // Winner Card Component
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
@@ -1259,7 +1248,7 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
               </Box>
             ))}
             
-            {/* Card numbers - ONLY border the pattern completed by last called number */}
+            {/* Card numbers */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
@@ -1360,6 +1349,43 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
       flexDirection: 'column'
     }}>
       
+      {/* Connection Status Indicator */}
+      <Box sx={{
+        p: 0.5,
+        mb: 1,
+        borderRadius: 1,
+        background: connectionStatus === 'connected' 
+          ? 'rgba(76,175,80,0.2)' 
+          : connectionStatus === 'connecting'
+          ? 'rgba(255,152,0,0.2)'
+          : 'rgba(244,67,54,0.2)',
+        border: `1px solid ${
+          connectionStatus === 'connected' 
+          ? '#4CAF50' 
+          : connectionStatus === 'connecting'
+          ? '#FF9800'
+          : '#f44336'
+        }`,
+        animation: connectionStatus === 'connecting' ? 'connection-pulse 2s infinite' : 'none'
+      }}>
+        <Typography variant="caption" sx={{ 
+          color: connectionStatus === 'connected' 
+            ? '#4CAF50' 
+            : connectionStatus === 'connecting'
+            ? '#FF9800'
+            : '#f44336',
+          fontWeight: 'bold'
+        }}>
+          {connectionStatus === 'connected' 
+            ? '✅ ' + (language === 'am' ? 'ተገናኝቷል' : 'Connected')
+            : connectionStatus === 'connecting'
+            ? '🔄 ' + (language === 'am' ? 'በመገናኘት ላይ...' : 'Connecting...')
+            : '❌ ' + (language === 'am' ? 'ግንኙነት ተቋርጧል' : 'Disconnected')
+          }
+          {lastServerSync && ` | ${language === 'am' ? 'የተዘመነ' : 'Synced'}: ${lastServerSync.toLocaleTimeString()}`}
+        </Typography>
+      </Box>
+
       {/* Grace Period Indicator */}
       {gracePeriodActive && (
         <Box sx={{
@@ -1695,14 +1721,23 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
                 const card = getCardById(player.id);
                 const isBlocked = blockedPlayers.includes(player.id);
                 const hasSubmittedBingo = submittedBingoCards.includes(player.id);
+                const isPendingValidation = pendingBingoClaims.includes(player.id);
                 
                 return (
                   <Card 
                     key={player.id} 
                     sx={{ 
                       p: 1, 
-                      background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
-                      border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
+                      background: isBlocked 
+                        ? 'rgba(244,67,54,0.1)' 
+                        : isPendingValidation
+                        ? 'rgba(255,152,0,0.1)'
+                        : 'rgba(255,255,255,0.8)',
+                      border: isBlocked 
+                        ? '2px solid #f44336' 
+                        : isPendingValidation
+                        ? '2px solid #FF9800'
+                        : '1px solid #e0e0e0',
                       borderRadius: 2
                     }}
                   >
@@ -1710,6 +1745,7 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
                       {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                       {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
                       {hasSubmittedBingo && ` (${language === 'am' ? 'ቀርቧል' : 'Submitted'})`}
+                      {isPendingValidation && ` (${language === 'am' ? 'በመረጋገጥ ላይ...' : 'Validating...'})`}
                     </Typography>
                         
                         {/* BINGO Card */}
@@ -1784,15 +1820,17 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
                             variant="contained" 
                             color="success"
                             onClick={() => handleBingo(player.id)}
-                            disabled={isBlocked || !gameStarted || submittedBingoCards.includes(player.id)}
+                            disabled={isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation || !isConnected}
                             fullWidth
                             size="small"
                             sx={{ 
                               fontSize: '0.8rem',
-                              opacity: (isBlocked || !gameStarted || submittedBingoCards.includes(player.id)) ? 0.6 : 1
+                              opacity: (isBlocked || !gameStarted || hasSubmittedBingo || isPendingValidation || !isConnected) ? 0.6 : 1
                             }}
                           >
-                            {submittedBingoCards.includes(player.id) ? 
+                            {isPendingValidation ? 
+                              (language === 'am' ? 'በመረጋገጥ ላይ...' : 'VALIDATING...') :
+                              hasSubmittedBingo ? 
                               (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
                               'BINGO'
                             }
@@ -1808,11 +1846,17 @@ const findWinningPatternCompletedByLastNumber = (card: number[][]): { pattern: W
       {/* Toast Message */}
       <Snackbar
         open={showToast}
-        autoHideDuration={2000}
+        autoHideDuration={3000}
         onClose={() => setShowToast(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity="success" sx={{ width: '100%' }}>
+        <Alert 
+          severity={
+            toastMessage.includes('አሸንፏል') || toastMessage.includes('wins') ? 'success' :
+            toastMessage.includes('ግንኙነት') || toastMessage.includes('Connection') ? 'warning' : 'info'
+          } 
+          sx={{ width: '100%' }}
+        >
           {toastMessage}
         </Alert>
       </Snackbar>
