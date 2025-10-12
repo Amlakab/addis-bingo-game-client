@@ -592,13 +592,25 @@ const GameInterface = ({
 
   // Start game function
   const startGame = () => {
-    setGameStarted(true);
-
+  
     if (webSocketService) {
       webSocketService.send('update-session-status-by-bet', {
         betAmount: bet,
         status: 'playing'
       });
+
+    if(numberOfPlayers < 3){
+      const message = language === 'am' ? 'በጨዋታው ውስጥ ቢያንስ 3 ተጫዋቾች መሆን አለበት!' : 'At least 3 players are required to start the game!';
+      setToastMessage(message);
+      setShowToast(true);
+      setGameStarted(false);
+      
+      handleBackToLobbyWithRefund();
+      return;
+    }
+
+    setGameStarted(true);
+
       
       webSocketService.send('start-game', { betAmount: bet });
     }
@@ -611,7 +623,7 @@ const GameInterface = ({
         setIsReady(true);
       }
       // If countdown is 45, start immediately
-      if (countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
+      if (countdown === 1 || countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
         startGame();
         return; // no need to start interval
       }
