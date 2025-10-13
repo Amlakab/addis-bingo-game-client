@@ -114,7 +114,7 @@ const GameInterface = ({
   const [isConnected, setIsConnected] = useState(false);
   
   // Game control state - UPDATED: Only use server timing for countdown
-  const [countdown, setCountdown] = useState(40);
+  const [countdown, setCountdown] = useState(44);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -608,17 +608,16 @@ const GameInterface = ({
 
   // Start game function
   const startGame = async () => {
-  
-    if (webSocketService) {
-      webSocketService.send('update-session-status-by-bet', {
-        betAmount: bet,
-        status: 'playing'
-      });
+  if (webSocketService) {
+    webSocketService.send('update-session-status-by-bet', {
+      betAmount: bet,
+      status: 'playing'
+    });
 
-      const response = await api.get(`game/sessions/bet/${bet}`);
-      const sessions = response.data;
-      
-      const Players = sessions.length;
+    const response = await api.get(`game/sessions/bet/${bet}`);
+    const sessions = response.data;
+    
+    const Players = sessions.length;
 
     if(Players < 3){
       const message = language === 'am' ? 'በጨዋታው ውስጥ ቢያንስ 3 ተጫዋቾች መሆን አለበት!' : 'At least 3 players are required to start the game!';
@@ -626,16 +625,18 @@ const GameInterface = ({
       setShowToast(true);
       setGameStarted(false);
       
-      handleBackToLobbyWithRefund();
+      // Wait 5 seconds after showing message, then refund and go back to lobby
+      setTimeout(() => {
+        handleBackToLobbyWithRefund();
+      }, 5000);
+      
       return;
     }
 
     setGameStarted(true);
-
-      
-      webSocketService.send('start-game', { betAmount: bet });
-    }
-  };
+    webSocketService.send('start-game', { betAmount: bet });
+  }
+};
 
   // UPDATED: Start countdown when server timer is available
   useEffect(() => {
@@ -1310,7 +1311,7 @@ const GameInterface = ({
               {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
-              {countdown}s
+              {countdown !== 40 ? `${countdown}s` : 'Counting...'}
             </Typography>
           </Box>
         ) : (
