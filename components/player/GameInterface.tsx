@@ -114,7 +114,7 @@ const GameInterface = ({
   const [isConnected, setIsConnected] = useState(false);
   
   // Game control state - UPDATED: Only use server timing for countdown
-  const [countdown, setCountdown] = useState(45);
+  const [countdown, setCountdown] = useState(40);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -639,12 +639,12 @@ const GameInterface = ({
 
   // UPDATED: Start countdown when server timer is available
   useEffect(() => {
-    if (countdown > 0 && !gameStarted && !gameStopped) {
-      if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===44){
+    if (countdown >= 0 && !gameStarted && !gameStopped) {
+      if(countdown===4 || countdown===3 || countdown===2 || countdown===1 || countdown===0 || countdown===45 || countdown===44){
         setIsReady(true);
       }
       // If countdown is 45, start immediately
-      if (countdown === 1 || countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41 || countdown === 40) {
+      if (countdown === 1 || countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41) {
         startGame();
         return; // no need to start interval
       }
