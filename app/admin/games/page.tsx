@@ -6,12 +6,12 @@ import {
   Box, Typography, Card, CardContent, Button,
   TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   Chip, Alert, Snackbar, CircularProgress,
-  useTheme, useMediaQuery, IconButton
+  useTheme, useMediaQuery, IconButton, Select, MenuItem, FormControl, InputLabel
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Add, Edit, Delete, Search, Casino,
-  Numbers, AccessTime, FilterList
+  Numbers, AccessTime, FilterList, Refresh
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
@@ -36,9 +36,26 @@ export default function GamesPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [formData, setFormData] = useState({ betAmount: '' });
+  
+  // Reset Game States
+  const [resetBetAmount, setResetBetAmount] = useState<string>('');
+  const [resetLoading, setResetLoading] = useState<boolean>(false);
+  const [webSocketService, setWebSocketService] = useState<any>(null);
 
   useEffect(() => {
     fetchGames();
+    
+    // Load WebSocket service for reset functionality
+    const loadWebSocketService = async () => {
+      try {
+        const wsModule = await import('@/app/utils/websocket');
+        setWebSocketService(wsModule.webSocketService);
+      } catch (error) {
+        console.error('Failed to load WebSocket service:', error);
+      }
+    };
+    
+    loadWebSocketService();
   }, []);
 
   useEffect(() => {
@@ -123,6 +140,39 @@ export default function GamesPage() {
       fetchGames();
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to delete game');
+    }
+  };
+
+  // Reset Game Functionality
+  const handleResetGame = async () => {
+    if (!resetBetAmount) {
+      setError('Please select a bet amount to reset');
+      return;
+    }
+
+    if (!webSocketService) {
+      setError('WebSocket service not available');
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+      
+      const betAmount = parseInt(resetBetAmount);
+      
+      // Send reset command via WebSocket
+      webSocketService.send('reset-game', { betAmount });
+      
+      setSuccess(`Game sessions for ${betAmount} BIRR are being reset...`);
+      setResetBetAmount('');
+      
+      // Optional: You can also call an API endpoint if you have one
+      // await api.post('/games/reset-sessions', { betAmount });
+      
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to reset game sessions');
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -366,6 +416,90 @@ export default function GamesPage() {
         </motion.div>
       )}
 
+      {/* Reset Game Section - Added at the end */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4 }}
+      >
+        <Card
+          sx={{
+            mt: 4,
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            background: 'linear-gradient(145deg, #fff, #f8f9fa)',
+            border: '1px solid #e0e0e0',
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Refresh sx={{ color: '#e67e22' }} />
+              Reset Game Sessions
+            </Typography>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Reset all active game sessions for a specific bet amount. This will clear all current players and reset the game timer.
+            </Typography>
+
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2,
+                alignItems: { xs: 'stretch', sm: 'flex-end' },
+              }}
+            >
+              <FormControl fullWidth size="small">
+                <InputLabel>Select Bet Amount</InputLabel>
+                <Select
+                  value={resetBetAmount}
+                  label="Select Bet Amount"
+                  onChange={(e) => setResetBetAmount(e.target.value)}
+                  sx={{ borderRadius: 2 }}
+                >
+                  <MenuItem value="">
+                    <em>Select a bet amount</em>
+                  </MenuItem>
+                  {games.map((game) => (
+                    <MenuItem key={game._id} value={game.betAmount.toString()}>
+                      {game.betAmount} BIRR
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Button
+                variant="contained"
+                onClick={handleResetGame}
+                disabled={!resetBetAmount || resetLoading}
+                startIcon={resetLoading ? <CircularProgress size={16} /> : <Refresh />}
+                sx={{
+                  background: "linear-gradient(145deg, #e67e22, #d35400)",
+                  borderRadius: 2,
+                  px: 3,
+                  py: 1,
+                  minWidth: { xs: '100%', sm: 'auto' },
+                  whiteSpace: 'nowrap',
+                  boxShadow: "0 4px 8px rgba(230, 126, 34, 0.3)",
+                  "&:hover": {
+                    background: "linear-gradient(145deg, #d35400, #c0392b)",
+                  },
+                  "&:disabled": {
+                    background: "#bdc3c7",
+                  },
+                }}
+              >
+                {resetLoading ? 'Resetting...' : 'Reset Game'}
+              </Button>
+            </Box>
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+              ⚠️ This action cannot be undone. All active sessions for the selected bet amount will be cleared.
+            </Typography>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Add/Edit Dialog */}
       <Dialog 
         open={openDialog} 
@@ -424,6 +558,5 @@ export default function GamesPage() {
         </Alert>
       </Snackbar>
     </Box>
-    
   );
 }
