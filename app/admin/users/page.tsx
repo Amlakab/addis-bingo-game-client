@@ -104,23 +104,45 @@ const UsersPage = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
-  }, [filters]);
+  }, [filters.page, filters.limit, filters.role, filters.status, filters.search]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
       
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
-      });
+      // Add all filters to params
+      if (filters.role) params.append('role', filters.role);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.search) params.append('search', filters.search);
+      params.append('page', filters.page.toString());
+      params.append('limit', filters.limit.toString());
+
+      console.log('Fetching users with params:', Object.fromEntries(params)); // Debug log
 
       const response = await api.get(`/user?${params}`);
-      setUsers(response.data.data.users);
-      setPagination(response.data.data.pagination);
+      console.log('API Response:', response.data); // Debug log
+      
+      setUsers(response.data.data.users || []);
+      setPagination(response.data.data.pagination || {
+        currentPage: 1,
+        totalPages: 1,
+        totalUsers: 0,
+        hasNext: false,
+        hasPrev: false
+      });
       setError('');
     } catch (error: any) {
+      console.error('Error fetching users:', error); // Debug log
       setError(error.response?.data?.message || 'Failed to fetch users');
+      setUsers([]);
+      setPagination({
+        currentPage: 1,
+        totalPages: 1,
+        totalUsers: 0,
+        hasNext: false,
+        hasPrev: false
+      });
     } finally {
       setLoading(false);
     }
@@ -229,11 +251,12 @@ const UsersPage = () => {
     setFilters(prev => ({
       ...prev,
       [field]: value,
-      page: field !== 'page' ? 1 : prev.page // Reset to first page when filters change
+      ...(field !== 'page' && { page: 1 }) // Reset to first page when filters change (except page changes)
     }));
   };
 
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    console.log('Page changing to:', value); // Debug log
     handleFilterChange('page', value);
   };
 
@@ -283,6 +306,12 @@ const UsersPage = () => {
       default: return 'default';
     }
   };
+
+  // Debug current state
+  useEffect(() => {
+    console.log('Current filters:', filters);
+    console.log('Current pagination:', pagination);
+  }, [filters, pagination]);
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
@@ -741,6 +770,8 @@ const UsersPage = () => {
                 onChange={handlePageChange}
                 color="primary"
                 size={isMobile ? "small" : "medium"}
+                showFirstButton
+                showLastButton
               />
             </Box>
           )}
@@ -748,7 +779,10 @@ const UsersPage = () => {
           {/* Pagination Info */}
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              Showing {users.length} of {pagination.totalUsers} users
+              Showing {((filters.page - 1) * filters.limit) + 1} to {Math.min(filters.page * filters.limit, pagination.totalUsers)} of {pagination.totalUsers} users
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Page {filters.page} of {pagination.totalPages}
             </Typography>
           </Box>
         </motion.div>
