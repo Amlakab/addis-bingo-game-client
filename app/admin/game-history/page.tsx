@@ -21,7 +21,7 @@ interface GameHistory {
   winnerId: {
     _id: string;
     phone: string;
-  };
+  }|null;
   winnerCard: number;
   prizePool: number;
   numberOfPlayers: number;
@@ -63,19 +63,19 @@ export default function GameHistoryPage() {
     fetchGameHistory();
   }, []);
 
-  useEffect(() => {
-    if (gameHistory && gameHistory.length > 0) {
-      const filtered = gameHistory.filter(game =>
-        game.winnerId.phone.includes(searchTerm) ||
-        game.winnerCard.toString().includes(searchTerm) ||
-        game.betAmount.toString().includes(searchTerm) ||
-        game._id.includes(searchTerm)
-      );
-      setFilteredHistory(filtered);
-    } else {
-      setFilteredHistory([]);
-    }
-  }, [searchTerm, gameHistory]);
+ useEffect(() => {
+  if (gameHistory && gameHistory.length > 0) {
+    const filtered = gameHistory.filter(game =>
+      (game.winnerId?.phone || '').includes(searchTerm) ||
+      game.winnerCard.toString().includes(searchTerm) ||
+      game.betAmount.toString().includes(searchTerm) ||
+      game._id.includes(searchTerm)
+    );
+    setFilteredHistory(filtered);
+  } else {
+    setFilteredHistory([]);
+  }
+}, [searchTerm, gameHistory]);
 
   useEffect(() => {
     if (gameHistory.length > 0) {
@@ -320,7 +320,7 @@ export default function GameHistoryPage() {
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">Winner:</Typography>
                         <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                          {game.winnerId.phone}
+                          {game.winnerId ? game.winnerId.phone : 'No winner'}
                         </Typography>
                       </Box>
                       
@@ -404,7 +404,7 @@ export default function GameHistoryPage() {
                           {formatDate(game.createdAt)}
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
-                          {game.winnerId.phone}
+                          {game.winnerId ? game.winnerId.phone : 'No winner'}
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.7rem', sm: '0.8rem' } }}>
                           <Chip
