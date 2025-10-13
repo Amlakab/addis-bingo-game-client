@@ -489,9 +489,8 @@ const GameInterface = ({
     };
 
     // NEW: restartGame function
-    const restartGame = () => {
+    const restartGame = async () => {
       setIsReady(true);
-      setGameStarted(true);
       
       if (webSocketService) {
         webSocketService.send('update-session-status-by-bet', {
@@ -499,6 +498,23 @@ const GameInterface = ({
           status: 'playing'
         });
       }
+
+      const response = await api.get(`game/sessions/bet/${bet}`);
+      const sessions = response.data;
+      
+      const Players = sessions.length;
+
+    if(Players < 3){
+      const message = language === 'am' ? 'በጨዋታው ውስጥ ቢያንስ 3 ተጫዋቾች መሆን አለበት!' : 'At least 3 players are required to start the game!';
+      setToastMessage(message);
+      setShowToast(true);
+      setGameStarted(false);
+      
+      handleBackToLobbyWithRefund();
+      return;
+    }
+    setGameStarted(true);
+      
     };
 
     const handleWebSocketConnected = () => {
