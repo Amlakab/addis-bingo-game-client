@@ -357,12 +357,13 @@ const PlayerLobby = ({
       if (isSelectedByUser) {
         // Deselect card logic
         
+        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
+        
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
         });
 
-        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
         
 
       } else {
@@ -391,7 +392,8 @@ const PlayerLobby = ({
         }
 
         // Update local state optimistically
-       
+        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
+
         // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
@@ -400,7 +402,6 @@ const PlayerLobby = ({
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()
         });
 
-         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
 
       }
       
