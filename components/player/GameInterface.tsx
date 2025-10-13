@@ -602,9 +602,9 @@ const GameInterface = ({
       const response = await api.get(`game/sessions/bet/${bet}`);
       const sessions = response.data;
       
-      const numberOfPlayers = sessions.length;
+      const Players = sessions.length;
 
-    if(numberOfPlayers < 3){
+    if(Players < 3){
       const message = language === 'am' ? 'በጨዋታው ውስጥ ቢያንስ 3 ተጫዋቾች መሆን አለበት!' : 'At least 3 players are required to start the game!';
       setToastMessage(message);
       setShowToast(true);
