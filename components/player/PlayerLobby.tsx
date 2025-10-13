@@ -8,6 +8,8 @@ import {
   IconButton, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
+import api from '@/app/utils/api';
+
 
 interface PlayerSelection {
   id: number;
@@ -426,35 +428,80 @@ const PlayerLobby = ({
   };
 
   // Handle direct navigation to game (without updating session status)
-  const handleDirectToGame = async () => {
-    if (!isClient || !webSocketService || !user || selectedPlayers.length === 0 || !onDirectToGame) return;
+ const handleDirectToGame = async () => {
+  if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
-    try {
-      // 1. First call fund-wallet
-      webSocketService.send('fund-wallet', {
-        betAmount: betAmount,
-        userId: user._id
-      });
+  try {
+    // ✅ NEW: Fetch user's sessions from the API to validate
+    const response = await api.get(`/game/sessions/user/${user._id}`);
+    const userSessions = response.data;
+    
+    // Filter sessions for current bet amount and active/ready status
+    const currentBetSessions = userSessions.filter((session: GameSession) => 
+      session.betAmount === betAmount && 
+      ['active', 'ready'].includes(session.status)
+    );
 
-      // 2. Then call update session status to ready
-      webSocketService.send('update-session-status-by-user-bet', {
-        userId: user._id,
-        betAmount: betAmount,
-        status: 'ready'
-      });
-
-      // 3. Redirect to game
-      onDirectToGame(selectedPlayers, betAmount);
-
-    } catch (error) {
-      console.error('Error in handleDirectToGame:', error);
+    // ✅ VALIDATION: Check if user has exactly 1 or 2 sessions
+    if (currentBetSessions.length === 0) {
       setToastMessage(language === 'am' 
-        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
-        : 'Error occurred while processing game entry'
+        ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
+        : 'Please select at least 1 card'
       );
       setShowToast(true);
+      return;
     }
-  };
+
+    if (currentBetSessions.length > 2) {
+      setToastMessage(language === 'am' 
+        ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
+        : 'You cannot select more than 2 cards'
+      );
+      setShowToast(true);
+      return;
+    }
+
+    // Extract selected players from the fetched sessions
+    const validatedSelectedPlayers: PlayerSelection[] = currentBetSessions.map((session: GameSession) => ({
+      id: session.cardNumber,
+      userId: session.userId._id
+    }));
+
+    // ✅ VALIDATION: Ensure we have 1 or 2 players
+    if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
+      setToastMessage(language === 'am' 
+        ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
+        : 'You can only select 1 to 2 cards'
+      );
+      setShowToast(true);
+      return;
+    }
+
+    // 1. First call fund-wallet
+    webSocketService.send('fund-wallet', {
+      betAmount: betAmount,
+      userId: user._id
+    });
+
+    // 2. Then call update session status to ready
+    webSocketService.send('update-session-status-by-user-bet', {
+      userId: user._id,
+      betAmount: betAmount,
+      status: 'ready'
+    });
+
+    // 3. Redirect to game with validated players
+    onDirectToGame(validatedSelectedPlayers, betAmount);
+
+  } catch (error) {
+    console.error('Error in handleDirectToGame:', error);
+    setToastMessage(language === 'am' 
+      ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
+      : 'Error occurred while processing game entry'
+    );
+    setShowToast(true);
+  }
+};
 
   // Original method to handle canceling selections (without going back)
   const handleCancelSelections = async () => {
