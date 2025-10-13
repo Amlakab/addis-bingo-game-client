@@ -591,13 +591,18 @@ const GameInterface = ({
   }, [serverCurrentNumber, currentNumber, serverCalledNumbers.length, calledNumbers.length]);
 
   // Start game function
-  const startGame = () => {
+  const startGame = async () => {
   
     if (webSocketService) {
       webSocketService.send('update-session-status-by-bet', {
         betAmount: bet,
         status: 'playing'
       });
+
+      const response = await api.get(`game/sessions/bet/${bet}`);
+      const sessions = response.data;
+      
+      const numberOfPlayers = sessions.length;
 
     if(numberOfPlayers < 3){
       const message = language === 'am' ? 'በጨዋታው ውስጥ ቢያንስ 3 ተጫዋቾች መሆን አለበት!' : 'At least 3 players are required to start the game!';
