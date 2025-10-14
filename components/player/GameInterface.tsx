@@ -114,7 +114,7 @@ const GameInterface = ({
   const [isConnected, setIsConnected] = useState(false);
   
   // Game control state - UPDATED: Only use server timing for countdown
-  const [countdown, setCountdown] = useState(44);
+  const [countdown, setCountdown] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -1323,7 +1323,7 @@ const GameInterface = ({
               {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
-              {countdown !== 40 ? `${countdown}s` : 'Counting...'}
+              {countdown !== 0 ? `${countdown}s` : 'Ready'}
             </Typography>
           </Box>
         ) : (
