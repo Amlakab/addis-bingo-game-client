@@ -291,20 +291,20 @@ export default function Home() {
           transition={{ duration: 0.6, delay: 0.6 }}
         >
           {user ? (
-            <div className="flex space-x-4">
-  <Link
-    href="/user/lobby"
-    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-  >
-    Play Now
-  </Link>
-  <Link
-    href="/user/dashboard"
-    className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
-  >
-    My Dashboard
-  </Link>
-</div>
+            <div className="flex space-x-4 justify-center">
+            <Link
+              href="/user/lobby"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              Play Now
+            </Link>
+            <Link
+              href="/user/dashboard"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              My Dashboard
+            </Link>
+          </div>
           ) : (
             <div className="space-x-4">
               <Link
