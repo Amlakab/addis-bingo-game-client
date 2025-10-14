@@ -417,8 +417,20 @@ const GameInterface = ({
       
       setWinners(formattedWinners);
       setGameEndData(data);
+
+      const userCardNumbers = getUserCards().map(card => card.id);
+      const userWon = user && data.winners.some(winner => 
+        userCardNumbers.includes(winner.card)
+      );
       
-      const userWon = user && data.winners.some(winner => winner.id === user._id);
+      console.log('User win check:', {
+        userId: user?._id,
+        userCards: userCardNumbers,
+        winners: data.winners.map(w => ({ card: w.card, id: w.id })),
+        userWon
+      });
+      
+      //const userWon = user && data.winners.some(winner => winner.id === user._id);
       
       if (userWon) {
         if (language === 'am') {

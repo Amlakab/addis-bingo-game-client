@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/ui/Navbar';
 import Footer from '@/components/ui/Footer';
+import { useAuth } from '@/lib/auth';
 // Page Access Instructions with images
 const AccessSteps = [
   { step: 1, title: "Home Page Access", text: "Start by accessing the Feta Bingo home page where you can explore the game options and features.", file: "/Step1.png", alt: "Home Page" },
@@ -23,6 +24,7 @@ const HowToPlaySteps = [
 ];
 
 export default function HowToPlayPage() {
+  const { user } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 pb-20">
       {/* Navbar */}
@@ -102,12 +104,20 @@ export default function HowToPlayPage() {
       </div>
         {/* Play Now Button */}
           <div className="text-center mb-12">
+          {user ? (
             <Link 
+              href="/user/lobby"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300"
+            >
+              Play Now
+            </Link>) : (
+              <Link 
               href="/auth/register"
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300"
             >
               Play Now
             </Link>
+            )}
           </div>
       <Footer />
     </div>
