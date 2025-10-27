@@ -335,6 +335,28 @@ export default function WalletPage() {
         ) : step === 'payment' ? (
           <form onSubmit={handlePaymentSubmit}>
 
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  type="button" 
+                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'telebirr' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
+                  onClick={() => setPaymentMethod('telebirr')}
+                >
+                  <Wallet className="h-6 w-6 mx-auto mb-2" />
+                  <span>Telebirr</span>
+                </button>
+                <button 
+                  type="button" 
+                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'cbe' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
+                  onClick={() => setPaymentMethod('cbe')}
+                >
+                  <CreditCard className="h-6 w-6 mx-auto mb-2" />
+                  <span>CBE Birr</span>
+                </button>
+              </div>
+            </div>
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Your Full Name
@@ -379,28 +401,6 @@ export default function WalletPage() {
               </div>
             </div>
             
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  type="button" 
-                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'telebirr' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
-                  onClick={() => setPaymentMethod('telebirr')}
-                >
-                  <Wallet className="h-6 w-6 mx-auto mb-2" />
-                  <span>Telebirr</span>
-                </button>
-                <button 
-                  type="button" 
-                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'cbe' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
-                  onClick={() => setPaymentMethod('cbe')}
-                >
-                  <CreditCard className="h-6 w-6 mx-auto mb-2" />
-                  <span>CBE Birr</span>
-                </button>
-              </div>
-            </div>
 
             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
               <p className="text-sm font-medium text-gray-700 mb-2">
@@ -574,6 +574,28 @@ export default function WalletPage() {
         ) : (
           <form onSubmit={handleSubmit}>
 
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Withdrawal Method</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  type="button" 
+                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  onClick={() => setWithdrawalMethod('telebirr')}
+                >
+                  <Wallet className="h-6 w-6 mx-auto mb-2" />
+                  <span>Telebirr</span>
+                </button>
+                <button 
+                  type="button" 
+                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  onClick={() => setWithdrawalMethod('cbe')}
+                >
+                  <CreditCard className="h-6 w-6 mx-auto mb-2" />
+                  <span>CBE Birr</span>
+                </button>
+              </div>
+            </div>
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Account Holder Name
@@ -620,28 +642,6 @@ export default function WalletPage() {
               <p className="text-sm text-gray-500 mt-1">Available: {formatCurrency(user!.wallet)} (Minimum: 100 ETB)</p>
             </div>
             
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Withdrawal Method</label>
-              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
-                  onClick={() => setWithdrawalMethod('telebirr')}
-                >
-                  <Wallet className="h-6 w-6 mx-auto mb-2" />
-                  <span>Telebirr</span>
-                </button>
-                <button 
-                  type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
-                  onClick={() => setWithdrawalMethod('cbe')}
-                >
-                  <CreditCard className="h-6 w-6 mx-auto mb-2" />
-                  <span>CBE Birr</span>
-                </button>
-              </div>
-            </div>
 
             <motion.button 
               whileHover={{ scale: 1.02 }} 
