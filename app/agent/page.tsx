@@ -55,13 +55,13 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoading && user?.role !== 'agent') {
+    if (!isLoading && user?.role !== 'accountant') {
       router.push('/');
     }
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user?.role === 'agent') {
+    if (user?.role === 'accountant') {
       fetchDashboardData();
     }
   }, [user]);
