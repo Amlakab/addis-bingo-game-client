@@ -55,13 +55,13 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!isLoading && user?.role !== 'accountant') {
+    if (!isLoading && user?.role !== 'agent') {
       router.push('/');
     }
   }, [user, isLoading, router]);
 
   useEffect(() => {
-    if (user?.role === 'accountant') {
+    if (user?.role === 'agent') {
       fetchDashboardData();
     }
   }, [user]);
@@ -168,7 +168,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user?.role !== 'accountant') {
+  if (user?.role !== 'agent') {
     return <div className="text-center py-8 text-red-600">Access denied. Agent only.</div>;
   }
 
