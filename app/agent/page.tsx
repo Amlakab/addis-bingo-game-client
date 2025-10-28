@@ -168,7 +168,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user?.role !== 'agent') {
+  if (user?.role !== 'accountant') {
     return <div className="text-center py-8 text-red-600">Access denied. Agent only.</div>;
   }
 
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">Agent Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">Accountant Dashboard</h1>
       
       {/* Stats Grid - Responsive layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
