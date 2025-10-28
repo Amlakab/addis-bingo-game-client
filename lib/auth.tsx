@@ -114,29 +114,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (phone: string, password: string): Promise<User> => {
-    try {
-      const response = await api.post('/auth/register', {
-        phone,
-        password
-      });
+  const register = async (
+  phone: string, 
+  password: string, 
+  tg_id: string, 
+  agent_id?: string
+): Promise<User> => {
+  try {
+    const payload: any = {
+      phone,
+      password,
+      tg_id
+    };
 
-      const responseData = response.data;
-      const { token, user: userData } = responseData.data;
-      
-      if (!token || !userData) {
-        throw new Error('Invalid response from server');
-      }
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-      
-      return userData;
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Registration failed');
+    // Add agent_id only if provided
+    if (agent_id && agent_id.trim() !== '') {
+      payload.agent_id = agent_id;
     }
-  };
+
+    const response = await api.post('/auth/register', payload);
+
+    const responseData = response.data;
+    const { token, user: userData } = responseData.data;
+    
+    if (!token || !userData) {
+      throw new Error('Invalid response from server');
+    }
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+    
+    return userData;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || 'Registration failed');
+  }
+};
 
   const logout = () => {
     localStorage.removeItem('token');

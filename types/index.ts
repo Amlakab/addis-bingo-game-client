@@ -1,12 +1,14 @@
 export interface User {
   _id: string;
   phone: string;
-  role: 'user' |'disk-user'|'spinner-user' | 'agent' | 'admin';
+  role: 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'accountant' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
   totalEarnings: number;
   isActive: boolean;
+  tg_id: string;
+  agent_id?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,12 +80,13 @@ export interface Winning {
 // types/index.ts
 export interface AuthContextType {
   user: User | null;
-  login: (phone: string, password: string) => Promise<User>; // Changed from Promise<void>
-  loginWithOtp: (phone: string, otp: string) => Promise<User>; // Changed from Promise<void>
-  register: (phone: string, password: string) => Promise<User>; // Changed from Promise<void>
+  login: (phone: string, password: string) => Promise<User>;
+  loginWithOtp: (phone: string, otp: string) => Promise<User>;
+  register: (phone: string, password: string, tg_id: string, agent_id?: string) => Promise<User>;
   logout: () => void;
   isLoading: boolean;
 }
+
 export interface GameSettings {
   language: 'am' | 'en' | 'om';
   speed: 1 | 1.5 | 2;

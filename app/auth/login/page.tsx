@@ -46,9 +46,11 @@ export default function LoginPage() {
 
         if (user.role === 'admin') {
           router.push('/admin');
-        } else if (user.role === 'agent') {
+        } else if (user.role === 'accountant') {
           router.push('/agent');
-        } else {
+        }else if (user.role === 'agent') {
+          router.push('/sub-agent');
+        }  else {
           router.push('/user/dashboard');
         }
       } else {

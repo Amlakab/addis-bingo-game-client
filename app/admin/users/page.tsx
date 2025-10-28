@@ -24,7 +24,7 @@ import api from '@/app/utils/api';
 interface User {
   _id: string;
   phone: string;
-  role: 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'admin';
+  role: 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'accountant' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
@@ -91,7 +91,7 @@ const UsersPage = () => {
   const [formData, setFormData] = useState({
     phone: '',
     password: '',
-    role: 'user' as 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'admin',
+    role: 'user' as 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'accountant' | 'admin',
     wallet: 0
   });
 
@@ -505,6 +505,9 @@ const UsersPage = () => {
                       <MenuItem value="user">User</MenuItem>
                       <MenuItem value="agent">Agent</MenuItem>
                       <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="accountant">Accountant</MenuItem>
+                      <MenuItem value="spinner-user">Spinner User</MenuItem>
+                      <MenuItem value="desktop-user">Desktop User</MenuItem>
                     </Select>
                   </FormControl>
 
@@ -826,6 +829,7 @@ const UsersPage = () => {
                 <MenuItem value="user">User</MenuItem>
                 <MenuItem value="disk-user">Disktop User</MenuItem>
                 <MenuItem value="spinner-user">Spinner User</MenuItem>
+                <MenuItem value="accountant">Accountant</MenuItem>
                 <MenuItem value="agent">Agent</MenuItem>
                 <MenuItem value="admin">Admin</MenuItem>
               </Select>

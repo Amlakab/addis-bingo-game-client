@@ -16,7 +16,7 @@ import api from '@/app/utils/api';
 interface User {
   _id: string;
   phone: string;
-  role: 'user' | 'agent' | 'admin';
+  role: 'user' | 'agent' | 'accountant' | 'admin';
   wallet: number;
   totalEarnings: number;
   isActive: boolean;

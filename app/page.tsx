@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -244,6 +243,32 @@ export default function Home() {
     // Show confetti on load
     setShowConfetti(true);
     const timer = setTimeout(() => setShowConfetti(false), 5000);
+    
+    // Handle URL parameters
+    const handleUrlParams = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const agentId = urlParams.get('agent_id');
+      const tgId = urlParams.get('tg_id');
+      
+      if (agentId || tgId) {
+        const currentStorage = {
+          agent_id: localStorage.getItem('agent_id'),
+          tg_id: localStorage.getItem('tg_id')
+        };
+        
+        // Only update if we have new values
+        if (agentId && agentId !== currentStorage.agent_id) {
+          localStorage.setItem('agent_id', agentId);
+        }
+        
+        if (tgId && tgId !== currentStorage.tg_id) {
+          localStorage.setItem('tg_id', tgId);
+        }
+      }
+    };
+
+    handleUrlParams();
+    
     return () => clearTimeout(timer);
   }, []);
 
