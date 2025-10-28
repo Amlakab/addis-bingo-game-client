@@ -93,9 +93,7 @@ export default function UserDashboard() {
   }
 
   return (
-    <div className="p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">My Wallet</h1>
-      
+    <div className="p-4 md:p-6">      
       {/* Welcome Section */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
@@ -103,7 +101,6 @@ export default function UserDashboard() {
         className="text-center mb-8"
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {user.phone}!</h2>
-        <p className="text-gray-600">Manage your wallet and track your earnings</p>
       </motion.div>
 
       {/* Main Wallet Balance */}

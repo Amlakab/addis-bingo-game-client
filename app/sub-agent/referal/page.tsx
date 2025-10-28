@@ -226,7 +226,7 @@ export default function ReferralPage() {
           </div>
           <div className="bg-white p-4 md:p-6 rounded-lg shadow-md text-center">
             <Share2 className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mx-auto mb-2" />
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{formatCurrency(referralStats.totalEarnings)}</p>
+            <p className="text-xl md:text-2xl font-bold text-gray-900">{formatCurrency(user.totalEarnings)}</p>
             <p className="text-gray-600 text-sm md:text-base">Total Earnings</p>
           </div>
         </motion.div>
