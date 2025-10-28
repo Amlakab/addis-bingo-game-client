@@ -25,7 +25,7 @@ type UserType = {
   _id: string;
   phone: string;
   password?: string;
-  role: 'user' |'disk-user' |'spinner-user' | 'agent' | 'admin';
+  role: 'user' |'disk-user' |'spinner-user' | 'agent' |'accountant' | 'admin';
   wallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
