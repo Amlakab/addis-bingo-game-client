@@ -1,166 +1,81 @@
-// app/admin/page.jsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
-import { 
-  DollarSign, TrendingUp, TrendingDown, ArrowUp, ArrowDown,
-  ArrowRight, Clock, CheckCircle, XCircle, AlertCircle
-} from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import Link from 'next/link';
+import { 
+  DollarSign, 
+  TrendingUp, 
+  Plus, 
+  Wallet, 
+  Calendar, 
+  Clock,
+  ArrowRight,
+  CreditCard,
+  Download
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import api from '@/app/utils/api';
+import Link from 'next/link';
 
-// Interface definitions
-interface User {
+// ✅ Define User type
+type UserType = {
   _id: string;
   phone: string;
-  role: 'user' | 'agent' | 'accountant' | 'admin';
+  password?: string;
+  role: 'user' | 'disk-user' | 'spinner-user' | 'agent' |'accountant' | 'admin';
   wallet: number;
+  dailyEarnings: number;
+  weeklyEarnings: number;
   totalEarnings: number;
   isActive: boolean;
-  createdAt: string;
-}
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-interface Transaction {
-  _id: string;
-  userId: {
-    _id: string;
-    phone: string;
-  };
-  type: 'deposit' | 'withdrawal' | 'game_purchase' | 'winning';
-  amount: number;
-  status: 'pending' | 'completed' | 'failed';
-  reference: string;
-  description: string;
-  createdAt: string;
-}
-
-interface DashboardStats {
-  totalTransactions: number;
-  pendingTransactions: number;
-  completedTransactions: number;
-  failedTransactions: number;
-  todayEarnings: number;
-  transactionGrowth: number;
-}
-
-export default function AdminDashboard() {
-  const { user, isLoading } = useAuth();
+export default function UserDashboard() {
+  const { user: authUser } = useAuth();
   const router = useRouter();
-  const [statsData, setStatsData] = useState<DashboardStats | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [user, setUser] = useState<UserType | null>(authUser || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // 🔹 Fetch full user from backend
   useEffect(() => {
-    if (!isLoading && user?.role !== 'agent') {
-      router.push('/');
-    }
-  }, [user, isLoading, router]);
+    const fetchUser = async () => {
+      if (typeof window === "undefined") return;
 
-  useEffect(() => {
-    if (user?.role === 'agent') {
-      fetchDashboardData();
-    }
-  }, [user]);
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          setError('User not found');
+          return;
+        }
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch transactions data
-      const transactionsRes = await api.get('/transactions?limit=100');
-      const allTransactions: Transaction[] = transactionsRes.data.data;
-      
-      // Calculate stats
-      const totalTransactions = allTransactions.length;
-      const pendingTransactions = allTransactions.filter(t => t.status === 'pending').length;
-      const completedTransactions = allTransactions.filter(t => t.status === 'completed').length;
-      const failedTransactions = allTransactions.filter(t => t.status === 'failed').length;
-      
-      // Calculate today's earnings (only from completed transactions)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayEarnings = allTransactions
-        .filter(t => t.status === 'completed' && new Date(t.createdAt) >= today)
-        .reduce((sum, t) => sum + t.amount, 0);
+        const parsedUser = JSON.parse(storedUser);
+        if (!parsedUser?._id) {
+          setError('Invalid user data');
+          return;
+        }
 
-      // Get 5 most recent transactions
-      const recent = [...allTransactions]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5);
+        const response = await api.get(`/user/${parsedUser._id}`);
+        const userData: UserType = response.data.data || response.data;
+        setUser(userData);
+        setError('');
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+        setError('Failed to load user data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setStatsData({
-        totalTransactions,
-        pendingTransactions,
-        completedTransactions,
-        failedTransactions,
-        todayEarnings,
-        transactionGrowth: calculateGrowth(totalTransactions, 100) // Example calculation
-      });
+    fetchUser();
+  }, []);
 
-      setRecentTransactions(recent);
-      setError('');
-    } catch (error: any) {
-      setError('Failed to fetch dashboard data');
-      console.error('Dashboard error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Helper function to calculate growth percentage
-  const calculateGrowth = (current: number, previous: number): number => {
-    if (previous === 0) return 0;
-    return Number(((current - previous) / previous * 100).toFixed(1));
-  };
-
-  // Helper function to format time difference
-  const formatTimeDifference = (date: Date): string => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 60) {
-      return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-    } else {
-      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'text-yellow-600';
-      case 'completed':
-        return 'text-green-600';
-      case 'failed':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  if (isLoading || loading) {
+  // Loading state
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -168,191 +83,252 @@ export default function AdminDashboard() {
     );
   }
 
-  if (user?.role !== 'agent') {
-    return <div className="text-center py-8 text-red-600">Access denied. Agent only.</div>;
-  }
-
+  // Error state
   if (error) {
     return <div className="text-center py-8 text-red-600">{error}</div>;
   }
 
-  if (!statsData) {
-    return <div className="text-center py-8">No data available</div>;
+  if (!user) {
+    return <div className="text-center py-8 text-red-600">User not found</div>;
   }
 
   return (
     <div className="p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">Accountant Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-6">My Wallet</h1>
       
-      {/* Stats Grid - Responsive layout */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
-        {/* Total Transactions Card */}
-        <Link href="/agent/transactions">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-blue-100 rounded-full mr-3 md:mr-4">
-                  <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Total Transactions</p>
-                  <p className="text-xl md:text-2xl font-bold">{statsData.totalTransactions}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
-              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">+{statsData.transactionGrowth}%</span>
-              <span className="text-gray-500 ml-1 md:ml-2">from last week</span>
-            </div>
+      {/* Welcome Section */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="text-center mb-8"
+      >
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {user.phone}!</h2>
+        <p className="text-gray-600">Manage your wallet and track your earnings</p>
+      </motion.div>
+
+      {/* Main Wallet Balance */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ delay: 0.1 }}
+        className="mb-6 md:mb-8"
+      >
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white text-xl font-bold">Wallet Balance</h3>
+            <Wallet className="h-6 w-6 text-blue-200" />
           </div>
-        </Link>
-        
-        {/* Pending Transactions Card */}
-        <Link href="/agent/transactions?status=pending">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-yellow-100 rounded-full mr-3 md:mr-4">
-                  <Clock className="h-4 w-4 md:h-6 md:w-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Pending</p>
-                  <p className="text-xl md:text-2xl font-bold">{statsData.pendingTransactions}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 text-xs md:text-sm">
-              <span className="text-gray-500">Requires attention</span>
-            </div>
+          
+          <div className="text-center mb-6">
+            <p className="text-blue-100 text-sm mb-2">Available Balance</p>
+            <p className="text-4xl font-bold">{formatCurrency(user.wallet || 0)}</p>
           </div>
-        </Link>
-        
-        {/* Completed Transactions Card */}
-        <Link href="/agent/transactions?status=completed">
+
+          <button
+            className="w-full bg-white text-blue-600 hover:bg-gray-100 py-3 rounded-md font-medium flex items-center justify-center transition-colors"
+            onClick={() => router.push('/user/wallet')}
+          >
+            <Plus className="h-5 w-5 mr-2" /> Add Funds
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Earnings Overview - Responsive Grid */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8"
+      >
+        {/* Total Earnings Card */}
+        <Link href="/user/earnings">
           <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <div className="p-2 md:p-3 bg-green-100 rounded-full mr-3 md:mr-4">
-                  <CheckCircle className="h-4 w-4 md:h-6 md:w-6 text-green-600" />
+                  <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs md:text-sm text-gray-600">Completed</p>
-                  <p className="text-xl md:text-2xl font-bold">{statsData.completedTransactions}</p>
-                </div>
-              </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 flex items-center text-xs md:text-sm">
-              <TrendingUp className="h-3 w-3 md:h-4 md:w-4 text-green-600 mr-1" />
-              <span className="text-green-600 font-medium">Successfully processed</span>
-            </div>
-          </div>
-        </Link>
-        
-        {/* Failed Transactions Card */}
-        <Link href="/agent/transactions?status=failed">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-red-100 rounded-full mr-3 md:mr-4">
-                  <XCircle className="h-4 w-4 md:h-6 md:w-6 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Failed</p>
-                  <p className="text-xl md:text-2xl font-bold">{statsData.failedTransactions}</p>
+                  <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
+                  <p className="text-xl md:text-2xl font-bold">
+                    {formatCurrency(user.totalEarnings || 0)}
+                  </p>
                 </div>
               </div>
               <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
             </div>
             <div className="mt-3 md:mt-4 text-xs md:text-sm">
-              <span className="text-gray-500">Need resolution</span>
+              <span className="text-gray-500">All-time earnings from games</span>
             </div>
           </div>
         </Link>
-      </div>
-      
-      {/* Recent Transactions */}
-      <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm">
+
+        {/* Daily Earnings Card */}
+        <Link href="/user/earnings?period=daily">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 md:p-3 bg-blue-100 rounded-full mr-3 md:mr-4">
+                  <Calendar className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs md:text-sm text-gray-600">Today's Earnings</p>
+                  <p className="text-xl md:text-2xl font-bold">
+                    {formatCurrency(user.dailyEarnings || 0)}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
+            </div>
+            <div className="mt-3 md:mt-4 text-xs md:text-sm">
+              <span className="text-gray-500">Earnings for today</span>
+            </div>
+          </div>
+        </Link>
+
+        {/* Weekly Earnings Card */}
+        <Link href="/user/earnings?period=weekly">
+          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 md:p-3 bg-purple-100 rounded-full mr-3 md:mr-4">
+                  <Clock className="h-4 w-4 md:h-6 md:w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs md:text-sm text-gray-600">Weekly Earnings</p>
+                  <p className="text-xl md:text-2xl font-bold">
+                    {formatCurrency(user.weeklyEarnings || 0)}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
+            </div>
+            <div className="mt-3 md:mt-4 text-xs md:text-sm">
+              <span className="text-gray-500">Earnings this week</span>
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+
+      {/* Quick Actions */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ delay: 0.3 }}
+        className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm mb-6 md:mb-8"
+      >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg md:text-xl font-bold">Recent Transactions</h2>
-          <Link href="/agent/transactions" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
+          <h3 className="text-lg md:text-xl font-bold text-gray-900">Quick Actions</h3>
+          <Link href="/user/wallet" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
             View all
           </Link>
         </div>
-        <div className="overflow-x-auto">
-          {/* Mobile view - cards for small screens */}
-          <div className="md:hidden space-y-4">
-            {recentTransactions.map((transaction) => (
-              <div key={transaction._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="font-medium text-sm">
-                    {transaction.userId?.phone || 'Unknown'}
-                  </div>
-                  <div className="flex items-center">
-                    {getStatusIcon(transaction.status)}
-                    <span className={`ml-1 text-xs ${getStatusColor(transaction.status)}`}>
-                      {transaction.status}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-gray-600 capitalize">
-                    {transaction.type.replace('_', ' ')}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {formatCurrency(transaction.amount)}
-                  </span>
-                </div>
-                <div className="text-xs text-gray-500">
-                  {formatTimeDifference(new Date(transaction.createdAt))}
-                </div>
-              </div>
-            ))}
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Deposit Action */}
+          <button
+            onClick={() => router.push('/user/wallet/deposit')}
+            className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
+          >
+            <div className="p-2 bg-green-100 rounded-full mr-3 md:mr-4">
+              <Plus className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="font-medium text-gray-900 text-sm md:text-base">Deposit Funds</p>
+              <p className="text-xs md:text-sm text-gray-600">Add money to your wallet</p>
+            </div>
+            <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
+          </button>
+
+          {/* Withdraw Action */}
+          <button
+            onClick={() => router.push('/user/wallet/withdraw')}
+            className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
+          >
+            <div className="p-2 bg-blue-100 rounded-full mr-3 md:mr-4">
+              <Download className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="font-medium text-gray-900 text-sm md:text-base">Withdraw Funds</p>
+              <p className="text-xs md:text-sm text-gray-600">Transfer to your account</p>
+            </div>
+            <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Account Summary */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ delay: 0.4 }}
+        className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm"
+      >
+        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Account Summary</h3>
+        
+        {/* Mobile view - cards */}
+        <div className="md:hidden space-y-4">
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">Member Since</span>
+              <span className="font-medium text-gray-900 text-sm">
+                {new Date(user.createdAt).toLocaleDateString()}
+              </span>
+            </div>
           </div>
           
-          {/* Desktop view - table for larger screens */}
-          <table className="hidden md:table min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {recentTransactions.map((transaction) => (
-                <tr key={transaction._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {transaction.userId?.phone || 'Unknown'}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 capitalize">
-                    {transaction.type.replace('_', ' ')}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                    {formatCurrency(transaction.amount)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm">
-                    <div className="flex items-center">
-                      {getStatusIcon(transaction.status)}
-                      <span className={`ml-1 ${getStatusColor(transaction.status)}`}>
-                        {transaction.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                    {formatTimeDifference(new Date(transaction.createdAt))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">Account Status</span>
+              <span className={`font-medium text-sm ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                {user.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">User Role</span>
+              <span className="font-medium text-gray-900 text-sm capitalize">
+                {user.role.replace('-', ' ')}
+              </span>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-600">Phone Number</span>
+              <span className="font-medium text-gray-900 text-sm">{user.phone}</span>
+            </div>
+          </div>
         </div>
-      </div>
+        
+        {/* Desktop view - grid */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            <span className="text-gray-600">Member Since</span>
+            <span className="font-medium text-gray-900">
+              {new Date(user.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            <span className="text-gray-600">Account Status</span>
+            <span className={`font-medium ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
+              {user.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            <span className="text-gray-600">User Role</span>
+            <span className="font-medium text-gray-900 capitalize">
+              {user.role.replace('-', ' ')}
+            </span>
+          </div>
+          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+            <span className="text-gray-600">Phone Number</span>
+            <span className="font-medium text-gray-900">{user.phone}</span>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
