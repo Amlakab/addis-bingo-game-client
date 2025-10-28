@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState, ReactNode } from 'react';
-import AdminHeader from '@/components/agent/AdminHeader';
-import AdminSidebar from '@/components/agent/AdminSidebar';
+import AdminHeader from '@/components/sub-agent/AdminHeader';
+import AdminSidebar from '@/components/sub-agent/AdminSidebar';
 import Footer from '@/components/ui/Footer';
 
 interface AdminLayoutProps {
