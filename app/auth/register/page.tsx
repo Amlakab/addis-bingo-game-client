@@ -219,13 +219,13 @@ export default function RegisterPage() {
               )}
 
               {/* Display agent information if available */}
-              {agentId && (
+              {/* {agentId && (
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-700">
                     <strong>Agent ID:</strong> {agentId}
                   </p>
                 </div>
-              )}
+              )} */}
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div>
@@ -243,7 +243,7 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Telegram ID Field - Conditionally rendered */}
-                {showTelegramInput ? (
+                {showTelegramInput && (
                   <div>
                     <label htmlFor="telegramId" className="block text-sm font-medium text-gray-700 mb-2">
                       Telegram ID *
@@ -290,17 +290,19 @@ export default function RegisterPage() {
                       Your Telegram username (5-32 characters, starts with a letter, can contain letters, numbers, and underscores)
                     </p>
                   </div>
-                ) : (
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-sm text-green-700 flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      <strong>Telegram ID:</strong> {formData.telegramId}
-                    </p>
-                    <p className="text-xs text-green-600 mt-1">
-                      Telegram ID has been pre-filled from your referral link
-                    </p>
-                  </div>
-                )}
+                ) 
+                // : (
+                //   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                //     <p className="text-sm text-green-700 flex items-center">
+                //       <CheckCircle className="h-4 w-4 mr-2" />
+                //       <strong>Telegram ID:</strong> {formData.telegramId}
+                //     </p>
+                //     <p className="text-xs text-green-600 mt-1">
+                //       Telegram ID has been pre-filled from your referral link
+                //     </p>
+                //   </div>
+                // )
+                }
 
                 {/* Password Field */}
                 <div>
