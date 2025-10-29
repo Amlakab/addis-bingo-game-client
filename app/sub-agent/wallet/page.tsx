@@ -110,8 +110,8 @@ export default function WalletPage() {
 
   // Withdrawal limits
   const WITHDRAWAL_LIMITS = {
-    MIN: 100,
-    MAX: 5000
+    MIN: 5000,
+    MAX: 50000
   };
 
   useEffect(() => {

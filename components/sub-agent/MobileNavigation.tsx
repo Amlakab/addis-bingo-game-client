@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Home, Play, Wallet, Share, User } from 'lucide-react';
+import { Home, Play, Wallet, Share2Icon, User } from 'lucide-react';
 
 const navigationItems = [
   {
@@ -22,7 +22,7 @@ const navigationItems = [
   {
     name: 'Referal',
     href: '/sub-agent/referal',
-    icon: Share
+    icon: Share2Icon
   },
   {
     name: 'Profile',
@@ -34,9 +34,12 @@ const navigationItems = [
 export default function MobileNavigation() {
   const pathname = usePathname();
 
+  // Calculate grid columns based on number of items
+  const gridCols = `grid-cols-${navigationItems.length}`;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-      <div className="grid grid-cols-5 h-16">
+      <div className={cn('grid h-16', gridCols)}>
         {navigationItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
           const Icon = item.icon;
