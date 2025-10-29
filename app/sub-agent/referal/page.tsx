@@ -19,7 +19,6 @@ import { formatCurrency } from '@/lib/utils';
 import api from '@/app/utils/api';
 import MobileHeader from '@/components/sub-agent/MobileHeader';
 import MobileNavigation from '@/components/sub-agent/MobileNavigation';
-import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -386,7 +385,6 @@ export default function ReferralPage() {
         </motion.div>
       </main>
 
-      {/* <Footer /> */}
       <MobileNavigation />
     </div>
   );
