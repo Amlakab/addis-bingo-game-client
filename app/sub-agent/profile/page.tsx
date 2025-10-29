@@ -15,9 +15,13 @@ import {
   Lock,
   Eye,
   EyeOff,
-  X
+  X,
+  ArrowLeft
 } from 'lucide-react';
 import api from '@/app/utils/api';
+import MobileHeader from '@/components/sub-agent/MobileHeader';
+import MobileNavigation from '@/components/sub-agent/MobileNavigation';
+import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -60,7 +64,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Use useCallback to memoize the showMessage function
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 5000);
@@ -132,17 +135,38 @@ export default function ProfilePage() {
 
   const stats = calculateStats();
 
-  if (!user && !isLoading) return <p className="text-center mt-10 text-gray-500">User not found</p>;
-  if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
+  if (!user && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Profile" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <p className="text-center text-gray-500">User not found</p>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Profile" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
 
   const ProfileInfo = () => (
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="bg-white p-4 rounded-lg shadow-sm w-full"
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center">
           <User className="mr-2 h-5 w-5 text-blue-600" />
           Profile Information
         </h2>
@@ -154,12 +178,12 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex items-center p-3 bg-gray-50 rounded-lg">
           <Phone className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Phone Number</p>
-            <p className="font-medium">{user!.phone}</p>
+            <p className="font-medium text-sm">{user!.phone}</p>
           </div>
         </div>
 
@@ -167,7 +191,7 @@ export default function ProfilePage() {
           <Shield className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Account Type</p>
-            <p className="font-medium capitalize">{user!.role}</p>
+            <p className="font-medium text-sm capitalize">{user!.role}</p>
           </div>
         </div>
 
@@ -175,7 +199,9 @@ export default function ProfilePage() {
           <Shield className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Account Status</p>
-            <p className="font-medium">{user!.isActive ? 'Active' : 'Inactive'}</p>
+            <p className={`font-medium text-sm ${user!.isActive ? 'text-green-600' : 'text-red-600'}`}>
+              {user!.isActive ? 'Active' : 'Inactive'}
+            </p>
           </div>
         </div>
 
@@ -183,7 +209,7 @@ export default function ProfilePage() {
           <Calendar className="h-5 w-5 text-gray-500 mr-3" />
           <div>
             <p className="text-sm text-gray-600">Member Since</p>
-            <p className="font-medium">{new Date(user!.createdAt).toLocaleDateString()}</p>
+            <p className="font-medium text-sm">{new Date(user!.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
       </div>
@@ -194,59 +220,51 @@ export default function ProfilePage() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="bg-white p-4 rounded-lg shadow-sm w-full"
     >
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center">
           <Wallet className="mr-2 h-5 w-5 text-green-600" />
           Wallet Summary
         </h2>
         <CreditCard className="h-5 w-5 text-gray-400" />
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-          <span className="text-blue-700">Current Balance:</span>
-          <span className="font-semibold text-blue-700">{formatCurrency(user!.wallet || 0)}</span>
+          <span className="text-blue-700 text-sm">Current Balance:</span>
+          <span className="font-semibold text-blue-700 text-sm">{formatCurrency(user!.wallet || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-          <span className="text-green-700">Daily Earnings:</span>
-          <span className="font-semibold text-green-700">{formatCurrency(user!.dailyEarnings || 0)}</span>
+          <span className="text-green-700 text-sm">Daily Earnings:</span>
+          <span className="font-semibold text-green-700 text-sm">{formatCurrency(user!.dailyEarnings || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-          <span className="text-yellow-700">Weekly Earnings:</span>
-          <span className="font-semibold text-yellow-700">{formatCurrency(user!.weeklyEarnings || 0)}</span>
+          <span className="text-yellow-700 text-sm">Weekly Earnings:</span>
+          <span className="font-semibold text-yellow-700 text-sm">{formatCurrency(user!.weeklyEarnings || 0)}</span>
         </div>
 
         <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-          <span className="text-purple-700">Total Earnings:</span>
-          <span className="font-semibold text-purple-700">{formatCurrency(user!.totalEarnings || 0)}</span>
+          <span className="text-purple-700 text-sm">Total Earnings:</span>
+          <span className="font-semibold text-purple-700 text-sm">{formatCurrency(user!.totalEarnings || 0)}</span>
         </div>
       </div>
     </motion.div>
   );
 
   const PasswordChangeModal = () => {
-    // Local state for input values to prevent re-renders
-    const [localPasswordData, setLocalPasswordData] = useState(passwordData);
-    
-    const handleLocalChange = (field: string, value: string) => {
-      setLocalPasswordData(prev => ({ ...prev, [field]: value }));
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      setPasswordData(localPasswordData);
       
       // Validate passwords
-      if (localPasswordData.newPassword !== localPasswordData.confirmPassword) {
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
         showMessage('New passwords do not match', 'error');
         return;
       }
       
-      if (localPasswordData.newPassword.length < 6) {
+      if (passwordData.newPassword.length < 6) {
         showMessage('New password must be at least 6 characters long', 'error');
         return;
       }
@@ -255,18 +273,13 @@ export default function ProfilePage() {
       try {
         const response = await api.put('/user/change-password', {
           userId: user?._id,
-          currentPassword: localPasswordData.currentPassword,
-          newPassword: localPasswordData.newPassword
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
         });
         
         if (response.data.success) {
           showMessage('Password changed successfully!', 'success');
           setShowPasswordModal(false);
-          setLocalPasswordData({
-            currentPassword: '',
-            newPassword: '',
-            confirmPassword: ''
-          });
           setPasswordData({
             currentPassword: '',
             newPassword: '',
@@ -284,27 +297,40 @@ export default function ProfilePage() {
       }
     };
 
+    const handleChange = (field: keyof typeof passwordData, value: string) => {
+      setPasswordData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+    const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+      if (field === 'current') setShowCurrentPassword(!showCurrentPassword);
+      if (field === 'new') setShowNewPassword(!showNewPassword);
+      if (field === 'confirm') setShowConfirmPassword(!showConfirmPassword);
+    };
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-md">
-          <div className="p-6">
+        <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold flex items-center">
+              <h3 className="text-lg font-semibold flex items-center">
                 <Lock className="mr-2 h-5 w-5" />
                 Change Password
               </h3>
               <button 
                 onClick={() => {
                   setShowPasswordModal(false);
-                  setLocalPasswordData({
+                  setPasswordData({
                     currentPassword: '',
                     newPassword: '',
                     confirmPassword: ''
                   });
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 p-1"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
@@ -316,18 +342,18 @@ export default function ProfilePage() {
                 <div className="relative">
                   <input 
                     type={showCurrentPassword ? "text" : "password"} 
-                    value={localPasswordData.currentPassword}
-                    onChange={(e) => handleLocalChange('currentPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    value={passwordData.currentPassword}
+                    onChange={(e) => handleChange('currentPassword', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg pr-10 text-sm"
                     placeholder="Enter current password"
                     required
                   />
                   <button 
                     type="button"
                     className="absolute right-3 top-3 text-gray-500"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    onClick={() => togglePasswordVisibility('current')}
                   >
-                    {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -339,9 +365,9 @@ export default function ProfilePage() {
                 <div className="relative">
                   <input 
                     type={showNewPassword ? "text" : "password"} 
-                    value={localPasswordData.newPassword}
-                    onChange={(e) => handleLocalChange('newPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    value={passwordData.newPassword}
+                    onChange={(e) => handleChange('newPassword', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg pr-10 text-sm"
                     placeholder="Enter new password"
                     required
                     minLength={6}
@@ -349,9 +375,9 @@ export default function ProfilePage() {
                   <button 
                     type="button"
                     className="absolute right-3 top-3 text-gray-500"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    onClick={() => togglePasswordVisibility('new')}
                   >
-                    {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -363,9 +389,9 @@ export default function ProfilePage() {
                 <div className="relative">
                   <input 
                     type={showConfirmPassword ? "text" : "password"} 
-                    value={localPasswordData.confirmPassword}
-                    onChange={(e) => handleLocalChange('confirmPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => handleChange('confirmPassword', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg pr-10 text-sm"
                     placeholder="Confirm new password"
                     required
                     minLength={6}
@@ -373,32 +399,32 @@ export default function ProfilePage() {
                   <button 
                     type="button"
                     className="absolute right-3 top-3 text-gray-500"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => togglePasswordVisibility('confirm')}
                   >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex space-x-4 pt-4">
+              <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPasswordModal(false);
-                    setLocalPasswordData({
+                    setPasswordData({
                       currentPassword: '',
                       newPassword: '',
                       confirmPassword: ''
                     });
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium"
+                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium disabled:opacity-50"
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium text-sm disabled:opacity-50"
                 >
                   {isChangingPassword ? 'Changing...' : 'Change Password'}
                 </button>
@@ -411,30 +437,30 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full">
+      <MobileHeader title="Profile" />
+      
       {/* Message Notification */}
       {message && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-md ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+        <div className={`fixed top-16 left-4 right-4 z-50 p-3 rounded-lg shadow-md ${
+          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {message.text}
+          <p className="text-sm text-center">{message.text}</p>
         </div>
       )}
       
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-        
+      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-4">
           <div className="flex">
             <button 
-              className={`flex-1 py-3 text-center font-medium ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+              className={`flex-1 py-3 text-center font-medium text-sm ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
               onClick={() => setActiveTab('profile')}
             >
               Profile
             </button>
             <button 
-              className={`flex-1 py-3 text-center font-medium ${activeTab === 'wallet' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+              className={`flex-1 py-3 text-center font-medium text-sm ${activeTab === 'wallet' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
               onClick={() => setActiveTab('wallet')}
             >
               Wallet
@@ -452,38 +478,39 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ delay: 0.2 }}
-          className="bg-white p-6 rounded-lg shadow-md"
+          className="bg-white p-4 rounded-lg shadow-sm mt-4 w-full"
         >
-          <h2 className="text-xl font-bold mb-4 flex items-center">
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
             <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
             Performance Overview
           </h2>
           
           {statsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Loading statistics...</p>
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-500 text-sm">Loading statistics...</p>
             </div>
           ) : gameHistory.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No games played yet</p>
+            <div className="text-center py-6">
+              <p className="text-gray-500 text-sm">No games played yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-blue-600 mb-1">Games Played</p>
-                <p className="font-semibold">{stats.gamesPlayed}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-blue-50 p-3 rounded-lg text-center">
+                <p className="text-xs text-blue-600 mb-1">Games Played</p>
+                <p className="font-semibold text-sm">{stats.gamesPlayed}</p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-green-600 mb-1">Games Won</p>
-                <p className="font-semibold">{stats.gamesWon}</p>
+              <div className="bg-green-50 p-3 rounded-lg text-center">
+                <p className="text-xs text-green-600 mb-1">Games Won</p>
+                <p className="font-semibold text-sm">{stats.gamesWon}</p>
               </div>
-              <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-yellow-600 mb-1">Win Rate</p>
-                <p className="font-semibold">{stats.winRate.toFixed(1)}%</p>
+              <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                <p className="text-xs text-yellow-600 mb-1">Win Rate</p>
+                <p className="font-semibold text-sm">{stats.winRate.toFixed(1)}%</p>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-purple-600 mb-1">Avg. Earnings</p>
-                <p className="font-semibold">{formatCurrency(stats.averageEarnings)}</p>
+              <div className="bg-purple-50 p-3 rounded-lg text-center">
+                <p className="text-xs text-purple-600 mb-1">Avg. Earnings</p>
+                <p className="font-semibold text-sm">{formatCurrency(stats.averageEarnings)}</p>
               </div>
             </div>
           )}
@@ -495,9 +522,9 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: 0.3 }}
-            className="bg-white p-6 rounded-lg shadow-md"
+            className="bg-white p-4 rounded-lg shadow-sm mt-4 w-full"
           >
-            <h2 className="text-xl font-bold mb-4 flex items-center">
+            <h2 className="text-lg font-semibold mb-4 flex items-center">
               <Calendar className="mr-2 h-5 w-5 text-blue-600" />
               Recent Games
             </h2>
@@ -506,16 +533,16 @@ export default function ProfilePage() {
               {gameHistory.slice(0, 5).map((game) => (
                 <div key={game._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium">Bet: {formatCurrency(game.betAmount)}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="font-medium text-sm">Bet: {formatCurrency(game.betAmount)}</p>
+                    <p className="text-xs text-gray-600">
                       {new Date(game.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold 'text-green-600' : 'text-green-600'}`}>
+                    <p className="font-semibold text-green-600 text-sm">
                       {game.winnerId === user?._id ? `Won: ${formatCurrency(game.prizePool)}` : 'Won'}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs text-gray-600">
                       {game.numberOfPlayers} players
                     </p>
                   </div>
@@ -524,9 +551,11 @@ export default function ProfilePage() {
             </div>
           </motion.div>
         )}
-      </div>
+      </main>
 
+      {/* <Footer /> */}
       {showPasswordModal && <PasswordChangeModal />}
+      <MobileNavigation />
     </div>
   );
 }

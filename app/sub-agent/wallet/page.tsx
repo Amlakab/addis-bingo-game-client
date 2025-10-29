@@ -17,8 +17,8 @@ import {
   Plus
 } from 'lucide-react';
 import api from '@/app/utils/api';
-import MobileHeader from '@/components/Layout/MobileHeader';
-import MobileNavigation from '@/components/Layout/MobileNavigation';
+import MobileHeader from '@/components/sub-agent/MobileHeader';
+import MobileNavigation from '@/components/sub-agent/MobileNavigation';
 import Footer from '@/components/ui/Footer';
 
 type UserType = {
@@ -715,7 +715,7 @@ export default function WalletPage() {
         </div>
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
       {showTransactionModal && <TransactionModal />}
       <MobileNavigation />
     </div>

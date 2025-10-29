@@ -11,11 +11,15 @@ import {
   MessageCircle,
   Phone,
   Facebook,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ArrowRight
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
 import api from '@/app/utils/api';
+import MobileHeader from '@/components/sub-agent/MobileHeader';
+import MobileNavigation from '@/components/sub-agent/MobileNavigation';
+import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -78,10 +82,9 @@ export default function ReferralPage() {
         const totalReferrals = referredUsersData.length;
         const activeReferrals = referredUsersData.filter((u: ReferredUser) => u.isActive).length;
         
-        // Calculate total earnings from referrals (you might need to adjust this based on your business logic)
+        // Calculate total earnings from referrals
         const totalEarnings = referredUsersData.reduce((sum: number, u: ReferredUser) => {
-          // Example: 10% of referral's wallet or some other calculation
-          return sum + (u.wallet * 0.1); // Adjust this calculation as needed
+          return sum + (u.wallet * 0.1);
         }, 0);
 
         setReferralStats({
@@ -127,82 +130,83 @@ export default function ReferralPage() {
       name: 'Bingo App Referral',
       description: 'Main referral link for Bingo Telegram bot',
       link: referralLinks.bingoApp,
-      icon: <MessageCircle className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />,
+      icon: <MessageCircle className="h-5 w-5 text-blue-500" />,
       color: 'bg-blue-50 border-blue-200'
     },
     {
       name: 'Telegram Group Share',
       description: 'Share in Telegram groups',
       link: referralLinks.telegramGroup,
-      icon: <Users className="h-5 w-5 md:h-6 md:w-6 text-blue-400" />,
-      color: 'bg-blue-50 border-blue-200'
-    },
-    {
-      name: 'Telegram Channel Post',
-      description: 'Post in Telegram channels',
-      link: referralLinks.telegramChannel,
-      icon: <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />,
+      icon: <Users className="h-5 w-5 text-blue-400" />,
       color: 'bg-blue-50 border-blue-200'
     },
     {
       name: 'Telegram Direct Message',
       description: 'Send as direct message',
       link: referralLinks.telegramDirect,
-      icon: <MessageCircle className="h-5 w-5 md:h-6 md:w-6 text-blue-700" />,
+      icon: <MessageCircle className="h-5 w-5 text-blue-700" />,
       color: 'bg-blue-50 border-blue-200'
     },
     {
       name: 'WhatsApp Share',
       description: 'Share on WhatsApp',
       link: referralLinks.whatsapp,
-      icon: <Phone className="h-5 w-5 md:h-6 md:w-6 text-green-500" />,
+      icon: <Phone className="h-5 w-5 text-green-500" />,
       color: 'bg-green-50 border-green-200'
     },
     {
       name: 'Facebook Share',
       description: 'Share on Facebook',
       link: referralLinks.facebook,
-      icon: <Facebook className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />,
+      icon: <Facebook className="h-5 w-5 text-blue-600" />,
       color: 'bg-blue-50 border-blue-200'
     },
     {
       name: 'Direct Link',
       description: 'Simple referral link',
       link: referralLinks.directLink,
-      icon: <LinkIcon className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />,
+      icon: <LinkIcon className="h-5 w-5 text-gray-600" />,
       color: 'bg-gray-50 border-gray-200'
     }
   ];
 
-  // Function to truncate long links for display
-  const truncateLink = (link: string, maxLength: number = 30) => {
-    if (link.length <= maxLength) return link;
-    return link.substring(0, maxLength) + '...';
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Referral" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <MobileNavigation />
       </div>
     );
   }
 
   if (!user) {
-    return <div className="text-center py-8 text-red-600">User not found</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Referral" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="text-center text-red-600">User not found</div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 w-full">
+      <MobileHeader title="Referral Program" />
+
+      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-6 md:mb-8"
+          className="text-center w-full mb-6 pt-4"
         >
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3 md:mb-4">Referral Program</h1>
-          <p className="text-gray-600 text-sm md:text-lg">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Referral Program</h1>
+          <p className="text-gray-600 text-sm">
             Share your referral links and earn rewards when friends join!
           </p>
         </motion.div>
@@ -212,22 +216,22 @@ export default function ReferralPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8"
+          className="grid grid-cols-3 gap-3 w-full mb-6"
         >
-          <div className="bg-white p-4 md:p-6 rounded-lg shadow-md text-center">
-            <Users className="h-6 w-6 md:h-8 md:w-8 text-blue-500 mx-auto mb-2" />
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{referralStats.totalReferrals}</p>
-            <p className="text-gray-600 text-sm md:text-base">Total Referrals</p>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Users className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{referralStats.totalReferrals}</p>
+            <p className="text-xs text-gray-600">Total Referrals</p>
           </div>
-          <div className="bg-white p-4 md:p-6 rounded-lg shadow-md text-center">
-            <TrendingUp className="h-6 w-6 md:h-8 md:w-8 text-green-500 mx-auto mb-2" />
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{referralStats.activeReferrals}</p>
-            <p className="text-gray-600 text-sm md:text-base">Active Users</p>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <TrendingUp className="h-6 w-6 text-green-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{referralStats.activeReferrals}</p>
+            <p className="text-xs text-gray-600">Active Users</p>
           </div>
-          <div className="bg-white p-4 md:p-6 rounded-lg shadow-md text-center">
-            <Share2 className="h-6 w-6 md:h-8 md:w-8 text-purple-500 mx-auto mb-2" />
-            <p className="text-xl md:text-2xl font-bold text-gray-900">{formatCurrency(user.totalEarnings)}</p>
-            <p className="text-gray-600 text-sm md:text-base">Total Earnings</p>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Share2 className="h-6 w-6 text-purple-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{formatCurrency(referralStats.totalEarnings)}</p>
+            <p className="text-xs text-gray-600">Total Earnings</p>
           </div>
         </motion.div>
 
@@ -236,39 +240,45 @@ export default function ReferralPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-6 md:mb-8"
+          className="bg-white p-4 rounded-lg shadow-sm mb-6 w-full"
         >
-          <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4 flex items-center">
-            <Share2 className="mr-2 h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
+            <Share2 className="mr-2 h-5 w-5 text-blue-600" />
             How It Works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-            <div className="text-center p-3 md:p-4">
-              <div className="bg-blue-100 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-3">
-                <span className="text-blue-600 font-bold text-sm md:text-base">1</span>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="bg-blue-100 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-blue-600 font-bold text-sm">1</span>
               </div>
-              <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Share Your Link</h3>
-              <p className="text-gray-600 text-xs md:text-sm">
-                Copy and share your unique referral links with friends
-              </p>
+              <div>
+                <h3 className="font-semibold text-sm mb-1">Share Your Link</h3>
+                <p className="text-gray-600 text-xs">
+                  Copy and share your unique referral links with friends
+                </p>
+              </div>
             </div>
-            <div className="text-center p-3 md:p-4">
-              <div className="bg-green-100 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-3">
-                <span className="text-green-600 font-bold text-sm md:text-base">2</span>
+            <div className="flex items-start space-x-3">
+              <div className="bg-green-100 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-green-600 font-bold text-sm">2</span>
               </div>
-              <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Friends Join</h3>
-              <p className="text-gray-600 text-xs md:text-sm">
-                Your friends sign up using your referral link
-              </p>
+              <div>
+                <h3 className="font-semibold text-sm mb-1">Friends Join</h3>
+                <p className="text-gray-600 text-xs">
+                  Your friends sign up using your referral link
+                </p>
+              </div>
             </div>
-            <div className="text-center p-3 md:p-4">
-              <div className="bg-purple-100 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-3">
-                <span className="text-purple-600 font-bold text-sm md:text-base">3</span>
+            <div className="flex items-start space-x-3">
+              <div className="bg-purple-100 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                <span className="text-purple-600 font-bold text-sm">3</span>
               </div>
-              <h3 className="font-semibold mb-1 md:mb-2 text-sm md:text-base">Earn Rewards</h3>
-              <p className="text-gray-600 text-xs md:text-sm">
-                Get commission from your friends' activities
-              </p>
+              <div>
+                <h3 className="font-semibold text-sm mb-1">Earn Rewards</h3>
+                <p className="text-gray-600 text-xs">
+                  Get commission from your friends' activities
+                </p>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -278,57 +288,50 @@ export default function ReferralPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white p-4 md:p-6 rounded-lg shadow-md"
+          className="bg-white p-4 rounded-lg shadow-sm w-full"
         >
-          <h2 className="text-lg md:text-xl font-bold mb-4 md:mb-6 flex items-center">
-            <LinkIcon className="mr-2 h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
+            <LinkIcon className="mr-2 h-5 w-5 text-blue-600" />
             Your Referral Links
           </h2>
           
-          <div className="space-y-3 md:space-y-4">
+          <div className="space-y-3">
             {shareLinks.map((shareLink, index) => (
               <motion.div
                 key={shareLink.name}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 * index }}
-                className={`p-3 md:p-4 rounded-lg border-2 ${shareLink.color} transition-all duration-200 hover:shadow-md`}
+                className={`p-3 rounded-lg border-2 ${shareLink.color} transition-all duration-200`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start sm:items-center space-x-3 flex-1 min-w-0">
-                    <div className="flex-shrink-0 mt-1 sm:mt-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="flex-shrink-0">
                       {shareLink.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm md:text-base truncate">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">
                         {shareLink.name}
                       </h3>
-                      <p className="text-xs md:text-sm text-gray-600 truncate">
+                      <p className="text-xs text-gray-600 truncate">
                         {shareLink.description}
                       </p>
-                      <div className="mt-1">
-                        <p className="text-xs text-gray-500 font-mono break-all">
-                          {/* Show truncated link on mobile, full on desktop */}
-                          <span className="sm:hidden">{truncateLink(shareLink.link, 25)}</span>
-                          <span className="hidden sm:inline">{truncateLink(shareLink.link, 40)}</span>
-                        </p>
-                      </div>
                     </div>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 ml-2">
                     <button
                       onClick={() => copyToClipboard(shareLink.link, shareLink.name)}
-                      className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors w-full sm:w-auto justify-center"
+                      className="flex items-center space-x-1 bg-white px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 transition-colors text-xs"
                     >
                       {copiedLink === shareLink.name ? (
                         <>
-                          <Check className="h-3 w-3 md:h-4 md:w-4 text-green-500" />
-                          <span className="text-green-600 font-medium text-xs md:text-sm">Copied!</span>
+                          <Check className="h-3 w-3 text-green-500" />
+                          <span className="text-green-600 font-medium">Copied</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="h-3 w-3 md:h-4 md:w-4 text-gray-600" />
-                          <span className="text-gray-700 font-medium text-xs md:text-sm">Copy</span>
+                          <Copy className="h-3 w-3 text-gray-600" />
+                          <span className="text-gray-700 font-medium">Copy</span>
                         </>
                       )}
                     </button>
@@ -343,14 +346,13 @@ export default function ReferralPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="mt-6 md:mt-8 p-3 md:p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+            className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg"
           >
-            <h3 className="font-semibold text-yellow-800 mb-2 text-sm md:text-base">💡 Quick Share Tips</h3>
-            <ul className="text-xs md:text-sm text-yellow-700 space-y-1">
-              <li>• Share different links for different platforms for better tracking</li>
-              <li>• Use Telegram groups and channels for maximum reach</li>
-              <li>• Personal messages on WhatsApp have higher conversion rates</li>
-              <li>• Facebook sharing works great for community groups</li>
+            <h3 className="font-semibold text-yellow-800 mb-2 text-sm">💡 Quick Share Tips</h3>
+            <ul className="text-xs text-yellow-700 space-y-1">
+              <li>• Share different links for different platforms</li>
+              <li>• Use Telegram groups for maximum reach</li>
+              <li>• Personal messages have higher conversion</li>
             </ul>
           </motion.div>
         </motion.div>
@@ -360,18 +362,32 @@ export default function ReferralPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
-          className="bg-white p-4 md:p-6 rounded-lg shadow-md mt-4 md:mt-6"
+          className="bg-white p-4 rounded-lg shadow-sm mt-4 w-full"
         >
-          <h2 className="text-lg md:text-xl font-bold mb-3 md:mb-4">Referral Program Terms</h2>
-          <div className="text-xs md:text-sm text-gray-600 space-y-1 md:space-y-2">
-            <p>• You earn 10% commission on your referrals' first deposit</p>
-            <p>• Additional 5% commission on their game winnings for 30 days</p>
-            <p>• Referrals must be active users who complete at least one game</p>
-            <p>• Commission is paid automatically to your wallet</p>
-            <p>• Any fraudulent activity will result in termination from the program</p>
+          <h2 className="text-lg font-semibold mb-3">Referral Program Terms</h2>
+          <div className="text-xs text-gray-600 space-y-2">
+            <div className="flex items-start space-x-2">
+              <ArrowRight className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+              <span>You earn 10% commission on referrals' first deposit</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <ArrowRight className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+              <span>Additional 5% commission on their game winnings</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <ArrowRight className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+              <span>Referrals must be active users</span>
+            </div>
+            <div className="flex items-start space-x-2">
+              <ArrowRight className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
+              <span>Commission paid automatically to wallet</span>
+            </div>
           </div>
         </motion.div>
-      </div>
+      </main>
+
+      {/* <Footer /> */}
+      <MobileNavigation />
     </div>
   );
 }

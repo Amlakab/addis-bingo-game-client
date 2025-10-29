@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
-import MobileHeader from '@/components/Layout/MobileHeader';
-import MobileNavigation from '@/components/Layout/MobileNavigation';
+import MobileHeader from '@/components/sub-agent/MobileHeader';
+import MobileNavigation from '@/components/sub-agent/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { 
   DollarSign, 
@@ -339,7 +339,7 @@ export default function UserDashboard() {
         </motion.div>
       </main>
 
-      <Footer />
+      {/* <Footer /> */}
       <MobileNavigation />
     </div>
   );
