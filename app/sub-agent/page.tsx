@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
+import MobileHeader from '@/components/Layout/MobileHeader';
+import MobileNavigation from '@/components/Layout/MobileNavigation';
 import { formatCurrency } from '@/lib/utils';
 import { 
   DollarSign, 
@@ -13,11 +15,15 @@ import {
   Clock,
   ArrowRight,
   CreditCard,
-  Download
+  Download,
+  Trophy,
+  Play,
+  Users
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/utils/api';
 import Link from 'next/link';
+import Footer from '@/components/ui/Footer';
 
 // ✅ Define User type
 type UserType = {
@@ -74,258 +80,267 @@ export default function UserDashboard() {
     fetchUser();
   }, []);
 
-  // Loading state
-  if (loading) {
+  if (!user) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Dashboard" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="text-center text-red-600">User not found</div>
+        </div>
+        <MobileNavigation />
       </div>
     );
   }
 
-  // Error state
-  if (error) {
-    return <div className="text-center py-8 text-red-600">{error}</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Dashboard" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
   }
 
-  if (!user) {
-    return <div className="text-center py-8 text-red-600">User not found</div>;
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Dashboard" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="text-center text-red-600">{error}</div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 md:p-6">      
-      {/* Welcome Section */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        className="text-center mb-8"
-      >
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {user.phone}!</h2>
-      </motion.div>
+    <div className="min-h-screen bg-gray-50 w-full">
+      <MobileHeader title="Dashboard" />
 
-      {/* Main Wallet Balance */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ delay: 0.1 }}
-        className="mb-6 md:mb-8"
-      >
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white text-xl font-bold">Wallet Balance</h3>
-            <Wallet className="h-6 w-6 text-blue-200" />
+      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
+        {/* Welcome Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="text-center w-full mb-6 pt-4"
+        >
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back, {user.phone}!</h2>
+          <p className="text-gray-600">Manage your funds and track earnings</p>
+        </motion.div>
+
+        {/* Main Wallet Balance */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.1 }}
+          className="w-full mb-6"
+        >
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white text-xl font-bold">Wallet Balance</h3>
+              <Wallet className="h-6 w-6 text-blue-200" />
+            </div>
+            
+            <div className="text-center mb-6">
+              <p className="text-blue-100 text-sm mb-2">Available Balance</p>
+              <p className="text-3xl font-bold">{formatCurrency(user.wallet || 0)}</p>
+            </div>
+
+            <button
+              className="w-full bg-white text-blue-600 hover:bg-gray-100 py-3 rounded-md font-medium flex items-center justify-center transition-colors"
+              onClick={() => router.push('/user/wallet')}
+            >
+              <Plus className="h-5 w-5 mr-2" /> Add Funds
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Quick Stats */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.2 }} 
+          className="grid grid-cols-3 gap-4 w-full mb-6"
+        >
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <TrendingUp className="h-6 w-6 text-green-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{formatCurrency(user.totalEarnings || 0)}</p>
+            <p className="text-xs text-gray-600">Total</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Calendar className="h-6 w-6 text-blue-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{formatCurrency(user.dailyEarnings || 0)}</p>
+            <p className="text-xs text-gray-600">Daily</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+            <Clock className="h-6 w-6 text-purple-500 mx-auto mb-2" />
+            <p className="text-xl font-bold text-gray-900">{formatCurrency(user.weeklyEarnings || 0)}</p>
+            <p className="text-xs text-gray-600">Weekly</p>
+          </div>
+        </motion.div>
+
+        {/* Quick Actions */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.3 }}
+          className="bg-white p-4 rounded-lg shadow-sm mb-6 w-full"
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+            <Link href="/user/wallet" className="text-blue-600 hover:text-blue-800 text-sm">
+              View all
+            </Link>
           </div>
           
-          <div className="text-center mb-6">
-            <p className="text-blue-100 text-sm mb-2">Available Balance</p>
-            <p className="text-4xl font-bold">{formatCurrency(user.wallet || 0)}</p>
-          </div>
-
-          <button
-            className="w-full bg-white text-blue-600 hover:bg-gray-100 py-3 rounded-md font-medium flex items-center justify-center transition-colors"
-            onClick={() => router.push('/user/wallet')}
-          >
-            <Plus className="h-5 w-5 mr-2" /> Add Funds
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Earnings Overview - Responsive Grid */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8"
-      >
-        {/* Total Earnings Card */}
-        <Link href="/user/earnings">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-green-100 rounded-full mr-3 md:mr-4">
-                  <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Total Earnings</p>
-                  <p className="text-xl md:text-2xl font-bold">
-                    {formatCurrency(user.totalEarnings || 0)}
-                  </p>
-                </div>
+          <div className="grid grid-cols-1 gap-3 w-full">
+            {/* Deposit Action */}
+            <button
+              onClick={() => router.push('/user/wallet/deposit')}
+              className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
+            >
+              <div className="p-2 bg-green-100 rounded-full mr-3">
+                <Plus className="h-4 w-4 text-green-600" />
               </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 text-xs md:text-sm">
-              <span className="text-gray-500">All-time earnings from games</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Daily Earnings Card */}
-        <Link href="/user/earnings?period=daily">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-blue-100 rounded-full mr-3 md:mr-4">
-                  <Calendar className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Today's Earnings</p>
-                  <p className="text-xl md:text-2xl font-bold">
-                    {formatCurrency(user.dailyEarnings || 0)}
-                  </p>
-                </div>
+              <div className="text-left flex-1">
+                <p className="font-medium text-gray-900 text-sm">Deposit Funds</p>
+                <p className="text-xs text-gray-600">Add money to your wallet</p>
               </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 text-xs md:text-sm">
-              <span className="text-gray-500">Earnings for today</span>
-            </div>
-          </div>
-        </Link>
+              <ArrowRight className="h-4 w-4 text-gray-400" />
+            </button>
 
-        {/* Weekly Earnings Card */}
-        <Link href="/user/earnings?period=weekly">
-          <div className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="p-2 md:p-3 bg-purple-100 rounded-full mr-3 md:mr-4">
-                  <Clock className="h-4 w-4 md:h-6 md:w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Weekly Earnings</p>
-                  <p className="text-xl md:text-2xl font-bold">
-                    {formatCurrency(user.weeklyEarnings || 0)}
-                  </p>
-                </div>
+            {/* Withdraw Action */}
+            <button
+              onClick={() => router.push('/user/wallet/withdraw')}
+              className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
+            >
+              <div className="p-2 bg-blue-100 rounded-full mr-3">
+                <Download className="h-4 w-4 text-blue-600" />
               </div>
-              <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            </div>
-            <div className="mt-3 md:mt-4 text-xs md:text-sm">
-              <span className="text-gray-500">Earnings this week</span>
-            </div>
+              <div className="text-left flex-1">
+                <p className="font-medium text-gray-900 text-sm">Withdraw Funds</p>
+                <p className="text-xs text-gray-600">Transfer to your account</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400" />
+            </button>
           </div>
-        </Link>
-      </motion.div>
+        </motion.div>
 
-      {/* Quick Actions */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ delay: 0.3 }}
-        className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm mb-6 md:mb-8"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg md:text-xl font-bold text-gray-900">Quick Actions</h3>
-          <Link href="/user/wallet" className="text-blue-600 hover:text-blue-800 text-xs md:text-sm">
-            View all
-          </Link>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Deposit Action */}
-          <button
-            onClick={() => router.push('/user/wallet/deposit')}
-            className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
-          >
-            <div className="p-2 bg-green-100 rounded-full mr-3 md:mr-4">
-              <Plus className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
-            </div>
-            <div className="text-left flex-1">
-              <p className="font-medium text-gray-900 text-sm md:text-base">Deposit Funds</p>
-              <p className="text-xs md:text-sm text-gray-600">Add money to your wallet</p>
-            </div>
-            <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-          </button>
-
-          {/* Withdraw Action */}
-          <button
-            onClick={() => router.push('/user/wallet/withdraw')}
-            className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full"
-          >
-            <div className="p-2 bg-blue-100 rounded-full mr-3 md:mr-4">
-              <Download className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-            </div>
-            <div className="text-left flex-1">
-              <p className="font-medium text-gray-900 text-sm md:text-base">Withdraw Funds</p>
-              <p className="text-xs md:text-sm text-gray-600">Transfer to your account</p>
-            </div>
-            <ArrowRight className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-          </button>
-        </div>
-      </motion.div>
-
-      {/* Account Summary */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ delay: 0.4 }}
-        className="bg-white p-4 md:p-6 rounded-lg border border-gray-200 shadow-sm"
-      >
-        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Account Summary</h3>
-        
-        {/* Mobile view - cards */}
-        <div className="md:hidden space-y-4">
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
+        {/* Account Summary */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.4 }}
+          className="bg-white p-4 rounded-lg shadow-sm w-full"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Summary</h3>
+          
+          <div className="space-y-3 w-full">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Member Since</span>
               <span className="font-medium text-gray-900 text-sm">
                 {new Date(user.createdAt).toLocaleDateString()}
               </span>
             </div>
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
+            
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Account Status</span>
               <span className={`font-medium text-sm ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
+            
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">User Role</span>
               <span className="font-medium text-gray-900 text-sm capitalize">
                 {user.role.replace('-', ' ')}
               </span>
             </div>
-          </div>
-          
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-            <div className="flex justify-between items-center mb-2">
+            
+            <div className="flex justify-between items-center py-2">
               <span className="text-sm text-gray-600">Phone Number</span>
               <span className="font-medium text-gray-900 text-sm">{user.phone}</span>
             </div>
           </div>
-        </div>
-        
-        {/* Desktop view - grid */}
-        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-            <span className="text-gray-600">Member Since</span>
-            <span className="font-medium text-gray-900">
-              {new Date(user.createdAt).toLocaleDateString()}
-            </span>
+        </motion.div>
+
+        {/* Earnings Overview - Compact Version */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.5 }}
+          className="w-full mb-6 mt-6"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Earnings Overview</h3>
+          
+          <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+            <div className="space-y-4">
+              {/* Total Earnings */}
+              <Link href="/user/earnings">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-green-100 rounded-full mr-3">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Total Earnings</p>
+                      <p className="text-xs text-gray-600">All-time earnings from games</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatCurrency(user.totalEarnings || 0)}</p>
+                    <ArrowRight className="h-4 w-4 text-gray-400 ml-2" />
+                  </div>
+                </div>
+              </Link>
+
+              {/* Daily Earnings */}
+              <Link href="/user/earnings?period=daily">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-blue-100 rounded-full mr-3">
+                      <Calendar className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Today's Earnings</p>
+                      <p className="text-xs text-gray-600">Earnings for today</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatCurrency(user.dailyEarnings || 0)}</p>
+                    <ArrowRight className="h-4 w-4 text-gray-400 ml-2" />
+                  </div>
+                </div>
+              </Link>
+
+              {/* Weekly Earnings */}
+              <Link href="/user/earnings?period=weekly">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-full mr-3">
+                      <Clock className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">Weekly Earnings</p>
+                      <p className="text-xs text-gray-600">Earnings this week</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">{formatCurrency(user.weeklyEarnings || 0)}</p>
+                    <ArrowRight className="h-4 w-4 text-gray-400 ml-2" />
+                  </div>
+                </div>
+              </Link>
+            </div>
           </div>
-          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-            <span className="text-gray-600">Account Status</span>
-            <span className={`font-medium ${user.isActive ? 'text-green-600' : 'text-red-600'}`}>
-              {user.isActive ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-            <span className="text-gray-600">User Role</span>
-            <span className="font-medium text-gray-900 capitalize">
-              {user.role.replace('-', ' ')}
-            </span>
-          </div>
-          <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-            <span className="text-gray-600">Phone Number</span>
-            <span className="font-medium text-gray-900">{user.phone}</span>
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      </main>
+
+      <Footer />
+      <MobileNavigation />
     </div>
   );
 }
