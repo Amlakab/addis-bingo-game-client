@@ -12,9 +12,14 @@ import {
   DollarSign, 
   Eye, 
   X,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft,
+  Plus
 } from 'lucide-react';
 import api from '@/app/utils/api';
+import MobileHeader from '@/components/Layout/MobileHeader';
+import MobileNavigation from '@/components/Layout/MobileNavigation';
+import Footer from '@/components/ui/Footer';
 
 type UserType = {
   _id: string;
@@ -102,6 +107,12 @@ export default function WalletPage() {
       reference: 'cbe'
     }
   });
+
+  // Withdrawal limits
+  const WITHDRAWAL_LIMITS = {
+    MIN: 100,
+    MAX: 5000
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -193,39 +204,64 @@ export default function WalletPage() {
     setShowTransactionModal(true);
   };
 
-  if (!user && !isLoading) return <p className="text-center mt-10 text-gray-500">User not found</p>;
-  if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
+  if (!user && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Wallet" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <p className="text-center text-gray-500">User not found</p>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 w-full">
+        <MobileHeader title="Wallet" />
+        <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
 
   const WalletOverview = () => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">Wallet Balance</h2>
-        <Wallet className="h-6 w-6 text-blue-600" />
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="bg-white p-4 rounded-lg shadow-sm w-full"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold">Wallet Balance</h2>
+        <Wallet className="h-5 w-5 text-blue-600" />
       </div>
 
-      <div className="text-center mb-6">
-        <p className="text-3xl font-bold text-green-600">{formatCurrency(user!.wallet)}</p>
-        <p className="text-gray-500 mt-2">Available Balance</p>
+      <div className="text-center mb-4">
+        <p className="text-2xl font-bold text-green-600">{formatCurrency(user!.wallet)}</p>
+        <p className="text-gray-500 text-sm mt-1">Available Balance</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg text-center">
-          <p className="text-sm text-blue-600 mb-1">Daily Earnings</p>
-          <p className="font-semibold">{formatCurrency(user!.dailyEarnings)}</p>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-blue-50 p-3 rounded-lg text-center">
+          <p className="text-xs text-blue-600 mb-1">Daily Earnings</p>
+          <p className="font-semibold text-sm">{formatCurrency(user!.dailyEarnings)}</p>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg text-center">
-          <p className="text-sm text-green-600 mb-1">Total Earnings</p>
-          <p className="font-semibold">{formatCurrency(user!.totalEarnings)}</p>
+        <div className="bg-green-50 p-3 rounded-lg text-center">
+          <p className="text-xs text-green-600 mb-1">Total Earnings</p>
+          <p className="font-semibold text-sm">{formatCurrency(user!.totalEarnings)}</p>
         </div>
       </div>
 
       <motion.button 
-        whileHover={{ scale: 1.05 }} 
-        whileTap={{ scale: 0.95 }} 
+        whileHover={{ scale: 1.02 }} 
+        whileTap={{ scale: 0.98 }} 
         className="w-full bg-green-600 text-white py-3 rounded-lg font-medium flex items-center justify-center" 
         onClick={() => setActiveTab('withdraw')}
       >
-        <ArrowUp className="mr-2 h-5 w-5" /> Withdraw
+        <ArrowUp className="mr-2 h-4 w-4" /> Withdraw Funds
       </motion.button>
     </motion.div>
   );
@@ -241,14 +277,22 @@ export default function WalletPage() {
       e.preventDefault();
       if (!amount || !accountNumber || !accountName) return;
 
+      const withdrawalAmount = parseFloat(amount);
+
       // Validate minimum withdrawal amount
-      if (parseFloat(amount) < 100) {
-        showMessage('Minimum withdrawal amount is 100 ETB', 'error');
+      if (withdrawalAmount < WITHDRAWAL_LIMITS.MIN) {
+        showMessage(`Minimum withdrawal amount is ${formatCurrency(WITHDRAWAL_LIMITS.MIN)}`, 'error');
+        return;
+      }
+
+      // Validate maximum withdrawal amount
+      if (withdrawalAmount > WITHDRAWAL_LIMITS.MAX) {
+        showMessage(`Maximum withdrawal amount is ${formatCurrency(WITHDRAWAL_LIMITS.MAX)}`, 'error');
         return;
       }
 
       // Validate sufficient balance
-      if (parseFloat(amount) > user!.wallet) {
+      if (withdrawalAmount > user!.wallet) {
         showMessage('Insufficient balance', 'error');
         return;
       }
@@ -258,7 +302,7 @@ export default function WalletPage() {
         // Create withdrawal transaction with all required fields
         const payload = {
           userId: user!._id,
-          amount: parseFloat(amount),
+          amount: withdrawalAmount,
           type: 'withdrawal',
           reference: `WTH-${Date.now()}-${user!._id}`,
           description: `Withdrawal via ${withdrawalMethod.toUpperCase()}`,
@@ -299,46 +343,64 @@ export default function WalletPage() {
     };
 
     return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold mb-6 flex items-center">
-          <ArrowUp className="mr-2 h-5 w-5 text-green-600" />
-          Withdraw Funds
-        </h2>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="bg-white p-4 rounded-lg shadow-sm w-full"
+      >
+        <div className="flex items-center mb-4">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className="p-2 mr-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <h2 className="text-lg font-semibold">Withdraw Funds</h2>
+        </div>
 
         {isLoadingAccountants ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600">Loading payment information...</p>
+          <div className="text-center py-6">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-600 text-sm">Loading payment information...</p>
           </div>
         ) : accountants.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-600">No withdrawal methods available at the moment</p>
+          <div className="text-center py-6">
+            <CreditCard className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-gray-600 text-sm">No withdrawal methods available at the moment</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
+            {/* Withdrawal Limits Info */}
+            <div className="bg-blue-50 p-3 rounded-lg mb-4">
+              <h4 className="text-sm font-medium text-blue-800 mb-1">Withdrawal Limits</h4>
+              <p className="text-xs text-blue-700">
+                Min: {formatCurrency(WITHDRAWAL_LIMITS.MIN)} • Max: {formatCurrency(WITHDRAWAL_LIMITS.MAX)}
+              </p>
+            </div>
 
-            <div className="mb-6">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Withdrawal Method</label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  className={`p-3 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
                   onClick={() => setWithdrawalMethod('telebirr')}
                 >
-                  <Wallet className="h-6 w-6 mx-auto mb-2" />
-                  <span>Telebirr</span>
+                  <Wallet className="h-5 w-5 mx-auto mb-1" />
+                  <span className="text-xs">Telebirr</span>
                 </button>
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  className={`p-3 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
                   onClick={() => setWithdrawalMethod('cbe')}
                 >
-                  <CreditCard className="h-6 w-6 mx-auto mb-2" />
-                  <span>CBE Birr</span>
+                  <CreditCard className="h-5 w-5 mx-auto mb-1" />
+                  <span className="text-xs">CBE Birr</span>
                 </button>
               </div>
             </div>
 
-            <div className="mb-4">
+            <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Account Holder Name
               </label>
@@ -346,13 +408,13 @@ export default function WalletPage() {
                 type="text" 
                 value={accountName} 
                 onChange={(e) => setAccountName(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" 
                 placeholder="Enter account holder name" 
                 required 
               />
             </div>
 
-             <div className="mb-4">
+            <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Your {withdrawalMethod === 'telebirr' ? 'Phone Number' : 'Account Number'}
               </label>
@@ -360,7 +422,7 @@ export default function WalletPage() {
                 type="text" 
                 value={accountNumber} 
                 onChange={(e) => setAccountNumber(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" 
                 placeholder={withdrawalMethod === 'telebirr' ? 'Enter your phone number' : 'Enter your account number'} 
                 required 
               />
@@ -369,102 +431,101 @@ export default function WalletPage() {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <DollarSign className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <input 
                   type="number" 
                   value={amount} 
                   onChange={(e) => setAmount(e.target.value)} 
-                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm" 
                   placeholder="Enter amount" 
-                  min="100" 
-                  max={user!.wallet} 
+                  min={WITHDRAWAL_LIMITS.MIN} 
+                  max={WITHDRAWAL_LIMITS.MAX} 
                   required 
                 />
               </div>
-              <p className="text-sm text-gray-500 mt-1">Available: {formatCurrency(user!.wallet)} (Minimum: 100 ETB)</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Available: {formatCurrency(user!.wallet)} • Limits: {formatCurrency(WITHDRAWAL_LIMITS.MIN)} - {formatCurrency(WITHDRAWAL_LIMITS.MAX)}
+              </p>
             </div>
-            
 
             <motion.button 
               whileHover={{ scale: 1.02 }} 
               whileTap={{ scale: 0.98 }} 
               type="submit" 
               disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium"
+              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium text-sm"
             >
               {loading ? 'Processing...' : `Withdraw ${amount ? formatCurrency(parseFloat(amount)) : ''}`}
             </motion.button>
           </form>
         )}
-
-        <button className="w-full mt-4 text-gray-600 py-2 rounded-lg font-medium" onClick={() => setActiveTab('overview')}>
-          Back to Overview
-        </button>
       </motion.div>
     );
   };
 
   const TransactionHistory = () => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }} 
+      animate={{ opacity: 1, y: 0 }} 
+      className="bg-white p-4 rounded-lg shadow-sm w-full"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center">
           <History className="mr-2 h-5 w-5 text-blue-600" />
           Transaction History
         </h2>
       </div>
 
       {isLoadingTransactions ? (
-        <div className="text-center py-8">
-          <p className="text-gray-600">Loading transactions...</p>
+        <div className="text-center py-6">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-600 text-sm">Loading transactions...</p>
         </div>
       ) : transactions.length === 0 ? (
-        <div className="text-center py-8">
-          <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No transactions yet</p>
+        <div className="text-center py-6">
+          <History className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+          <p className="text-gray-600 text-sm">No transactions yet</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {transactions.map((transaction) => (
             <motion.div 
               key={transaction._id} 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
-              className="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+              className="flex justify-between items-center p-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
             >
-              <div className="flex items-center">
+              <div className="flex items-center flex-1 min-w-0">
                 <div className={`p-2 rounded-full ${transaction.type === 'deposit' || transaction.type === 'winning' ? 'bg-green-100' : 'bg-red-100'}`}>
                   {transaction.type === 'deposit' || transaction.type === 'winning' ? 
-                    <ArrowUp className="h-5 w-5 text-green-600" /> : 
-                    <ArrowUp className="h-5 w-5 text-red-600" />
+                    <ArrowUp className="h-4 w-4 text-green-600" /> : 
+                    <ArrowUp className="h-4 w-4 text-red-600" />
                   }
                 </div>
-                <div className="ml-3">
-                  <p className="font-medium capitalize">{transaction.type.replace('_', ' ')}</p>
-                  <p className="text-sm text-gray-500">{transaction.description}</p>
+                <div className="ml-3 flex-1 min-w-0">
+                  <p className="font-medium text-sm capitalize truncate">{transaction.type.replace('_', ' ')}</p>
+                  <p className="text-xs text-gray-500 truncate">{transaction.description}</p>
                   <p className="text-xs text-gray-400">{new Date(transaction.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
-              <div className="flex items-center">
-                <div className={`text-right mr-3 ${transaction.type === 'deposit' || transaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
-                  <p className="font-semibold">{transaction.type === 'deposit' || transaction.type === 'winning' ? '+' : '-'}{formatCurrency(transaction.amount)}</p>
-                 <p
-                  className={`text-xs capitalize ${
+              <div className="flex items-center flex-shrink-0 ml-2">
+                <div className={`text-right ${transaction.type === 'deposit' || transaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className="font-semibold text-sm">{transaction.type === 'deposit' || transaction.type === 'winning' ? '+' : '-'}{formatCurrency(transaction.amount)}</p>
+                  <p className={`text-xs capitalize ${
                     transaction.status === 'completed'
                       ? 'text-green-500'
                       : transaction.status === 'pending'
                       ? 'text-yellow-500'
                       : 'text-red-500'
-                  }`}
-                >
-                  {transaction.status}
-                </p>
-
+                  }`}>
+                    {transaction.status}
+                  </p>
                 </div>
                 <button 
                   onClick={() => handleViewTransaction(transaction)}
-                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                  className="p-1 text-gray-500 hover:text-blue-600 transition-colors ml-2"
                 >
-                  <Eye className="h-5 w-5" />
+                  <Eye className="h-4 w-4" />
                 </button>
               </div>
             </motion.div>
@@ -498,75 +559,75 @@ export default function WalletPage() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-md max-h-screen overflow-y-auto">
-          <div className="p-6">
+        <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Transaction Details</h3>
+              <h3 className="text-lg font-semibold">Transaction Details</h3>
               <button 
                 onClick={() => setShowTransactionModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 p-1"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Basic Info Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Transaction Information</h4>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h4 className="text-xs font-medium text-gray-500 mb-2">Transaction Information</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <p className="text-xs text-gray-500">Type</p>
-                    <p className="font-medium capitalize">{selectedTransaction.type.replace('_', ' ')}</p>
+                    <p className="font-medium text-sm capitalize">{selectedTransaction.type.replace('_', ' ')}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Status</p>
-                    <p className={`capitalize font-medium ${selectedTransaction.status === 'completed' ? 'text-green-500' : selectedTransaction.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
+                    <p className={`capitalize font-medium text-sm ${selectedTransaction.status === 'completed' ? 'text-green-500' : selectedTransaction.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
                       {selectedTransaction.status}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Amount</p>
-                    <p className={`font-semibold ${selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`font-semibold text-sm ${selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
                       {selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? '+' : '-'}
                       {formatCurrency(selectedTransaction.amount)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Method</p>
-                    <p className="font-medium capitalize">{selectedTransaction.method}</p>
+                    <p className="font-medium text-sm capitalize">{selectedTransaction.method || 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Dates Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Timeline</h4>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h4 className="text-xs font-medium text-gray-500 mb-2">Timeline</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <p className="text-xs text-gray-500">Created</p>
-                    <p className="text-sm">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
+                    <p className="text-xs">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Updated</p>
-                    <p className="text-sm">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
+                    <p className="text-xs">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Parties Card */}
               {(selectedTransaction.senderPhone || selectedTransaction.receiverPhone || selectedTransaction.senderName || selectedTransaction.receiverName) && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">Parties Involved</h4>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <h4 className="text-xs font-medium text-gray-500 mb-2">Parties Involved</h4>
                   <div className="space-y-2">
                     {selectedTransaction.senderPhone && (
                       <div>
                         <p className="text-xs text-gray-500">
                           {selectedTransaction.type === 'deposit' ? 'From (Your Account)' : 'From (Platform Account)'}
                         </p>
-                        <p className="text-sm">{selectedTransaction.senderPhone}</p>
+                        <p className="text-xs">{selectedTransaction.senderPhone}</p>
                         {selectedTransaction.senderName && (
-                          <p className="text-sm font-medium">{selectedTransaction.senderName}</p>
+                          <p className="text-xs font-medium">{selectedTransaction.senderName}</p>
                         )}
                       </div>
                     )}
@@ -575,9 +636,9 @@ export default function WalletPage() {
                         <p className="text-xs text-gray-500">
                           {selectedTransaction.type === 'deposit' ? 'To (Platform Account)' : 'To (Your Account)'}
                         </p>
-                        <p className="text-sm">{selectedTransaction.receiverPhone}</p>
+                        <p className="text-xs">{selectedTransaction.receiverPhone}</p>
                         {selectedTransaction.receiverName && (
-                          <p className="text-sm font-medium">{selectedTransaction.receiverName}</p>
+                          <p className="text-xs font-medium">{selectedTransaction.receiverName}</p>
                         )}
                       </div>
                     )}
@@ -586,23 +647,23 @@ export default function WalletPage() {
               )}
 
               {/* Additional Info Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Additional Information</h4>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <h4 className="text-xs font-medium text-gray-500 mb-2">Additional Information</h4>
                 <div className="space-y-2">
                   <div>
                     <p className="text-xs text-gray-500">Description</p>
-                    <p className="text-sm">{selectedTransaction.description}</p>
+                    <p className="text-xs">{selectedTransaction.description}</p>
                   </div>
                   {selectedTransaction.transactionId && (
                     <div>
                       <p className="text-xs text-gray-500">Transaction ID</p>
-                      <p className="text-sm break-all">{selectedTransaction.transactionId}</p>
+                      <p className="text-xs break-all">{selectedTransaction.transactionId}</p>
                     </div>
                   )}
                   {selectedTransaction.reason && (
                     <div>
                       <p className="text-xs text-gray-500">Reason</p>
-                      <p className="text-sm text-red-500">{selectedTransaction.reason}</p>
+                      <p className="text-xs text-red-500">{selectedTransaction.reason}</p>
                     </div>
                   )}
                 </div>
@@ -610,15 +671,15 @@ export default function WalletPage() {
 
               {/* Transaction Link */}
               {transactionLink && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-500 mb-2">Transaction Verification</h4>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <h4 className="text-xs font-medium text-blue-500 mb-2">Transaction Verification</h4>
                   <a 
                     href={transactionLink} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center text-blue-600 hover:text-blue-800"
+                    className="flex items-center text-blue-600 hover:text-blue-800 text-xs"
                   >
-                    <ExternalLink className="h-4 w-4 mr-1" />
+                    <ExternalLink className="h-3 w-3 mr-1" />
                     View transaction on {selectedTransaction.method?.toUpperCase()}
                   </a>
                 </div>
@@ -631,28 +692,32 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full">
+      <MobileHeader title="Wallet" />
+      
       {/* Message Notification */}
       {message && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-md ${
-          message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+        <div className={`fixed top-16 left-4 right-4 z-50 p-3 rounded-lg shadow-md ${
+          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {message.text}
+          <p className="text-sm text-center">{message.text}</p>
         </div>
       )}
       
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Wallet</h1>
-        
+      <main className="px-4 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && <WalletOverview key="overview" />}
           {activeTab === 'withdraw' && <WithdrawalForm key="withdraw" />}
         </AnimatePresence>
         
-        <TransactionHistory />
-      </div>
+        <div className="mt-6">
+          <TransactionHistory />
+        </div>
+      </main>
 
+      <Footer />
       {showTransactionModal && <TransactionModal />}
+      <MobileNavigation />
     </div>
   );
 }

@@ -18,10 +18,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminHeader onMenuClick={toggleSidebar} />
+      {/* <AdminHeader onMenuClick={toggleSidebar} /> */}
       
       <div className="flex">
-        <AdminSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+        {/* <AdminSidebar isOpen={sidebarOpen} onClose={closeSidebar} /> */}
         
         <main className="flex-1 p-6 lg:ml-0">
           <div className="bg-white rounded-lg shadow-sm p-6">
