@@ -1,4 +1,4 @@
-// File: /home/amlakie/Desktop/games/online-bingo-app/addis-bingo-game-client/app/page.tsx
+// File: /home/amlakie/Desktop/Projects/games/online-bingo-app/addis-bingo-game-client/app/page.tsx
 import * as entry from '../../../app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

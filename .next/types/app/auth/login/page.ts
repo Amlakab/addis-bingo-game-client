@@ -1,8 +1,8 @@
-// File: /home/amlakie/Desktop/games/online-bingo-app/addis-bingo-game-client/app/howtoplay/page.tsx
-import * as entry from '../../../../app/howtoplay/page.js'
+// File: /home/amlakie/Desktop/Projects/games/online-bingo-app/addis-bingo-game-client/app/auth/login/page.tsx
+import * as entry from '../../../../../app/auth/login/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
-type TEntry = typeof import('../../../../app/howtoplay/page.js')
+type TEntry = typeof import('../../../../../app/auth/login/page.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{

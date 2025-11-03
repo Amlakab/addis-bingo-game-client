@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
-import { Wallet, BarChart3, Activity, PiggyBank, PlusCircle, LogOut } from 'lucide-react';
+import { Wallet, BarChart3, Activity, PiggyBank, PlusCircle, LogOut, ArrowUpCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/utils/api';
 import axios from 'axios';
@@ -20,7 +20,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Divider
+  Divider,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 
 // ✅ Define User type
@@ -56,6 +58,11 @@ export default function UserDashboard() {
   const [userWallet, setUserWallet] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showWalletDialog, setShowWalletDialog] = useState(false);
+  const [showOnlineTransferDialog, setShowOnlineTransferDialog] = useState(false);
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transferSuccess, setTransferSuccess] = useState('');
   const BASE_URL = 'http://localhost:5000/api';
 
   useEffect(() => {
@@ -122,6 +129,89 @@ export default function UserDashboard() {
     }
   };
 
+  // ✅ New Function: Handle Transfer to Online
+  const handleTransferToOnline = async () => {
+    if (!transferAmount || parseFloat(transferAmount) <= 0) {
+      setTransferError('Please enter a valid amount');
+      return;
+    }
+
+    const amount = parseFloat(transferAmount);
+    if (amount > systemStats.walletBalance) {
+      setTransferError('Amount exceeds available balance');
+      return;
+    }
+
+    setTransferLoading(true);
+    setTransferError('');
+    setTransferSuccess('');
+
+    try {
+      // Calculate new balances
+      const newSystemBalance = systemStats.walletBalance - amount;
+      const newUserBalance = userWallet + amount;
+
+      // Update system wallet (deduct amount)
+      await axios.put(`${BASE_URL}/user/system-stats`, {
+        walletBalance: newSystemBalance,
+        earningsPercentage: systemStats.earningsPercentage
+      });
+
+      // Update user wallet (add amount)
+      await api.put('/user/update-wallet', {
+        userId: user?._id,
+        amount: amount
+      });
+
+      // Update local state
+      setSystemStats(prev => ({ ...prev, walletBalance: newSystemBalance }));
+      setUserWallet(newUserBalance);
+      setUser(prev => prev ? { ...prev, wallet: newUserBalance } : null);
+
+      // Show success and reset
+      setTransferSuccess(`Successfully transferred ${formatCurrency(amount)} to your online wallet!`);
+      setTransferAmount('');
+      
+      setTimeout(() => {
+        setShowOnlineTransferDialog(false);
+        setTransferSuccess('');
+      }, 2000);
+
+      router.refresh();
+    } catch (error) {
+      console.error('Error transferring to online wallet:', error);
+      setTransferError('Failed to transfer funds. Please try again.');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
+  const handleTransferAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow only numbers and decimal point
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setTransferAmount(value);
+      setTransferError('');
+    }
+  };
+
+  const calculateNewBalances = () => {
+    if (!transferAmount || parseFloat(transferAmount) <= 0) {
+      return {
+        newSystemBalance: systemStats.walletBalance,
+        newUserBalance: userWallet
+      };
+    }
+
+    const amount = parseFloat(transferAmount);
+    return {
+      newSystemBalance: systemStats.walletBalance - amount,
+      newUserBalance: userWallet + amount
+    };
+  };
+
+  const { newSystemBalance, newUserBalance } = calculateNewBalances();
+
   if (!user) return null;
   if (loading) {
     return (
@@ -187,6 +277,8 @@ export default function UserDashboard() {
                 <Typography variant="body1">
                   Earnings %: <b>{systemStats.earningsPercentage}%</b>
                 </Typography>
+                
+                {/* Existing Button */}
                 <Button
                   variant="contained"
                   fullWidth
@@ -202,8 +294,36 @@ export default function UserDashboard() {
                   onClick={() => setShowWalletDialog(true)}
                   startIcon={<PlusCircle />}
                 >
-                  Manage Wallet
+                  Transfer to System Wallet
                 </Button>
+
+                {/* ✅ New Button: Transfer to Online */}
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    mt: 2,
+                    py: 1.5,
+                    borderRadius: 3,
+                    fontWeight: 'bold',
+                    borderColor: 'white',
+                    color: 'white',
+                    '&:hover': { 
+                      borderColor: 'white',
+                      background: 'rgba(255,255,255,0.1)'
+                    },
+                    '&:disabled': {
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      color: 'rgba(255,255,255,0.5)'
+                    }
+                  }}
+                  onClick={() => setShowOnlineTransferDialog(true)}
+                  disabled={systemStats.walletBalance <= 0}
+                  startIcon={<ArrowUpCircle />}
+                >
+                  Transfer to Online
+                </Button>
+
                 {showSuccess && (
                   <Alert severity="success" sx={{ mt: 2, borderRadius: 3 }}>
                     Wallet balance updated!
@@ -286,23 +406,115 @@ export default function UserDashboard() {
               <p className="text-sm text-gray-600">Win Rate</p>
             </Card>
           </motion.div>
-
-          {/* Logout */}
-          {/* <Box sx={{ mt: 6, textAlign: 'right' }}>
-            <Button
-              variant="contained"
-              color="error"
-              size="large"
-              sx={{ borderRadius: 3, px: 4 }}
-              startIcon={<LogOut />}
-              onClick={logout}
-            >
-              Logout
-            </Button>
-          </Box> */}
         </Box>
 
-        {/* Wallet Dialog (Bigger for desktop) */}
+        {/* ✅ New Dialog: Transfer to Online */}
+        <Dialog
+          open={showOnlineTransferDialog}
+          onClose={() => !transferLoading && setShowOnlineTransferDialog(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 4,
+              p: 3,
+              background: 'linear-gradient(135deg, #f3f4f6, #ffffff)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ fontWeight: 'bold', fontSize: '1.5rem', textAlign: 'center' }}>
+            💸 Transfer to Online Wallet
+          </DialogTitle>
+          <DialogContent>
+            {transferSuccess ? (
+              <Alert severity="success" sx={{ mb: 2, borderRadius: 3 }}>
+                {transferSuccess}
+              </Alert>
+            ) : (
+              <>
+                <Typography sx={{ mb: 3, textAlign: 'center' }}>
+                  Transfer funds from System Wallet to your Online Wallet
+                </Typography>
+
+                {/* Current Balances */}
+                <Box sx={{ mb: 3, p: 2, background: 'rgba(59,130,246,0.1)', borderRadius: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Current System Wallet: <b>{formatCurrency(systemStats.walletBalance)}</b>
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Current Online Wallet: <b>{formatCurrency(userWallet)}</b>
+                  </Typography>
+                </Box>
+
+                {/* Amount Input */}
+                <TextField
+                  fullWidth
+                  label="Transfer Amount"
+                  type="text"
+                  value={transferAmount}
+                  onChange={handleTransferAmountChange}
+                  disabled={transferLoading}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">₹</InputAdornment>,
+                  }}
+                  placeholder="Enter amount"
+                  error={!!transferError}
+                  helperText={transferError}
+                  sx={{ mb: 3 }}
+                />
+
+                {/* Balance Preview */}
+                {transferAmount && parseFloat(transferAmount) > 0 && (
+                  <Box sx={{ mb: 2, p: 2, background: 'rgba(34,197,94,0.1)', borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'success.main', mb: 1 }}>
+                      After Transfer:
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      New System Wallet: <b>{formatCurrency(newSystemBalance)}</b>
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      New Online Wallet: <b>{formatCurrency(newUserBalance)}</b>
+                    </Typography>
+                  </Box>
+                )}
+
+                {transferError && (
+                  <Alert severity="error" sx={{ mb: 2, borderRadius: 3 }}>
+                    {transferError}
+                  </Alert>
+                )}
+              </>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 3 }}>
+            <Button 
+              onClick={() => setShowOnlineTransferDialog(false)} 
+              variant="outlined" 
+              sx={{ borderRadius: 3 }}
+              disabled={transferLoading}
+            >
+              {transferSuccess ? 'Close' : 'Cancel'}
+            </Button>
+            {!transferSuccess && (
+              <Button 
+                onClick={handleTransferToOnline} 
+                variant="contained" 
+                sx={{ borderRadius: 3 }}
+                disabled={
+                  transferLoading || 
+                  !transferAmount || 
+                  parseFloat(transferAmount) <= 0 ||
+                  parseFloat(transferAmount) > systemStats.walletBalance
+                }
+                startIcon={<ArrowUpCircle />}
+              >
+                {transferLoading ? 'Transferring...' : 'Transfer Funds'}
+              </Button>
+            )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Existing Wallet Dialog */}
         <Dialog
           open={showWalletDialog}
           onClose={() => setShowWalletDialog(false)}

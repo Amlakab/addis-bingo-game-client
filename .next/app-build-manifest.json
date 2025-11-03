@@ -11,10 +11,16 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/howtoplay/page": [
+    "/auth/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/howtoplay/page.js"
+      "static/css/app/auth/login/page.css",
+      "static/chunks/app/auth/login/page.js"
+    ],
+    "/not-found": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/not-found.js"
     ]
   }
 }
