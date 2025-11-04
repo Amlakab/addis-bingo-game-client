@@ -98,6 +98,65 @@ export default function UserDashboard() {
     }
   };
 
+  const openTransferToSystemDialog = async () => {
+
+    try {
+      const response = await axios.get(`${BASE_URL}/user/system-stats`);
+      setSystemStats(response.data.stats);
+    } catch (error) {
+      console.error('Error fetching system stats:', error);
+    }
+
+     try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) return;
+
+        const parsedUser = JSON.parse(storedUser);
+        if (!parsedUser?._id) return;
+
+        const response = await api.get(`/user/${parsedUser._id}`);
+        const userData: UserType = response.data.data || response.data;
+        setUser(userData);
+        setUserWallet(userData.wallet || 0);
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+      } finally {
+        setLoading(false);
+      }
+
+    setShowWalletDialog(true);
+  };
+
+  const openTransferToOnlineDialog = async () => {
+
+    try {
+      const response = await axios.get(`${BASE_URL}/user/system-stats`);
+      setSystemStats(response.data.stats);
+    } catch (error) {
+      console.error('Error fetching system stats:', error);
+    }
+
+     try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) return;
+
+        const parsedUser = JSON.parse(storedUser);
+        if (!parsedUser?._id) return;
+
+        const response = await api.get(`/user/${parsedUser._id}`);
+        const userData: UserType = response.data.data || response.data;
+        setUser(userData);
+        setUserWallet(userData.wallet || 0);
+      } catch (err) {
+        console.error('Failed to fetch user:', err);
+      } finally {
+        setLoading(false);
+      }
+
+    setShowOnlineTransferDialog(true);
+
+  };
+
   const handleSaveWallet = async () => {
     try {
       const newWalletBalance = systemStats.walletBalance + userWallet;
@@ -291,7 +350,7 @@ export default function UserDashboard() {
                     color: '#1e40af',
                     '&:hover': { background: '#f3f4f6' }
                   }}
-                  onClick={() => setShowWalletDialog(true)}
+                  onClick={openTransferToSystemDialog}
                   startIcon={<PlusCircle />}
                 >
                   Transfer to System Wallet
@@ -317,7 +376,7 @@ export default function UserDashboard() {
                       color: 'rgba(255,255,255,0.5)'
                     }
                   }}
-                  onClick={() => setShowOnlineTransferDialog(true)}
+                  onClick={openTransferToOnlineDialog}
                   disabled={systemStats.walletBalance <= 0}
                   startIcon={<ArrowUpCircle />}
                 >
