@@ -82,9 +82,11 @@ export default function ReferralPage() {
         const activeReferrals = referredUsersData.filter((u: ReferredUser) => u.isActive).length;
         
         // Calculate total earnings from referrals
-        const totalEarnings = referredUsersData.reduce((sum: number, u: ReferredUser) => {
-          return sum + (u.wallet * 0.1);
-        }, 0);
+        // const totalEarnings = referredUsersData.reduce((sum: number, u: ReferredUser) => {
+        //   return sum + (u.wallet * 0.1);
+        // }, 0);
+
+        const totalEarnings = userRes.data.data.wallet;
 
         setReferralStats({
           totalReferrals,
