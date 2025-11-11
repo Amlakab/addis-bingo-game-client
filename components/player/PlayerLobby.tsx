@@ -393,10 +393,11 @@ const PlayerLobby = ({
 
         // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-
+alert(user.agent_id);
         // Send creation request
         webSocketService.send('create-session', {
           userId: user._id,
+          agentId: user.agent_id || '',
           cardNumber: id,
           betAmount,
           createdAt: createdAt ? new Date(createdAt).toISOString() : new Date().toISOString()

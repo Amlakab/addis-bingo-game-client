@@ -108,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return userData;
     } catch (error: any) {
       if (error.response?.status === 401) {
-        throw new Error('Invalid OTP');
+        throw new Error('Invalid OTP'); 
       }
       throw new Error(error.response?.data?.message || 'OTP login failed');
     }
