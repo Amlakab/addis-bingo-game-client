@@ -8,7 +8,7 @@ export interface User {
   totalEarnings: number;
   isActive: boolean;
   tg_id: string;
-  agent_id?: string;
+  agent_id?: { $oid: string }; // Correct type based on your data
   createdAt: Date;
   updatedAt: Date;
 }
