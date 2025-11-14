@@ -393,7 +393,7 @@ const PlayerLobby = ({
 
         // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-alert(user.agent_id);
+  alert('Agent ID: ' + (user.agent_id?.$oid || 'No agent ID'));
         // Send creation request
         // In PlayerLobby togglePlayer function:
         webSocketService.send('create-session', {
