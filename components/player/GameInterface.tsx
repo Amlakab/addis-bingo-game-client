@@ -1450,7 +1450,7 @@ const GameInterface = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            borderRadius: '50%',
+                            borderRadius: '4px',
                             background: isCalled 
                               ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
                               : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
@@ -1650,7 +1650,7 @@ const GameInterface = ({
                                     backgroundColor: 
                                       (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
                                       isUserMarked
-                                        ? 'rgba(255,152,0,0.5)'
+                                        ? 'rgba(255,0,0,0.5)'
                                         : 'rgba(255,255,255,0.7)',
                                     color: 'text.primary',
                                     fontWeight: 'normal',
