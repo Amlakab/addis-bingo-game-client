@@ -1452,11 +1452,11 @@ const GameInterface = ({
                 sx={{
                   width: "100%",
                   height: "100%",
-                  minHeight: 28,
+                  minHeight: 29,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
 
                   // ⭐ Modern gradient background
                   background: isCalled
@@ -1470,8 +1470,8 @@ const GameInterface = ({
 
                   // ⭐ Clean border + subtle shadow
                   border: isCalled
-                    ? "1.5px solid #2e7d32"
-                    : "1.2px solid #cfcfcf",
+                    ? "2px solid #2e7d32"
+                    : "2px solid #cfcfcf",
 
                   boxShadow: isCalled
                     ? "0 2px 5px rgba(0,0,0,0.20)"
