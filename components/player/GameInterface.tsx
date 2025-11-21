@@ -1613,14 +1613,14 @@ const GameInterface = ({
                   <Card 
   key={player.id} 
   sx={{ 
-    p: 0.6,
+    p: 0.4,
     background: isBlocked 
       ? "rgba(244,67,54,0.10)" 
       : "rgba(255,255,255,0.85)",
     border: isBlocked 
       ? "2px solid #f44336" 
       : "1.5px solid #dcdcdc",
-    borderRadius: "8px",
+    borderRadius: "4px",
     boxShadow: isBlocked
       ? "0 2px 6px rgba(244,67,54,0.25)"
       : "0 2px 5px rgba(0,0,0,0.10)",
@@ -1698,12 +1698,12 @@ const GameInterface = ({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "6px",
+              borderRadius: "4px",
               cursor: "pointer",
               transition: "all 0.2s ease",
               boxShadow: isUserMarked
                 ? "0 2px 5px rgba(0,0,0,0.20)"
-                : "0 1px 3px rgba(0,0,0,0.10)",
+                : "0 2px 5px rgba(0,0,0,0.10)",
 
               "&:hover": {
                 background: isUserMarked
