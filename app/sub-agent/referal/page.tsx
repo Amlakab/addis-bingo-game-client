@@ -19,6 +19,7 @@ import { formatCurrency } from '@/lib/utils';
 import api from '@/app/utils/api';
 import MobileHeader from '@/components/sub-agent/MobileHeader';
 import MobileNavigation from '@/components/sub-agent/MobileNavigation';
+import { encryptionService } from '@/lib/encryptionUtils';
 
 type UserType = {
   _id: string;
@@ -58,6 +59,7 @@ export default function ReferralPage() {
     activeReferrals: 0,
     totalEarnings: 0
   });
+  const [encryptedId, setEncryptedId] = useState<string>(''); // ADD THIS LINE
 
   useEffect(() => {
     const fetchUserAndReferrals = async () => {
@@ -71,6 +73,10 @@ export default function ReferralPage() {
         // Fetch user data
         const userRes = await api.get(`/user/${parsedUser._id}`);
         setUser(userRes.data.data);
+
+        // ENCRYPT THE USER ID - ADD THESE 2 LINES
+        const encrypted = await encryptionService.encryptId(userRes.data.data._id);
+        setEncryptedId(encrypted);
 
         // Fetch referred users using agent_id (user ID)
         const referralsRes = await api.get(`/user/agent/${parsedUser._id}`);
@@ -106,15 +112,25 @@ export default function ReferralPage() {
 
   // Generate referral links
   const referralLinks = {
-    bingoApp: `https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
-    telegramGroup: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
-    telegramChannel: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}&text=Join%20the%20exciting%20Bingo%20game!`,
-    telegramMessage: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}&text=Check%20out%20this%20amazing%20Bingo%20game!`,
-    telegramDirect: `https://t.me/msg?text=Join%20Bingo%20using%20my%20referral%20link:%20https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
-    whatsapp: `https://wa.me/?text=Join%20the%20exciting%20Bingo%20game!%20Use%20my%20referral%20link:%20https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
-    facebook: `https://www.facebook.com/sharer/sharer.php?u=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
-    directLink: `https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`
+    bingoApp: `https://t.me/bingofetabot?start=${encryptedId}`,
+    telegramGroup: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${encryptedId}`,
+    telegramChannel: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${encryptedId}&text=Join%20the%20exciting%20Bingo%20game!`,
+    telegramMessage: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${encryptedId}&text=Check%20out%20this%20amazing%20Bingo%20game!`,
+    telegramDirect: `https://t.me/msg?text=Join%20Bingo%20using%20my%20referral%20link:%20https://t.me/bingofetabot?start=${encryptedId}`,
+    whatsapp: `https://wa.me/?text=Join%20the%20exciting%20Bingo%20game!%20Use%20my%20referral%20link:%20https://t.me/bingofetabot?start=${encryptedId}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=https://t.me/bingofetabot?start=${encryptedId}`,
+    directLink: `https://t.me/bingofetabot?start=${encryptedId}`
   };
+  // const referralLinks = {
+  //   bingoApp: `https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
+  //   telegramGroup: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
+  //   telegramChannel: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}&text=Join%20the%20exciting%20Bingo%20game!`,
+  //   telegramMessage: `https://t.me/share/url?url=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}&text=Check%20out%20this%20amazing%20Bingo%20game!`,
+  //   telegramDirect: `https://t.me/msg?text=Join%20Bingo%20using%20my%20referral%20link:%20https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
+  //   whatsapp: `https://wa.me/?text=Join%20the%20exciting%20Bingo%20game!%20Use%20my%20referral%20link:%20https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
+  //   facebook: `https://www.facebook.com/sharer/sharer.php?u=https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`,
+  //   directLink: `https://t.me/bingofetabot?start=${user?._id || 'USER_ID'}`
+  // };
 
   const copyToClipboard = async (link: string, linkName: string) => {
     try {

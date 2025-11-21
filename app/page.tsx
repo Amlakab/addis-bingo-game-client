@@ -6,6 +6,7 @@ import Navbar from '@/components/ui/Navbar';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import Footer from '@/components/ui/Footer';
+import { encryptionService } from '@/lib/encryptionUtils';
 
 // Enhanced Floating elements component with many more elements
 const FloatingElements = () => {
@@ -245,9 +246,11 @@ export default function Home() {
     const timer = setTimeout(() => setShowConfetti(false), 5000);
     
     // Handle URL parameters
-    const handleUrlParams = () => {
+    const handleUrlParams = async () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const agentId = urlParams.get('agent_id');
+       const encryptedId = urlParams.get('agent_id'); // Get encrypted ID
+       const agentId = encryptedId ? await encryptionService.decryptId(encryptedId) : null;
+      // const agentId = urlParams.get('agent_id');
       const tgId = urlParams.get('tg_id');
       
       if (agentId || tgId) {
