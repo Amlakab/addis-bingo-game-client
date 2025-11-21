@@ -1412,66 +1412,82 @@ const GameInterface = ({
           </Box>
 
           {/* Number Grid */}
-          <Box sx={{ 
-            flex: 1,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
-            gridAutoRows: 'minmax(30px, auto)',
-            gap: 0.3,
-            overflow: 'auto',
-            p: 0.3
-          }}>
-            {['B', 'I', 'N', 'G', 'O'].map((letter, colIndex) => {
-              const ranges = [
-                { min: 1, max: 15 },
-                { min: 16, max: 30 },
-                { min: 31, max: 45 },
-                { min: 46, max: 60 },
-                { min: 61, max: 75 }
-              ];
-              
-              return (
-                <Box key={letter} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  {Array.from({ length: 15 }, (_, i) => {
-                    const num = ranges[colIndex].min + i;
-                    const fullNumber = `${letter}-${num}`;
-                    const isCalled = calledNumbers.includes(fullNumber);
-                    
-                    return (
-                      <motion.div
-                        key={num}
-                        whileHover={{ scale: 1.05 }}
-                      >
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            minHeight: 29,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '4px',
-                            background: isCalled 
-                              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
-                              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
-                            color: isCalled ? 'white' : 'text.primary',
-                            fontWeight: 'bold',
-                            fontSize: '0.9rem',
-                            transition: 'all 0.2s ease',
-                            border: isCalled 
-                              ? '2px solid #2E7D32'
-                              : '2px solid #e0e0e0',
-                          }}
-                        >
-                          {num}
-                        </Box>
-                      </motion.div>
-                    );
-                  })}
-                </Box>
-              );
-            })}
-          </Box>
+          <Box
+  sx={{
+    flex: 1,
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gridAutoRows: "minmax(30px, auto)",
+    gap: 0.15, // minimized gap
+    overflow: "auto",
+    p: 0.15,   // minimized padding
+  }}
+>
+  {["B", "I", "N", "G", "O"].map((letter, colIndex) => {
+    const ranges = [
+      { min: 1, max: 15 },
+      { min: 16, max: 30 },
+      { min: 31, max: 45 },
+      { min: 46, max: 60 },
+      { min: 61, max: 75 },
+    ];
+
+    return (
+      <Box
+        key={letter}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.2, // minimized inner gap
+        }}
+      >
+        {Array.from({ length: 15 }, (_, i) => {
+          const num = ranges[colIndex].min + i;
+          const fullNumber = `${letter}-${num}`;
+          const isCalled = calledNumbers.includes(fullNumber);
+
+          return (
+            <motion.div key={num} whileHover={{ scale: 1.05 }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  minHeight: 28,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "6px",
+
+                  // ⭐ Modern gradient background
+                  background: isCalled
+                    ? "linear-gradient(135deg, #43A047, #7CB342)"
+                    : "linear-gradient(135deg, #fafafa, #e9e9e9)",
+
+                  color: isCalled ? "white" : "text.primary",
+                  fontWeight: "bold",
+                  fontSize: "0.85rem",
+                  transition: "all 0.15s ease-in-out",
+
+                  // ⭐ Clean border + subtle shadow
+                  border: isCalled
+                    ? "1.5px solid #2e7d32"
+                    : "1.2px solid #cfcfcf",
+
+                  boxShadow: isCalled
+                    ? "0 2px 5px rgba(0,0,0,0.20)"
+                    : "0 1px 3px rgba(0,0,0,0.10)",
+                }}
+              >
+                {num}
+              </Box>
+            </motion.div>
+          );
+        })}
+      </Box>
+    );
+  })}
+</Box>
+
           
           {!isReady && (
             <Button 
