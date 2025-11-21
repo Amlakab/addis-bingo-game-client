@@ -1595,9 +1595,9 @@ const GameInterface = ({
             gap: 1,
             minHeight: '25vh'
           }}>
-            <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+            {/* <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
               {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}
-            </Typography>
+            </Typography> */}
             
             {userCards.length === 0 ? (
               <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
@@ -1613,10 +1613,10 @@ const GameInterface = ({
                   <Card 
                     key={player.id} 
                     sx={{ 
-                      p: 1, 
+                      p: 0.5, 
                       background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
                       border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
-                      borderRadius: 2
+                      borderRadius:'4px'
                     }}
                   >
                     <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>
@@ -1639,7 +1639,7 @@ const GameInterface = ({
                               backgroundColor: 'primary.main',
                               color: 'white',
                               fontWeight: 'bold',
-                              fontSize: '0.8rem',
+                              fontSize: '0.85rem',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -1662,7 +1662,7 @@ const GameInterface = ({
                                   onClick={() => toggleUserMark(fullNumber)}
                                   sx={{
                                     p: 0.3,
-                                    border: '1px solid rgba(0,0,0,0.1)',
+                                    border: '2px solid rgba(0,0,0,0.1)',
                                     backgroundColor: 
                                       (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
                                       isUserMarked
@@ -1670,12 +1670,12 @@ const GameInterface = ({
                                         : 'rgba(255,255,255,0.7)',
                                     color: 'text.primary',
                                     fontWeight: 'normal',
-                                    fontSize: '0.8rem',
+                                    fontSize: '0.85rem',
                                     minHeight: 24,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    borderRadius: '2px',
+                                    borderRadius: '4px',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
                                     '&:hover': {
