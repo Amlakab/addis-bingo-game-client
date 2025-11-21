@@ -1373,7 +1373,7 @@ const GameInterface = ({
         flexDirection: { xs: 'row' },
         flex: 1,
         gap: 0.5,
-        minHeight: '25vh',
+        minHeight: '24vh',
         overflow: 'hidden'
       }}>
         {/* Left Side - Number Grid */}
@@ -1611,106 +1611,142 @@ const GameInterface = ({
                 
                 return (
                   <Card 
-                    key={player.id} 
-                    sx={{ 
-                      p: 0.5, 
-                      background: isBlocked ? 'rgba(244,67,54,0.1)' : 'rgba(255,255,255,0.8)',
-                      border: isBlocked ? '2px solid #f44336' : '1px solid #e0e0e0',
-                      borderRadius:'4px'
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1, fontSize: '1rem' }}>
-                      {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
-                      {isBlocked && ` (${language === 'am' ? 'ታግዷል' : 'Blocked'})`}
-                      {hasSubmittedBingo && ` (${language === 'am' ? 'ቀርቧል' : 'Submitted'})`}
-                    </Typography>
-                        
-                        {/* BINGO Card */}
-                        <Box sx={{ 
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(5, 1fr)',
-                          gap: 0.3,
-                          mb: 0.5
-                        }}>
-                          {/* BINGO Header */}
-                          {["B", "I", "N", "G", "O"].map((letter, idx) => (
-                            <Box key={letter} sx={{
-                              p: 0.3,
-                              backgroundColor: 'primary.main',
-                              color: 'white',
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: '4px 4px 0 0'
-                            }}>
-                              {letter}
-                            </Box>
-                          ))}
-                          
-                          {/* Card numbers */}
-                          {transposeCard(card).map((row, rowIdx) => (
-                            row.map((num, colIdx) => {
-                              const letter = "BINGO"[colIdx];
-                              const fullNumber = `${letter}-${num}`;
-                              const isUserMarked = userMarkedNumbers[fullNumber];
-                              
-                              return (
-                                <Box
-                                  key={`${rowIdx}-${colIdx}`}
-                                  onClick={() => toggleUserMark(fullNumber)}
-                                  sx={{
-                                    p: 0.3,
-                                    border: '2px solid rgba(0,0,0,0.1)',
-                                    backgroundColor: 
-                                      (colIdx === 2 && rowIdx === 2) ? 'rgba(255,235,59,0.3)' :
-                                      isUserMarked
-                                        ? 'rgba(255,0,0,0.5)'
-                                        : 'rgba(255,255,255,0.7)',
-                                    color: 'text.primary',
-                                    fontWeight: 'normal',
-                                    fontSize: '0.85rem',
-                                    minHeight: 24,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    '&:hover': {
-                                      backgroundColor: isUserMarked 
-                                        ? 'rgba(255,152,0,0.7)' 
-                                        : 'rgba(0,0,0,0.1)'
-                                    }
-                                  }}
-                                >
-                                  {num === 0 ? (language === 'am' ? '*' : '*') : num}
-                                </Box>
-                              );
-                            })
-                          ))}
-                        </Box>
-                        
-                        {/* Bingo Button */}
-                          <Button 
-                            variant="contained" 
-                            color="success"
-                            onClick={() => handleBingo(player.id)}
-                            disabled={isBlocked || !gameStarted || submittedBingoCards.includes(player.id)}
-                            fullWidth
-                            size="small"
-                            sx={{ 
-                              fontSize: '0.8rem',
-                              opacity: (isBlocked || !gameStarted || submittedBingoCards.includes(player.id)) ? 0.6 : 1
-                            }}
-                          >
-                            {submittedBingoCards.includes(player.id) ? 
-                              (language === 'am' ? 'ቀርቧል' : 'SUBMITTED') : 
-                              'BINGO'
-                            }
-                          </Button>
-                        </Card>
+  key={player.id} 
+  sx={{ 
+    p: 0.6,
+    background: isBlocked 
+      ? "rgba(244,67,54,0.10)" 
+      : "rgba(255,255,255,0.85)",
+    border: isBlocked 
+      ? "2px solid #f44336" 
+      : "1.5px solid #dcdcdc",
+    borderRadius: "8px",
+    boxShadow: isBlocked
+      ? "0 2px 6px rgba(244,67,54,0.25)"
+      : "0 2px 5px rgba(0,0,0,0.10)",
+    transition: "all 0.2s ease"
+  }}
+>
+  <Typography 
+    variant="body2" 
+    sx={{ 
+      fontWeight: "bold",
+      mb: 1,
+      fontSize: "1rem",
+      color: isBlocked ? "#d32f2f" : "text.primary"
+    }}
+  >
+    {language === "am" ? "ካርድ" : "Card"} #{player.id}
+    {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
+    {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
+  </Typography>
+
+  {/* BINGO Card Container */}
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: "repeat(5, 1fr)",
+      gap: 0.15,
+      mb: 0.6
+    }}
+  >
+    {/* BINGO Header */}
+    {["B", "I", "N", "G", "O"].map((letter) => (
+      <Box
+        key={letter}
+        sx={{
+          p: 0.4,
+          background: "linear-gradient(135deg, #1976d2, #2196f3)",
+          color: "white",
+          fontWeight: "bold",
+          fontSize: "0.85rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "6px 6px 0 0",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+        }}
+      >
+        {letter}
+      </Box>
+    ))}
+
+    {/* Card Numbers */}
+    {transposeCard(card).map((row, rowIdx) =>
+      row.map((num, colIdx) => {
+        const letter = "BINGO"[colIdx];
+        const fullNumber = `${letter}-${num}`;
+        const isUserMarked = userMarkedNumbers[fullNumber];
+
+        return (
+          <Box
+            key={`${rowIdx}-${colIdx}`}
+            onClick={() => toggleUserMark(fullNumber)}
+            sx={{
+              p: 0.35,
+              border: "1.2px solid #d0d0d0",
+              background:
+                rowIdx === 2 && colIdx === 2
+                  ? "rgba(255,235,59,0.35)" // Free space
+                  : isUserMarked
+                  ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
+                  : "linear-gradient(135deg, #ffffff, #f1f1f1)",
+              color: isUserMarked ? "white" : "text.primary",
+              fontWeight: isUserMarked ? "bold" : "normal",
+              fontSize: "0.85rem",
+              minHeight: 26,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "6px",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: isUserMarked
+                ? "0 2px 5px rgba(0,0,0,0.20)"
+                : "0 1px 3px rgba(0,0,0,0.10)",
+
+              "&:hover": {
+                background: isUserMarked
+                  ? "rgba(255,152,0,0.75)"
+                  : "rgba(0,0,0,0.08)"
+              }
+            }}
+          >
+            {num === 0 ? "*" : num}
+          </Box>
+        );
+      })
+    )}
+  </Box>
+
+  {/* Bingo Button */}
+  <Button
+    variant="contained"
+    color="success"
+    onClick={() => handleBingo(player.id)}
+    disabled={
+      isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+    }
+    fullWidth
+    size="small"
+    sx={{
+      fontSize: "0.8rem",
+      borderRadius: "6px",
+      opacity:
+        isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+          ? 0.6
+          : 1,
+      boxShadow: "0 2px 5px rgba(0,0,0,0.15)"
+    }}
+  >
+    {submittedBingoCards.includes(player.id)
+      ? language === "am"
+        ? "ቀርቧል"
+        : "SUBMITTED"
+      : "BINGO"}
+  </Button>
+</Card>
+
                       );
                     })
                   )}
