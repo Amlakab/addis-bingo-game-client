@@ -815,8 +815,8 @@ const UsersPage = () => {
               fullWidth
               label="Telegram Id"
               value={formData.tgId}
-              onChange={(e) => handleFormChange('phone', e.target.value)}
-              placeholder="XXXXXXXX"
+              onChange={(e) => handleFormChange('tgId', e.target.value)}
+              placeholder="@XXXXXXXX"
               required
             />
             <TextField
