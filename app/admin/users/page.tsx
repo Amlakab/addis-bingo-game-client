@@ -90,6 +90,7 @@ const UsersPage = () => {
   // Form states
   const [formData, setFormData] = useState({
     phone: '',
+    tgId: '',
     password: '',
     role: 'user' as 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'accountant' | 'admin',
     wallet: 0
@@ -162,7 +163,7 @@ const UsersPage = () => {
       await api.post('/user/register', formData);
       setSuccess('User created successfully');
       setOpenDialog(false);
-      setFormData({ phone: '', password: '', role: 'user', wallet: 0 });
+      setFormData({ phone: '',tgId: '', password: '', role: 'user', wallet: 0 });
       fetchUsers();
       fetchStats();
     } catch (error: any) {
@@ -808,6 +809,14 @@ const UsersPage = () => {
               value={formData.phone}
               onChange={(e) => handleFormChange('phone', e.target.value)}
               placeholder="09XXXXXXXX"
+              required
+            />
+            <TextField
+              fullWidth
+              label="Telegram Id"
+              value={formData.tgId}
+              onChange={(e) => handleFormChange('phone', e.target.value)}
+              placeholder="XXXXXXXX"
               required
             />
             <TextField
