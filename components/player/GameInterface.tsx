@@ -1417,9 +1417,9 @@ const GameInterface = ({
             display: 'grid',
             gridTemplateColumns: 'repeat(5, 1fr)',
             gridAutoRows: 'minmax(30px, auto)',
-            gap: 0.5,
+            gap: 0.3,
             overflow: 'auto',
-            p: 0.5
+            p: 0.3
           }}>
             {['B', 'I', 'N', 'G', 'O'].map((letter, colIndex) => {
               const ranges = [
@@ -1456,11 +1456,11 @@ const GameInterface = ({
                               : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
                             color: isCalled ? 'white' : 'text.primary',
                             fontWeight: 'bold',
-                            fontSize: '0.8rem',
+                            fontSize: '0.9rem',
                             transition: 'all 0.2s ease',
                             border: isCalled 
-                              ? '1px solid #2E7D32'
-                              : '1px solid #e0e0e0',
+                              ? '2px solid #2E7D32'
+                              : '2px solid #e0e0e0',
                           }}
                         >
                           {num}
