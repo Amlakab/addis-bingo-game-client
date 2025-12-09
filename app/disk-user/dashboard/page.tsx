@@ -472,7 +472,7 @@ const formatDateDisplay = (dateString: string | Date): string => {
                       Remaining Wallet
                     </Typography>
                     <Typography variant="h5" fontWeight="bold" color="primary">
-                      {formatCurrency(user.remainingWallet || user.wallet)}
+                      {formatCurrency(user.remainingWallet || 0)}
                     </Typography>
                   </Box>
                   <Box sx={{ flex: '1 1 45%', minWidth: 120 }}>
