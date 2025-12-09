@@ -3,6 +3,7 @@ export interface User {
   phone: string;
   role: 'user' | 'disk-user' | 'spinner-user' | 'agent' | 'accountant' | 'admin';
   wallet: number;
+  remainingWallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
   totalEarnings: number;

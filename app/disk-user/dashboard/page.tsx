@@ -31,6 +31,7 @@ type UserType = {
   phone: string;
   role: 'user' |'disk-user' |'spinner-user' | 'agent' | 'accountant' | 'admin';
   wallet: number;
+  remainingWallet: number;
   dailyEarnings: number;
   weeklyEarnings: number;
   totalEarnings: number;
@@ -97,6 +98,43 @@ export default function UserDashboard() {
       console.error('Error fetching system stats:', error);
     }
   };
+
+  // Add this function at the top with other utility functions
+const formatDateDisplay = (dateString: string | Date): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  
+  // Check if it's today
+  if (date.toDateString() === now.toDateString()) {
+    return `Today at ${date.toLocaleTimeString('en-ET', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })}`;
+  }
+  
+  // Check if it's yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return `Yesterday at ${date.toLocaleTimeString('en-ET', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    })}`;
+  }
+  
+  // Otherwise show full date
+  return `${date.toLocaleDateString('en-ET', { 
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })} at ${date.toLocaleTimeString('en-ET', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  })}`;
+};
 
   const openTransferToSystemDialog = async () => {
 
@@ -391,7 +429,7 @@ export default function UserDashboard() {
               </Card>
             </motion.div>
 
-            {/* User Wallet */}
+            {/* UPDATED: User Wallet Card to match WalletDashboard format */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -402,41 +440,92 @@ export default function UserDashboard() {
                   borderRadius: 4,
                   background: 'linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%)',
                   boxShadow: '0 12px 30px rgba(0,0,0,0.1)',
-                  p: 4
+                  p: 4,
+                  height: '100%'
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                  <PiggyBank className="h-7 w-7 text-pink-500" />
-                  <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
-                    Your Wallet
+                {/* Current Balance (user.wallet) at top in bold */}
+                <Box sx={{ textAlign: 'center', mb: 3, pb: 2, borderBottom: '1px solid #e0e0e0' }}>
+                  <Typography variant="h2" fontWeight="bold" sx={{ 
+                    background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent'
+                  }}>
+                    {formatCurrency(user.wallet)}
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary" fontWeight="medium">
+                    Current Balance
                   </Typography>
                 </Box>
-                <Divider sx={{ mb: 2 }} />
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-                  <div>
-                    <Typography color="text.secondary">Balance</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      {formatCurrency(user.wallet)}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <PiggyBank className="h-7 w-7 text-pink-500" />
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', ml: 1 }}>
+                    Wallet Details
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                  <Box sx={{ flex: '1 1 45%', minWidth: 120 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Remaining Wallet
                     </Typography>
-                  </div>
-                  <div>
-                    <Typography color="text.secondary">Total Earnings</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="h5" fontWeight="bold" color="primary">
+                      {formatCurrency(user.remainingWallet || user.wallet)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ flex: '1 1 45%', minWidth: 120 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Earnings
+                    </Typography>
+                    <Typography variant="h5" fontWeight="bold" color="text.primary">
                       {formatCurrency(user.totalEarnings)}
                     </Typography>
-                  </div>
-                  <div>
-                    <Typography color="text.secondary">Daily</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 45%', minWidth: 120 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Daily
+                    </Typography>
+                    <Typography variant="h6" fontWeight="medium" color="text.primary">
                       {formatCurrency(user.dailyEarnings)}
                     </Typography>
-                  </div>
-                  <div>
-                    <Typography color="text.secondary">Weekly</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                  </Box>
+                  <Box sx={{ flex: '1 1 45%', minWidth: 120 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Weekly
+                    </Typography>
+                    <Typography variant="h6" fontWeight="medium" color="text.primary">
                       {formatCurrency(user.weeklyEarnings)}
                     </Typography>
-                  </div>
+                  </Box>
+                </Box>
+
+                <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Account Status:
+                    </Typography>
+                    <Typography variant="body2" color={user.isActive ? 'success.main' : 'error.main'} fontWeight="bold">
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Last Updated:
+                    </Typography>
+                    <Typography variant="body2" color="text.primary">
+                      {formatDateDisplay(user.updatedAt)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Member since:
+                    </Typography>
+                    <Typography variant="body2" color="text.primary">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
                 </Box>
               </Card>
             </motion.div>
