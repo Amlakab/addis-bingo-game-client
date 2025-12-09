@@ -446,7 +446,7 @@ const formatDateDisplay = (dateString: string | Date): string => {
               >
                 {/* Current Balance (user.wallet) at top in bold */}
                 <Box sx={{ textAlign: 'center', mb: 3, pb: 2, borderBottom: '1px solid #e0e0e0' }}>
-                  <Typography variant="h2" fontWeight="bold" sx={{ 
+                  <Typography variant="h4" fontWeight="bold" sx={{ 
                     background: 'linear-gradient(45deg, #2196F3, #21CBF3)',
                     backgroundClip: 'text',
                     WebkitBackgroundClip: 'text',
