@@ -323,9 +323,9 @@ if (loading) {
             </div>
             <button
               className="w-full mt-4 bg-white text-blue-600 hover:bg-gray-100 py-2 rounded-md font-medium flex items-center justify-center"
-              onClick={() => router.push('/user/wallet')}
+              onClick={() => router.push('/user/lobby')}
             >
-              <Plus className="h-4 w-4 mr-1" /> Add Funds
+              <Plus className="h-4 w-4 mr-1" /> Play Now
             </button>
           </div>
         </motion.div>
@@ -506,7 +506,7 @@ if (loading) {
           )}
         </motion.div>
       </main>
-      <Footer />
+      {/* <Footer /> */}
 
       <MobileNavigation />
     </div>

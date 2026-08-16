@@ -84,12 +84,12 @@ export default function MobileHeader({
           <Bell className="h-5 w-5" />
         </button>
 
-        <button
+        {/* <button
           onClick={handleLogout}
           className="p-1 rounded-md hover:bg-gray-100 text-red-600 hover:text-red-700"
         >
           <LogOut className="h-5 w-5" />
-        </button>
+        </button> */}
       </div>
     </header>
   );

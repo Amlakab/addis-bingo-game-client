@@ -296,7 +296,7 @@ export default function HistoryPage() {
         
         {activeTab === 'games' ? <GameHistory /> : <WinningsHistory />}
       </div>
-      <Footer />
+      {/* <Footer /> */}
 
       <MobileNavigation />
     </div>

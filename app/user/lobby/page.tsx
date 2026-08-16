@@ -146,7 +146,7 @@ export default function LobbyPage() {
         />
       )}
     </main>
-    <Footer />
+    {/* <Footer /> */}
 
     {currentPage === 'bet-selection' && <MobileNavigation />}
   </div>

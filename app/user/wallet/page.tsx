@@ -230,14 +230,14 @@ export default function WalletPage() {
         </div>
       </div>
 
-      <div className="flex space-x-4">
+      {/* <div className="flex space-x-4">
         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium flex items-center justify-center" onClick={() => setActiveTab('deposit')}>
           <ArrowDown className="mr-2 h-5 w-5" /> Deposit
         </motion.button>
         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium flex items-center justify-center" onClick={() => setActiveTab('withdraw')}>
           <ArrowUp className="mr-2 h-5 w-5" /> Withdraw
         </motion.button>
-      </div>
+      </div> */}
     </motion.div>
   );
 
@@ -909,7 +909,7 @@ export default function WalletPage() {
         </AnimatePresence>
         <TransactionHistory />
       </div>
-      <Footer />
+      {/* <Footer /> */}
       <MobileNavigation />
       {showTransactionModal && <TransactionModal />}
     </div>

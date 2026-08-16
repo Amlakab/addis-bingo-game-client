@@ -571,7 +571,7 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </div>
-      <Footer />
+      {/* <Footer /> */}
 
       <MobileNavigation />
       {showPasswordModal && <PasswordChangeModal />}
