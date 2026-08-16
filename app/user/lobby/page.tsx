@@ -1,5 +1,7 @@
 'use client';
 
+import { useTelegramAuth } from '@/app/utils/useTelegramAuth';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BetSelectionPage from '@/components/player/BetSelectionPage';
@@ -34,13 +36,18 @@ export default function LobbyPage() {
   const [currentPage, setCurrentPage] = useState<'bet-selection' | 'player-lobby'>('bet-selection');
   const [remainingTime, setRemainingTime] = useState(45);
   const [createdAt, setCreatedAt] = useState<Date>(new Date());
-  const { user } = useAuth();
+ 
 
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth/login');
-    }
-  }, [user, router]);
+  // Add this inside your component
+  const { isLoading, isAuthenticated, user } = useTelegramAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect to login
+  }
 
   const handlePlay = (betAmount: number, timeRemaining: number, playerCount: number, createdAt: Date) => {
     setBet(betAmount);
