@@ -13,71 +13,46 @@ export const useTelegramAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // Check for code in URL (fallback for direct links)
-  const urlCode = searchParams.get('code');
+  // Get code from URL (this works with the bot's WebApp)
+  const code = searchParams.get('code');
 
   useEffect(() => {
     const handleAuth = async () => {
-      console.log('🔍 useTelegramAuth: Starting auth check...');
-      
-      // CASE 1: User already authenticated (from auth context)
+      // CASE 1: User already authenticated
       if (user) {
-        console.log('✅ User already authenticated from context');
         setIsAuthenticated(true);
         setIsLoading(false);
         return;
       }
 
-      // CASE 2: Check if token exists in localStorage (already logged in)
+      // CASE 2: Check localStorage
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
       
       if (storedToken && storedUser) {
-        console.log('✅ User already authenticated from localStorage');
         setIsAuthenticated(true);
         setIsLoading(false);
         return;
       }
 
-      // CASE 3: Get code from Telegram WebApp start_param (SECURE WAY)
-      let authCode = urlCode;
-      
-      // Check if running in Telegram WebApp
-      if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-        const webapp = (window as any).Telegram.WebApp;
-        const startParam = webapp.initDataUnsafe?.start_param;
-        if (startParam) {
-          authCode = startParam;
-          console.log('🔑 Code from WebApp start_param:', authCode);
-        }
-      }
-      
-      // CASE 4: Exchange code for token
-      if (authCode) {
+      // CASE 3: Exchange code from URL
+      if (code) {
         try {
-          console.log('🔑 Exchanging code:', authCode);
-          const response = await api.post('/auth/exchange-game-code', { code: authCode });
+          console.log('🔑 Exchanging code:', code);
+          const response = await api.post('/auth/exchange-game-code', { code });
           
           if (response.data.success) {
             const { token, user: userData } = response.data.data;
             
-            // Store in localStorage
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(userData));
             
-            // Update auth context if login function exists
             // if (login) {
             //   login(userData);
             // }
             
             setIsAuthenticated(true);
-            
-            // Remove code from URL if it was from URL
-            if (urlCode) {
-              router.replace(window.location.pathname);
-            }
-            
-            console.log('✅ Authentication successful!');
+            router.replace(window.location.pathname);
             setIsLoading(false);
             return;
           } else {
@@ -88,21 +63,19 @@ export const useTelegramAuth = () => {
           }
         } catch (error: any) {
           console.error('❌ Error exchanging code:', error);
-          console.error('❌ Error details:', error.response?.data || error.message);
           setIsAuthenticated(false);
           setIsLoading(false);
           return;
         }
       }
 
-      // CASE 5: No auth at all - redirect to login
-      console.log('❌ No authentication found, redirecting to login');
+      // CASE 4: No auth
       setIsAuthenticated(false);
       setIsLoading(false);
     };
 
     handleAuth();
-  }, [urlCode, router, user, login]);
+  }, [code, router, user, login]);
 
   return { isLoading, isAuthenticated, user };
 };
