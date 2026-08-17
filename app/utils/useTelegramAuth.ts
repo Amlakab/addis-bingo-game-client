@@ -30,6 +30,15 @@ export const useTelegramAuth = () => {
     setPopup((prev) => ({ ...prev, show: false }));
   };
 
+  // Helper function to clear old session
+  const clearOldSession = () => {
+    console.log('🧹 [Auth] Clearing old session data...');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+  };
+
   useEffect(() => {
     const handleAuth = async () => {
       // CASE 1: User already authenticated in state
@@ -57,8 +66,7 @@ export const useTelegramAuth = () => {
           return;
         } catch (e) {
           console.error('❌ [Auth] Failed to parse stored user, clearing storage.', e);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          clearOldSession();
         }
       }
 
@@ -70,7 +78,6 @@ export const useTelegramAuth = () => {
         
         console.log('🤖 [Telegram Auth] One-time code detected from Telegram Bot URL:', code);
         
-        // Show status popup to the user
         setPopup({
           show: true,
           type: 'info',
@@ -87,18 +94,13 @@ export const useTelegramAuth = () => {
 
             console.log('🎉 [Telegram Auth] Code validated successfully! User:', userData);
 
-            // Notify user of success
-            setPopup({
-              show: true,
-              type: 'success',
-              message: 'Authentication successful! Welcome to the game.'
-            });
-
-            // Set localStorage immediately
+            // ✅ CLEAR OLD SESSION FIRST
+            clearOldSession();
+            
+            // Then set new session
             localStorage.setItem('token', token);
             localStorage.setItem('user', JSON.stringify(userData));
 
-            // Hydrate React Auth Context
             if (setSession) {
               setSession(userData, token);
             }
@@ -106,12 +108,21 @@ export const useTelegramAuth = () => {
             setIsAuthenticated(true);
             setIsLoading(false);
 
+            setPopup({
+              show: true,
+              type: 'success',
+              message: 'Authentication successful! Welcome to the game.'
+            });
+
             // Remove code query parameter from URL without reloading
             router.replace(window.location.pathname);
             return;
           } else {
             const errMsg = response.data?.message || 'Code exchange failed on backend.';
             console.warn('⚠️ [Telegram Auth] Code exchange rejected:', errMsg);
+
+            // Clear any stale data on failure
+            clearOldSession();
 
             setPopup({
               show: true,
@@ -126,6 +137,9 @@ export const useTelegramAuth = () => {
         } catch (error: any) {
           const serverError = error.response?.data?.message || error.message || 'Network error.';
           console.error('❌ [Telegram Auth] Exception during code exchange:', serverError);
+
+          // Clear any stale data on error
+          clearOldSession();
 
           setPopup({
             show: true,

@@ -7,6 +7,7 @@ import api from '@/app/utils/api';
 // Update context interface type locally or ensure AuthContextType includes setSession
 interface ExtendedAuthContextType extends AuthContextType {
   setSession: (userData: User, token: string) => void;
+  clearSession: () => void; // Add this
 }
 
 const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
@@ -23,6 +24,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Clear session data
+  const clearSession = () => {
+    console.log('🧹 [Auth] Clearing session data...');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    setUser(null);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -32,8 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(JSON.parse(userData));
       } catch (error) {
         console.error('Failed to parse user data:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearSession();
       }
     }
     setIsLoading(false);
@@ -41,6 +51,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Set authenticated user and token state without re-authenticating
   const setSession = (userData: User, token: string) => {
+    // ✅ Clear any old data first
+    clearSession();
+    
+    // Then set new session
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
@@ -57,14 +71,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('user', JSON.stringify(userData));
         return userData;
       } else {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearSession();
         return null;
       }
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearSession();
       return null;
     } finally {
       setIsLoading(false);
@@ -85,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid response from server');
       }
       
+      // ✅ clearSession is called inside setSession
       setSession(userData, token);
       
       return userData;
@@ -156,9 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+    clearSession();
   };
 
   const value = {
@@ -169,7 +180,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logout,
     isLoading,
     fetchUserProfile,
-    setSession
+    setSession,
+    clearSession // Add this
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
