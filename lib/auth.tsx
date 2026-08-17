@@ -1,11 +1,15 @@
-// lib/auth.tsx
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, AuthContextType } from '@/types';
 import api from '@/app/utils/api';
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Update context interface type locally or ensure AuthContextType includes setSession
+interface ExtendedAuthContextType extends AuthContextType {
+  setSession: (userData: User, token: string) => void;
+}
+
+const AuthContext = createContext<ExtendedAuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -34,6 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setIsLoading(false);
   }, []);
+
+  // Set authenticated user and token state without re-authenticating
+  const setSession = (userData: User, token: string) => {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -74,9 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid response from server');
       }
       
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      setSession(userData, token);
       
       return userData;
     } catch (error: any) {
@@ -101,9 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid response from server');
       }
       
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      setSession(userData, token);
       
       return userData;
     } catch (error: any) {
@@ -115,47 +122,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (
-  phone: string, 
-  password: string, 
-  tg_id: string, 
-  agent_id?: string
-): Promise<User> => {
-  try {
-    const payload: any = {
-      phone,
-      password,
-      tg_id
-    };
+    phone: string, 
+    password: string, 
+    tg_id: string, 
+    agent_id?: string
+  ): Promise<User> => {
+    try {
+      const payload: any = {
+        phone,
+        password,
+        tg_id
+      };
 
-    // Add agent_id only if provided
-    if (agent_id && agent_id.trim() !== '') {
-      payload.agent_id = agent_id;
+      if (agent_id && agent_id.trim() !== '') {
+        payload.agent_id = agent_id;
+      }
+
+      const response = await api.post('/auth/register', payload);
+
+      const responseData = response.data;
+      const { token, user: userData } = responseData.data;
+      
+      if (!token || !userData) {
+        throw new Error('Invalid response from server');
+      }
+      
+      setSession(userData, token);
+      
+      return userData;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Registration failed');
     }
-
-    const response = await api.post('/auth/register', payload);
-
-    const responseData = response.data;
-    const { token, user: userData } = responseData.data;
-    
-    if (!token || !userData) {
-      throw new Error('Invalid response from server');
-    }
-    
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    
-    return userData;
-  } catch (error: any) {
-    throw new Error(error.response?.data?.message || 'Registration failed');
-  }
-};
+  };
 
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    
   };
 
   const value = {
@@ -165,7 +168,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register,
     logout,
     isLoading,
-    fetchUserProfile
+    fetchUserProfile,
+    setSession
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

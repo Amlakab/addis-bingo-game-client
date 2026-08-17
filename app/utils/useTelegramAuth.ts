@@ -1,4 +1,3 @@
-// hooks/useTelegramAuth.ts
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -9,16 +8,16 @@ import api from '@/app/utils/api';
 export const useTelegramAuth = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, login } = useAuth();
+  const { user, setSession } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // Get code from URL (this works with the bot's WebApp)
+  // Get code from URL
   const code = searchParams.get('code');
 
   useEffect(() => {
     const handleAuth = async () => {
-      // CASE 1: User already authenticated
+      // CASE 1: User already authenticated in state
       if (user) {
         setIsAuthenticated(true);
         setIsLoading(false);
@@ -30,9 +29,18 @@ export const useTelegramAuth = () => {
       const storedUser = localStorage.getItem('user');
       
       if (storedToken && storedUser) {
-        setIsAuthenticated(true);
-        setIsLoading(false);
-        return;
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          if (setSession) {
+            setSession(parsedUser, storedToken);
+          }
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        } catch {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
       }
 
       // CASE 3: Exchange code from URL
@@ -44,19 +52,17 @@ export const useTelegramAuth = () => {
           if (response.data.success) {
             const { token, user: userData } = response.data.data;
             
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(userData));
-            
-            // if (login) {
-            //   login(userData);
-            // }
+            // Set session directly using token and user
+            if (setSession) {
+              setSession(userData, token);
+            }
             
             setIsAuthenticated(true);
             router.replace(window.location.pathname);
             setIsLoading(false);
             return;
           } else {
-            console.error('❌ Code exchange it failed:', response.data.message);
+            console.error('❌ Code exchange failed:', response.data.message);
             setIsAuthenticated(false);
             setIsLoading(false);
             return;
@@ -69,13 +75,13 @@ export const useTelegramAuth = () => {
         }
       }
 
-      // CASE 4: No auth
+      // CASE 4: No auth found
       setIsAuthenticated(false);
       setIsLoading(false);
     };
 
     handleAuth();
-  }, [code, router, user, login]);
+  }, [code, router, user, setSession]);
 
   return { isLoading, isAuthenticated, user };
 };
