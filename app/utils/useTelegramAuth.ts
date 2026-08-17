@@ -56,7 +56,7 @@ export const useTelegramAuth = () => {
             setIsLoading(false);
             return;
           } else {
-            console.error('❌ Code exchange failed:', response.data.message);
+            console.error('❌ Code exchange it failed:', response.data.message);
             setIsAuthenticated(false);
             setIsLoading(false);
             return;
