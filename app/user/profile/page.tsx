@@ -192,12 +192,12 @@ export default function ProfilePage() {
           <User className="mr-2 h-5 w-5 text-blue-600" />
           Profile Information
         </h2>
-        <button 
+        {/* <button 
           className="p-2 text-blue-600 rounded-full hover:bg-blue-50"
           onClick={() => setShowPasswordModal(true)}
         >
           <Edit className="h-4 w-4" />
-        </button>
+        </button> */}
       </div>
 
       <div className="space-y-4">
