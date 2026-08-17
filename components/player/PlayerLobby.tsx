@@ -566,6 +566,7 @@ const PlayerLobby = ({
           flexDirection: "row",
           gap: { xs: 1, sm: 2 },
           flexWrap: "nowrap",
+          flexShrink: 0, // Prevent shrinking
         }}
       >
         {/* Bet Input */}
@@ -715,96 +716,98 @@ const PlayerLobby = ({
         overflow: 'hidden'
       }}>
         <Box
-          ref={gridContainerRef}
+  ref={gridContainerRef}
+  sx={{
+    flex: 1,
+    display: 'grid',
+    gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`, // ✅ 10 columns
+    gridAutoRows: 'minmax(42px, auto)',
+    gap: 0.5,
+    justifyContent: 'center',
+    p: 0.5,
+    background: 'rgba(255,255,255,0.7)',
+    borderRadius: 2,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    overflow: 'auto', // ✅ Enable scrolling
+    mb: 0.5,
+    mx: 'auto',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    maxHeight: '450px', // ✅ Limit height to enable vertical scroll
+  }}
+>
+  {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
+    const isOccupied = occupiedCards.includes(id);
+    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+    const isSelectedByOthers = isOccupied && !isSelectedByUser;
+    const isPending = pendingOperations.has(id);
+    const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
+
+    return (
+      <motion.div
+        key={id}
+        whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+        whileTap={{ scale: isDisabled ? 1 : 0.95 }}
+        style={{ width: '100%', height: '100%' }}
+      >
+        <Box
+          onClick={() => !isDisabled && togglePlayer(id)}
           sx={{
-            flex: 1,
-            display: 'grid',
-            gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`,
-            gridAutoRows: 'minmax(30px, auto)',
-            gap: 0.5,
-            justifyContent: 'center',
-            p: 0.5,
-            background: 'rgba(255,255,255,0.7)',
-            borderRadius: 2,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            overflow: 'auto',
-            mb: 0.5,
-            mx: 'auto',
             width: '100%',
-            maxWidth: '100%',
-            boxSizing: 'border-box',
+            height: '100%',
+            minHeight: 42,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '4px',
+            fontWeight: 'bold',
+            fontSize: '0.8rem',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s ease',
+            opacity: isDisabled ? 0.7 : 1,
+
+            background: isSelectedByUser
+              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+              : isSelectedByOthers
+              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
+              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+
+            color: isSelectedByUser
+              ? 'white'
+              : isSelectedByOthers
+              ? '#d32f2f'
+              : 'text.primary',
+
+            border: isSelectedByUser
+              ? '2px solid #2E7D32'
+              : isSelectedByOthers
+              ? '2px solid #d32f2f'
+              : '1px solid #e0e0e0',
+
+            boxShadow: isSelectedByUser
+              ? '0 4px 8px rgba(76,175,80,0.3)'
+              : isSelectedByOthers
+              ? '0 2px 4px rgba(244,67,54,0.2)'
+              : '0 2px 4px rgba(33,150,243,0.2)',
+
+            '&:hover': !isDisabled ? {
+              background: isSelectedByUser
+                ? 'linear-gradient(145deg, #388E3C, #689F38)'
+                : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
+            } : {},
           }}
         >
-          {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
-            const isOccupied = occupiedCards.includes(id);
-            const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-            const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            const isPending = pendingOperations.has(id);
-            const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
-
-            return (
-              <motion.div
-                key={id}
-                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
-                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
-              >
-                <Box
-                  onClick={() => !isDisabled && togglePlayer(id)}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    minHeight: 42,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    fontSize: '0.8rem',
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    opacity: isDisabled ? 0.7 : 1,
-
-                    background: isSelectedByUser
-                      ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
-                      : isSelectedByOthers
-                      ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
-                      : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
-
-                    color: isSelectedByUser
-                      ? 'white'
-                      : isSelectedByOthers
-                      ? '#d32f2f'
-                      : 'text.primary',
-
-                    border: isSelectedByUser
-                      ? '2px solid #2E7D32'
-                      : isSelectedByOthers
-                      ? '2px solid #d32f2f'
-                      : '1px solid #e0e0e0',
-
-                    boxShadow: isSelectedByUser
-                      ? '0 4px 8px rgba(76,175,80,0.3)'
-                      : isSelectedByOthers
-                      ? '0 2px 4px rgba(244,67,54,0.2)'
-                      : '0 2px 4px rgba(33,150,243,0.2)',
-
-                    '&:hover': !isDisabled ? {
-                      background: isSelectedByUser
-                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                        : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
-                    } : {},
-                  }}
-                >
-                  {isPending ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    id
-                  )}
-                </Box>
-              </motion.div>
-            );
-          })}
+          {isPending ? (
+            <CircularProgress size={20} />
+          ) : (
+            id
+          )}
         </Box>
+      </motion.div>
+    );
+  })}
+</Box>
 
         {/* Action Buttons - Two buttons in one row */}
         <Box
@@ -815,6 +818,7 @@ const PlayerLobby = ({
             px: 1,
             display: 'flex',
             gap: 1,
+            flexShrink: 0, // Prevent shrinking
           }}
         >
           {/* Left Button */}
