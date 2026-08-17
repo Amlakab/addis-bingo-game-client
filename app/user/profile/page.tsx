@@ -178,8 +178,34 @@ export default function ProfilePage() {
 
   const stats = calculateStats();
 
-  if (!user && !isLoading) return <p className="text-center mt-10 text-gray-500">User not found</p>;
-  if (isLoading) return <p className="text-center mt-10 text-gray-500">Loading...</p>;
+  // ✅ If user not found (after loading), show message with navigation
+  if (!user && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <MobileHeader title="Profile" showWallet={false} />
+        <div className="flex items-center justify-center h-64">
+          <p className="text-center text-gray-500">User not found</p>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
+
+  // ✅ Show loading spinner ONLY for content, navigation stays visible
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pb-20">
+        <MobileHeader title="Profile" showWallet={false} />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+        <MobileNavigation />
+      </div>
+    );
+  }
 
   const ProfileInfo = () => (
     <motion.div 
