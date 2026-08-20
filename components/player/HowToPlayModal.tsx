@@ -312,16 +312,16 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
   const getTabLabel = (index: number) => {
     if (language === 'am') {
       switch(index) {
-        case 0: return '💰 ገንዘብ ማስገባት';
-        case 1: return '💸 ገንዘብ ማውጣት';
-        case 2: return '🎮 እንዴት መጫወት እንደሚቻል';
+        case 0: return '🎮 እንዴት መጫወት እንደሚቻል';
+        case 1: return '💰 ገንዘብ ማስገባት';
+        case 2: return '💸 ገንዘብ ማውጣት';
         default: return '';
       }
     } else {
       switch(index) {
-        case 0: return '💰 Deposit';
-        case 1: return '💸 Withdraw';
-        case 2: return '🎮 How to Play';
+        case 0: return '🎮 How to Play';
+        case 1: return '💰 Deposit';
+        case 2: return '💸 Withdraw';
         default: return '';
       }
     }
