@@ -65,7 +65,7 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 4, 
       title: "Transfer Funds", 
       text: "Transfer the exact amount to the provided account details. You'll receive a transaction reference via SMS.",
-      file: "/Step8.png", 
+      file: "/message.jpg", 
       alt: "Transfer Funds" 
     },
     { 
@@ -102,7 +102,7 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 4, 
       title: "ገንዘብ ያስተላልፉ", 
       text: "በተሰጠው የሂሳብ ዝርዝር ላይ ትክክለኛውን መጠን ያስተላልፉ። የግብይት መለያ ቁጥር በኤስኤምኤስ ይደርስዎታል።",
-      file: "/Step8.png", 
+      file: "/message.jpg", 
       alt: "ገንዘብ ማስተላለፍ" 
     },
     { 
@@ -122,35 +122,35 @@ const WithdrawalSteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "Start Withdrawal", 
       text: "Click the 'Withdraw' button from the main menu.",
-      file: "/Step4.png", 
+      file: "/withdrowal_select.jpg", 
       alt: "Withdraw Button" 
     },
     { 
       step: 2, 
-      title: "Enter Amount", 
-      text: "Enter the amount you wish to withdraw (Minimum: 100 ETB).",
-      file: "/Step8.png", 
-      alt: "Enter Amount" 
+      title: "Choose Payment Method", 
+      text: "Select your preferred withdrawal method: Telebirr or CBE Birr.",
+      file: "/withdrowal_payment.jpg", 
+      alt: "Payment Method" 
     },
     { 
       step: 3, 
-      title: "Choose Payment Method", 
-      text: "Select your preferred withdrawal method: Telebirr or CBE Birr.",
-      file: "/Step4.png", 
-      alt: "Payment Method" 
+      title: "Enter Amount", 
+      text: "Enter the amount you wish to withdraw (Minimum: 100 ETB).",
+      file: "/withdrowal_amount.jpg", 
+      alt: "Enter Amount" 
     },
     { 
       step: 4, 
       title: "Enter Account Details", 
       text: "Enter your Telebirr phone number or bank account number where the funds should be sent.",
-      file: "/Step4.png", 
+      file: "/withdrowal_account.jpg", 
       alt: "Account Details" 
     },
     { 
       step: 5, 
       title: "Enter Account Holder Name", 
       text: "Enter the full name of the account holder to complete the withdrawal request.",
-      file: "/Step4.png", 
+      file: "/withdrowal_holdername.jpg", 
       alt: "Account Holder Name" 
     }
   ],
@@ -159,35 +159,35 @@ const WithdrawalSteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "ገንዘብ ማውጣት ይጀምሩ", 
       text: "ከዋና ማውጫ 'ገንዘብ አውጣ' የሚለውን ቁልፍ ይጫኑ።",
-      file: "/Step4.png", 
+      file: "/withdrowal_select.jpg", 
       alt: "ገንዘብ ማውጫ ቁልፍ" 
     },
     { 
       step: 2, 
-      title: "መጠን ያስገቡ", 
-      text: "ማውጣት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 100 ብር)።",
-      file: "/Step8.png", 
-      alt: "መጠን ማስገቢያ" 
+      title: "የመቀበያ መንገድ ይምረጡ", 
+      text: "የሚመርጡትን የመቀበያ መንገድ ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
+      file: "/withdrowal_payment.jpg", 
+      alt: "የመቀበያ መንገድ" 
     },
     { 
       step: 3, 
-      title: "የመቀበያ መንገድ ይምረጡ", 
-      text: "የሚመርጡትን የመቀበያ መንገድ ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
-      file: "/Step4.png", 
-      alt: "የመቀበያ መንገድ" 
+      title: "መጠን ያስገቡ", 
+      text: "ማውጣት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 100 ብር)።",
+      file: "/withdrowal_amount.jpg", 
+      alt: "መጠን ማስገቢያ" 
     },
     { 
       step: 4, 
       title: "የሂሳብ ዝርዝር ያስገቡ", 
       text: "ገንዘቡ የሚላክበትን የቴሌብር ስልክ ቁጥር ወይም የባንክ ሂሳብ ቁጥር ያስገቡ።",
-      file: "/Step4.png", 
+      file: "/withdrowal_account.jpg", 
       alt: "የሂሳብ ዝርዝር" 
     },
     { 
       step: 5, 
       title: "የሂሳብ ባለቤት ስም ያስገቡ", 
       text: "የመውጫ ጥያቄውን ለማጠናቀቅ የሂሳቡን ባለቤት ሙሉ ስም ያስገቡ።",
-      file: "/Step4.png", 
+      file: "/withdrowal_holdername.jpg", 
       alt: "የሂሳብ ባለቤት ስም" 
     }
   ]
@@ -215,7 +215,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       step: 3, 
       title: "Game Play", 
       text: "When the game starts (after the timer reaches 0), numbers will be called automatically. Mark the called numbers on your card as they appear.",
-      file: "/Step9.png", 
+      file: "/playing.jpg", 
       alt: "Game Play" 
     },
     { 
@@ -223,7 +223,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       title: "Winning", 
       text: 'If you complete a winning pattern (Row, Column, Diagonal, or Corners), click the "BINGO" button. The system will verify your win.',
       note: "Important: Never click the Bingo button if you haven't actually won, as the system will block your cards for false claims.", 
-      file: "/Stepp11.png", 
+      file: "/winn.jpg", 
       alt: "Winning" 
     },
   ],
@@ -247,7 +247,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       step: 3, 
       title: "ጨዋታ መጫወት", 
       text: "ጨዋታው ሲጀመር (ሰዓት ቆጣሪው 0 ሲደርስ) ቁጥሮች በራስ-ሰር ይጠራሉ። በካርድዎ ላይ የተጠሩትን ቁጥሮች ሲታዩ ምልክት ያድርጉባቸው።",
-      file: "/Step9.png", 
+      file: "/playing.jpg", 
       alt: "ጨዋታ መጫወት" 
     },
     { 
@@ -255,7 +255,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       title: "ማሸነፍ", 
       text: 'የማሸነፊያ ቅደም ተከተል (ረድፍ፣ አምድ፣ ዲያግናል፣ ወይም ማእዘኖች) ካጠናቀቁ "BINGO" የሚለውን ቁልፍ ይጫኑ። ስርዓቱ ድልዎን ያረጋግጣል።',
       note: "አስፈላጊ: በእውነት ካላሸነፉ በስተቀር የቢንጎ ቁልፍን በጭራሽ አይጫኑ፣ ምክንያቱም ስርዓቱ ለሐሰት የይገባኛል ጥያቄ ካርዶችዎን ያግዳል።", 
-      file: "/Stepp11.png", 
+      file: "/winn.jpg", 
       alt: "ማሸነፍ" 
     },
   ]
