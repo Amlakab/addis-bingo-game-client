@@ -28,7 +28,7 @@ interface GameSession {
 
 export default function LobbyPage() {
   const router = useRouter();
-  const [language, setLanguage] = useState<'en' | 'am'>('en');
+  const [language, setLanguage] = useState<'am' | 'en'>('am');
   const [players, setPlayers] = useState<PlayerSelection[]>([]);
   const [bet, setBet] = useState(0);
   const [earningsPercentage, setEarningsPercentage] = useState(20);
