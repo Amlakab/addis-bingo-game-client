@@ -44,22 +44,22 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "Start Deposit", 
       text: "Click the 'Deposit' button from the main menu.",
-      file: "/Step4.png", 
+      file: "/register_select.jpg", 
       alt: "Deposit Button" 
     },
-    { 
+     { 
       step: 2, 
-      title: "Enter Amount", 
-      text: "Enter the amount you wish to deposit (Minimum: 10 ETB). Deposits above 50 ETB receive a 10% bonus!",
-      file: "/Step8.png", 
-      alt: "Enter Amount" 
+      title: "Choose Payment Method", 
+      text: "Select your preferred payment method: Telebirr or CBE Birr.",
+      file: "/payment_select.jpg", 
+      alt: "Payment Method" 
     },
     { 
       step: 3, 
-      title: "Choose Payment Method", 
-      text: "Select your preferred payment method: Telebirr or CBE Birr.",
-      file: "/Step4.png", 
-      alt: "Payment Method" 
+      title: "Enter Amount", 
+      text: "Enter the amount you wish to deposit (Minimum: 10 ETB). Deposits above 50 ETB receive a bonus!",
+      file: "/amount_select.jpg", 
+      alt: "Enter Amount" 
     },
     { 
       step: 4, 
@@ -72,7 +72,7 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 5, 
       title: "Submit Transaction ID", 
       text: "Copy and paste the transaction ID you received via SMS to complete the deposit process.",
-      file: "/Step4.png", 
+      file: "/transaction_select.jpg", 
       alt: "Submit Transaction" 
     }
   ],
@@ -87,7 +87,7 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
     { 
       step: 2, 
       title: "መጠን ያስገቡ", 
-      text: "ማስገባት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 10 ብር)። ከ 50 ብር በላይ ሲያስገቡ 10% ቦነስ ያገኛሉ!",
+      text: "ማስገባት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 10 ብር)። ከ 50 ብር በላይ ሲያስገቡ ቦነስ ያገኛሉ!",
       file: "/Step8.png", 
       alt: "መጠን ማስገቢያ" 
     },
@@ -343,21 +343,21 @@ export default function HowToPlayModal({ open, onClose, language = 'en' }: HowTo
       aria-labelledby="how-to-play-modal"
       aria-describedby="how-to-play-instructions"
     >
-      <Box sx={{
+        <Box sx={{
         position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: isMobile ? '95%' : '90%',
-        maxWidth: 800,
-        maxHeight: '90vh',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
         bgcolor: 'background.paper',
-        borderRadius: 3,
+        borderRadius: 0, // Remove border radius
         boxShadow: 24,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-      }}>
+        }}>
         {/* Header */}
         <Box sx={{
           p: 2,
