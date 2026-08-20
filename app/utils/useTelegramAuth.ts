@@ -46,7 +46,7 @@ export const useTelegramAuth = () => {
    * localStorage/sessionStorage from a previous user.
    */
   const clearOldSession = () => {
-    // console.log('🧹 [Auth] Clearing old session data...');
+    console.log('🧹 [Auth] Clearing old session data...');
 
     try {
       localStorage.removeItem('token');
@@ -76,34 +76,34 @@ export const useTelegramAuth = () => {
         telegramWebApp.ready();
         telegramWebApp.expand();
 
-        // console.log(
-        //   '📱 [Telegram WebApp] Initialized successfully'
-        // );
+        console.log(
+          '📱 [Telegram WebApp] Initialized successfully'
+        );
 
-        // console.log(
-        //   '📱 [Telegram WebApp] initData available:',
-        //   !!telegramWebApp.initData
-        // );
+        console.log(
+          '📱 [Telegram WebApp] initData available:',
+          !!telegramWebApp.initData
+        );
 
-        // console.log(
-        //   '📱 [Telegram WebApp] initDataUnsafe:',
-        //   telegramWebApp.initDataUnsafe
-        // );
+        console.log(
+          '📱 [Telegram WebApp] initDataUnsafe:',
+          telegramWebApp.initDataUnsafe
+        );
       } else {
         console.log(
           'ℹ️ [Telegram WebApp] Telegram WebApp API not detected'
         );
       }
 
-      // console.log(
-      //   '🌐 [Auth] Current URL:',
-      //   window.location.href
-      // );
+      console.log(
+        '🌐 [Auth] Current URL:',
+        window.location.href
+      );
 
-      // console.log(
-      //   '🔑 [Auth] Current code:',
-      //   new URLSearchParams(window.location.search).get('code')
-      // );
+      console.log(
+        '🔑 [Auth] Current code:',
+        new URLSearchParams(window.location.search).get('code')
+      );
     } catch (error) {
       console.error(
         '❌ [Telegram WebApp] Initialization error:',
@@ -141,27 +141,27 @@ export const useTelegramAuth = () => {
 
         const code = searchParams.get('code');
 
-        // console.log(
-        //   '🔎 [Telegram Auth] URL code:',
-        //   code
-        // );
+        console.log(
+          '🔎 [Telegram Auth] URL code:',
+          code
+        );
 
         if (code) {
           // Prevent duplicate exchange
           if (isExchangingRef.current) {
-            // console.log(
-            //   '⏳ [Telegram Auth] Code exchange already in progress...'
-            // );
+            console.log(
+              '⏳ [Telegram Auth] Code exchange already in progress...'
+            );
 
             return;
           }
 
           isExchangingRef.current = true;
 
-          // console.log(
-          //   '🤖 [Telegram Auth] One-time Bingo code detected:',
-          //   code
-          // );
+          console.log(
+            '🤖 [Telegram Auth] One-time Bingo code detected:',
+            code
+          );
 
           // ---------------------------------------------------
           // IMPORTANT:
@@ -183,14 +183,14 @@ export const useTelegramAuth = () => {
           }
 
           try {
-            // console.log(
-            //   '🔄 [Telegram Auth] Sending code to backend...'
-            // );
+            console.log(
+              '🔄 [Telegram Auth] Sending code to backend...'
+            );
 
-            // console.log(
-            //   '🔄 [Telegram Auth] Endpoint:',
-            //   '/auth/exchange-game-code'
-            // );
+            console.log(
+              '🔄 [Telegram Auth] Endpoint:',
+              '/auth/exchange-game-code'
+            );
 
             const response = await api.post(
               '/auth/exchange-game-code',
@@ -199,10 +199,10 @@ export const useTelegramAuth = () => {
               }
             );
 
-            // console.log(
-            //   '📥 [Telegram Auth] Backend response:',
-            //   response.data
-            // );
+            console.log(
+              '📥 [Telegram Auth] Backend response:',
+              response.data
+            );
 
             // -------------------------------------------------
             // SUCCESS
@@ -217,19 +217,19 @@ export const useTelegramAuth = () => {
               const token = responseData?.token;
               const userData = responseData?.user;
 
-              // console.log(
-              //   '🎉 [Telegram Auth] Code validated successfully!'
-              // );
+              console.log(
+                '🎉 [Telegram Auth] Code validated successfully!'
+              );
 
-              // console.log(
-              //   '👤 [Telegram Auth] User:',
-              //   userData
-              // );
+              console.log(
+                '👤 [Telegram Auth] User:',
+                userData
+              );
 
-              // console.log(
-              //   '🔑 [Telegram Auth] Token received:',
-              //   !!token
-              // );
+              console.log(
+                '🔑 [Telegram Auth] Token received:',
+                !!token
+              );
 
               // Validate backend response
               if (!token || !userData) {
@@ -263,9 +263,9 @@ export const useTelegramAuth = () => {
                   JSON.stringify(userData)
                 );
 
-                // console.log(
-                //   '💾 [Telegram Auth] New session saved successfully'
-                // );
+                console.log(
+                  '💾 [Telegram Auth] New session saved successfully'
+                );
               } catch (storageError) {
                 console.error(
                   '❌ Error...',
@@ -278,9 +278,9 @@ export const useTelegramAuth = () => {
               // -------------------------------------------------
 
               if (setSession) {
-                // console.log(
-                //   '🔄 [Telegram Auth] Updating React Auth Context...'
-                // );
+                console.log(
+                  '🔄 [Telegram Auth] Updating React Auth Context...'
+                );
 
                 setSession(
                   userData,
@@ -312,17 +312,17 @@ export const useTelegramAuth = () => {
               // /user/lobby
               // -------------------------------------------------
 
-              // console.log(
-              //   '🧹 [Telegram Auth] Removing code from URL...'
-              // );
+              console.log(
+                '🧹 [Telegram Auth] Removing code from URL...'
+              );
 
-              // router.replace(
-              //   window.location.pathname
-              // );
+              router.replace(
+                window.location.pathname
+              );
 
-              // console.log(
-              //   '✅ [Telegram Auth] Authentication completed successfully'
-              // );
+              console.log(
+                '✅ [Telegram Auth] Authentication completed successfully'
+              );
 
               return;
             }
@@ -335,10 +335,10 @@ export const useTelegramAuth = () => {
               response.data?.message ||
               'Code exchange failed on backend.';
 
-            // console.error(
-            //   '❌ [Telegram Auth] Code exchange rejected:',
-            //   errorMessage
-            // );
+            console.error(
+              '❌ [Telegram Auth] Code exchange rejected:',
+              errorMessage
+            );
 
             clearOldSession();
 
@@ -360,10 +360,10 @@ export const useTelegramAuth = () => {
             // REQUEST ERROR
             // -------------------------------------------------
 
-            // console.error(
-            //   '❌ [Telegram Auth] Exception during code exchange:',
-            //   error
-            // );
+            console.error(
+              '❌ [Telegram Auth] Exception during code exchange:',
+              error
+            );
 
             const serverError =
               error?.response?.data?.message ||
@@ -371,20 +371,20 @@ export const useTelegramAuth = () => {
               error?.message ||
               'Network error while connecting to authentication server.';
 
-            // console.error(
-            //   '❌ [Telegram Auth] Server error:',
-            //   serverError
-            // );
+            console.error(
+              '❌ [Telegram Auth] Server error:',
+              serverError
+            );
 
-            // console.error(
-            //   '❌ [Telegram Auth] HTTP status:',
-            //   error?.response?.status
-            // );
+            console.error(
+              '❌ [Telegram Auth] HTTP status:',
+              error?.response?.status
+            );
 
-            // console.error(
-            //   '❌ [Telegram Auth] HTTP response:',
-            //   error?.response?.data
-            // );
+            console.error(
+              '❌ [Telegram Auth] HTTP response:',
+              error?.response?.data
+            );
 
             clearOldSession();
 
@@ -412,10 +412,10 @@ export const useTelegramAuth = () => {
         // =====================================================
 
         if (user) {
-          // console.log(
-          //   '✅ [Auth] Existing React session found:',
-          //   user
-          // );
+          console.log(
+            '✅ [Auth] Existing React session found:',
+            user
+          );
 
           if (isMounted) {
             setIsAuthenticated(true);
@@ -438,15 +438,15 @@ export const useTelegramAuth = () => {
         const storedUser =
           localStorage.getItem('user');
 
-        // console.log(
-        //   '📦 [Auth] Stored token exists:',
-        //   !!storedToken
-        // );
+        console.log(
+          '📦 [Auth] Stored token exists:',
+          !!storedToken
+        );
 
-        // console.log(
-        //   '📦 [Auth] Stored user exists:',
-        //   !!storedUser
-        // );
+        console.log(
+          '📦 [Auth] Stored user exists:',
+          !!storedUser
+        );
 
         if (
           storedToken &&
@@ -456,10 +456,10 @@ export const useTelegramAuth = () => {
             const parsedUser =
               JSON.parse(storedUser);
 
-            // console.log(
-            //   '📦 [Auth] Restoring existing session:',
-            //   parsedUser
-            // );
+            console.log(
+              '📦 [Auth] Restoring existing session:',
+              parsedUser
+            );
 
             if (setSession) {
               setSession(
@@ -475,10 +475,10 @@ export const useTelegramAuth = () => {
 
             return;
           } catch (error) {
-            // console.error(
-            //   '❌ [Auth] Failed to parse stored user:',
-            //   error
-            // );
+            console.error(
+              '❌ [Auth] Failed to parse stored user:',
+              error
+            );
 
             clearOldSession();
           }
@@ -489,9 +489,9 @@ export const useTelegramAuth = () => {
         // NO AUTHENTICATION
         // =====================================================
 
-        // console.log(
-        //   'ℹ️ [Auth] No active session or Telegram code found.'
-        // );
+        console.log(
+          'ℹ️ [Auth] No active session or Telegram code found.'
+        );
 
         if (isMounted) {
           setIsAuthenticated(false);
@@ -502,10 +502,10 @@ export const useTelegramAuth = () => {
         // GLOBAL AUTH ERROR
         // =====================================================
 
-        // console.error(
-        //   '❌ [Auth] Unexpected authentication error:',
-        //   error
-        // );
+        console.error(
+          '❌ [Auth] Unexpected authentication error:',
+          error
+        );
 
         if (isMounted) {
           setIsAuthenticated(false);
