@@ -412,9 +412,9 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             borderBottom: `2px solid ${getTabColor(activeTab)}`,
             pb: 1
           }}>
-            {activeTab === 0 && (language === 'am' ? '📝 ገንዘብ ማስገባት ደረጃዎች' : '📝 Deposit Steps')}
-            {activeTab === 1 && (language === 'am' ? '📝 ገንዘብ ማውጣት ደረጃዎች' : '📝 Withdrawal Steps')}
-            {activeTab === 2 && (language === 'am' ? '📝 የጨዋታ መመሪያ' : '📝 Game Instructions')}
+            {activeTab === 0 && (language === 'am' ? '📝 የጨዋታ መመሪያ' : '📝 Game Instructions')}
+            {activeTab === 1 && (language === 'am' ? '📝 ገንዘብ ማስገባት ደረጃዎች' : '📝 Deposit Steps')}
+            {activeTab === 2 && (language === 'am' ? '📝 ገንዘብ ማውጣት ደረጃዎች' : '📝 Withdrawal Steps')}
           </Typography>
 
           {/* Stepper */}
