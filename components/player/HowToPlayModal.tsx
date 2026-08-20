@@ -81,22 +81,22 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "ገንዘብ ማስገባት ይጀምሩ", 
       text: "ከዋና ማውጫ 'ገንዘብ አስገባ' የሚለውን ቁልፍ ይጫኑ።",
-      file: "/Step4.png", 
+      file: "/register_select.jpg", 
       alt: "ገንዘብ ማስገቢያ ቁልፍ" 
     },
     { 
       step: 2, 
-      title: "መጠን ያስገቡ", 
-      text: "ማስገባት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 10 ብር)። ከ 50 ብር በላይ ሲያስገቡ ቦነስ ያገኛሉ!",
-      file: "/Step8.png", 
-      alt: "መጠን ማስገቢያ" 
+      title: "የክፍያ አይነት ይምረጡ", 
+      text: "የሚመርጡትን የክፍያ አይነት ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
+      file: "/payment_select.jpg", 
+      alt: "የክፍያ አይነት" 
     },
     { 
       step: 3, 
-      title: "የክፍያ አይነት ይምረጡ", 
-      text: "የሚመርጡትን የክፍያ አይነት ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
-      file: "/Step4.png", 
-      alt: "የክፍያ አይነት" 
+      title: "መጠን ያስገቡ", 
+      text: "ማስገባት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 10 ብር)። ከ 50 ብር በላይ ሲያስገቡ ቦነስ ያገኛሉ!",
+      file: "/amount_select.jpg", 
+      alt: "መጠን ማስገቢያ" 
     },
     { 
       step: 4, 
@@ -109,7 +109,7 @@ const DepositSteps: { en: StepType[]; am: StepType[] } = {
       step: 5, 
       title: "የግብይት መለያ ያስገቡ", 
       text: "በኤስኤምኤስ የደረሰውን የግብይት መለያ ቁጥር ኮፒ አድርገው ያስገቡ።",
-      file: "/Step4.png", 
+      file: "/transaction_select.jpg", 
       alt: "የግብይት መለያ ማስገቢያ" 
     }
   ]
@@ -200,7 +200,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "Select a Game", 
       text: 'Click "Play Bingo" from the main menu to see available game options. Select a game that matches your preferred bet amount.',
-      file: "/Step5.png", 
+      file: "/game_select.jpg", 
       alt: "Select a Game" 
     },
     { 
@@ -208,7 +208,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       title: "Select Your Cards", 
       text: "For the selected game, choose your bingo cards. You can select up to 2 cards and change your selection until the timer reaches 0 seconds or the game starts.",
       note: "Note: You can clear selected cards before the game starts for a refund. After the game starts, you cannot clear your selected cards.", 
-      file: "/Step10.png", 
+      file: "/card_select.jpg", 
       alt: "Select Your Cards" 
     },
     { 
@@ -232,7 +232,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       step: 1, 
       title: "ጨዋታ መምረጥ", 
       text: 'ከዋና ማውጫ "ቢንጎ ተጫወት" የሚለውን ተጭነው የሚገኙ ጨዋታዎችን ይመልከቱ እና በሚመርጡት የውርርድ መጠን የሚስማማ ይምረጡ።',
-      file: "/Step5.png", 
+      file: "/game_select.jpg", 
       alt: "ጨዋታ መምረጥ" 
     },
     { 
@@ -240,7 +240,7 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
       title: "ካርዶችን መምረጥ", 
       text: "ለተመረጠው ጨዋታ የቢንጎ ካርዶችዎን ይምረጡ። እስከ 2 ካርዶች መምረጥ ይችላሉ እና ሰዓት ቆጣሪው 0 ሰከንድ እስኪደርስ ወይም ጨዋታው እስኪጀመር ድረስ ምርጫዎን መለወጥ ይችላሉ።",
       note: "ማስታወሻ: ጨዋታው ከመጀመሩ በፊት የተመረጡ ካርዶችን ማጽዳት እና ገንዘብ መመለስ ይችላሉ። ጨዋታው ከተጀመረ በኋላ የተመረጡ ካርዶችን ማጽዳት አይችሉም።", 
-      file: "/Step10.png", 
+      file: "/card_select.jpg", 
       alt: "ካርዶችን መምረጥ" 
     },
     { 
@@ -261,23 +261,23 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
   ]
 };
 
-export default function HowToPlayModal({ open, onClose, language = 'en' }: HowToPlayModalProps) {
+export default function HowToPlayModal({ open, onClose, language = 'am' }: HowToPlayModalProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [activeStep, setActiveStep] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
 
   // Get the appropriate steps based on language and tab
+  const howToPlaySteps = language === 'am' ? HowToPlaySteps.am : HowToPlaySteps.en;
   const depositSteps = language === 'am' ? DepositSteps.am : DepositSteps.en;
   const withdrawalSteps = language === 'am' ? WithdrawalSteps.am : WithdrawalSteps.en;
-  const howToPlaySteps = language === 'am' ? HowToPlaySteps.am : HowToPlaySteps.en;
 
   const getCurrentSteps = (): StepType[] => {
     switch(activeTab) {
-      case 0: return depositSteps;
-      case 1: return withdrawalSteps;
-      case 2: return howToPlaySteps;
-      default: return depositSteps;
+      case 0: return howToPlaySteps;
+      case 1: return depositSteps;
+      case 2: return withdrawalSteps;
+      default: return howToPlaySteps;
     }
   };
 
