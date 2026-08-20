@@ -14,6 +14,7 @@ import {
   AccountBalanceWallet
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
+import HowToPlayModal from '@/components/player/HowToPlayModal';
 
 interface BetSelectionPageProps {
   onPlay: (betAmount: number, timeRemaining: number, players: number, createdAt: Date) => void;
@@ -59,7 +60,7 @@ interface Game {
 
 const BetSelectionPage = ({ 
   onPlay,
-  language = 'en'
+  language = 'am'
 }: BetSelectionPageProps) => {
   const [betOptions, setBetOptions] = useState<number[]>([]);
   const [betStatuses, setBetStatuses] = useState<{[key: number]: BetStatus}>({});
@@ -70,6 +71,8 @@ const BetSelectionPage = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
   
   // Track which bets have been reset to avoid multiple calls
   const resetTrackerRef = useRef<{[key: number]: boolean}>({});
@@ -553,8 +556,27 @@ const BetSelectionPage = ({
               : "All games use a fair random system. Winners receive 80% of the prize pool."
             }
           </Typography>
+          <Button
+            onClick={() => setHowToPlayOpen(true)}
+            variant="outlined"
+            color="info"
+            sx={{
+              fontWeight: 'bold',
+              borderRadius: 2,
+              px: 3,
+              py: 1
+            }}
+          >
+            {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play'}
+          </Button>
         </motion.div>
       </Box>
+
+      <HowToPlayModal
+        open={howToPlayOpen}
+        onClose={() => setHowToPlayOpen(false)}
+        language={language}
+      />
     </motion.div>
   );
 };

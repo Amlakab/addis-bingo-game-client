@@ -53,7 +53,7 @@ const PlayerLobby = ({
   initialBet,
   initialTime,
   createdAt,
-  language = 'en',
+  language = 'am',
   setLanguage,
   onBackToLobby,
   onDirectToGame

@@ -1,0 +1,552 @@
+// components/ui/HowToPlayModal.tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import {
+  Modal,
+  Box,
+  Typography,
+  IconButton,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Button,
+  Paper,
+  useTheme,
+  useMediaQuery,
+  Tabs,
+  Tab
+} from '@mui/material';
+import { Close as CloseIcon } from '@mui/icons-material';
+import Image from 'next/image';
+
+interface HowToPlayModalProps {
+  open: boolean;
+  onClose: () => void;
+  language?: 'en' | 'am';
+}
+
+// Define the Step type with optional note
+interface StepType {
+  step: number;
+  title: string;
+  text: string;
+  file: string;
+  alt: string;
+  note?: string; // Make note optional
+}
+
+// Deposit Steps (replaces AccessSteps)
+const DepositSteps: { en: StepType[]; am: StepType[] } = {
+  en: [
+    { 
+      step: 1, 
+      title: "Start Deposit", 
+      text: "Click the 'Deposit' button from the main menu.",
+      file: "/Step4.png", 
+      alt: "Deposit Button" 
+    },
+    { 
+      step: 2, 
+      title: "Enter Amount", 
+      text: "Enter the amount you wish to deposit (Minimum: 10 ETB). Deposits above 50 ETB receive a 10% bonus!",
+      file: "/Step8.png", 
+      alt: "Enter Amount" 
+    },
+    { 
+      step: 3, 
+      title: "Choose Payment Method", 
+      text: "Select your preferred payment method: Telebirr or CBE Birr.",
+      file: "/Step4.png", 
+      alt: "Payment Method" 
+    },
+    { 
+      step: 4, 
+      title: "Transfer Funds", 
+      text: "Transfer the exact amount to the provided account details. You'll receive a transaction reference via SMS.",
+      file: "/Step8.png", 
+      alt: "Transfer Funds" 
+    },
+    { 
+      step: 5, 
+      title: "Submit Transaction ID", 
+      text: "Copy and paste the transaction ID you received via SMS to complete the deposit process.",
+      file: "/Step4.png", 
+      alt: "Submit Transaction" 
+    }
+  ],
+  am: [
+    { 
+      step: 1, 
+      title: "ገንዘብ ማስገባት ይጀምሩ", 
+      text: "ከዋና ማውጫ 'ገንዘብ አስገባ' የሚለውን ቁልፍ ይጫኑ።",
+      file: "/Step4.png", 
+      alt: "ገንዘብ ማስገቢያ ቁልፍ" 
+    },
+    { 
+      step: 2, 
+      title: "መጠን ያስገቡ", 
+      text: "ማስገባት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 10 ብር)። ከ 50 ብር በላይ ሲያስገቡ 10% ቦነስ ያገኛሉ!",
+      file: "/Step8.png", 
+      alt: "መጠን ማስገቢያ" 
+    },
+    { 
+      step: 3, 
+      title: "የክፍያ አይነት ይምረጡ", 
+      text: "የሚመርጡትን የክፍያ አይነት ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
+      file: "/Step4.png", 
+      alt: "የክፍያ አይነት" 
+    },
+    { 
+      step: 4, 
+      title: "ገንዘብ ያስተላልፉ", 
+      text: "በተሰጠው የሂሳብ ዝርዝር ላይ ትክክለኛውን መጠን ያስተላልፉ። የግብይት መለያ ቁጥር በኤስኤምኤስ ይደርስዎታል።",
+      file: "/Step8.png", 
+      alt: "ገንዘብ ማስተላለፍ" 
+    },
+    { 
+      step: 5, 
+      title: "የግብይት መለያ ያስገቡ", 
+      text: "በኤስኤምኤስ የደረሰውን የግብይት መለያ ቁጥር ኮፒ አድርገው ያስገቡ።",
+      file: "/Step4.png", 
+      alt: "የግብይት መለያ ማስገቢያ" 
+    }
+  ]
+};
+
+// Withdrawal Steps (replaces AccessSteps)
+const WithdrawalSteps: { en: StepType[]; am: StepType[] } = {
+  en: [
+    { 
+      step: 1, 
+      title: "Start Withdrawal", 
+      text: "Click the 'Withdraw' button from the main menu.",
+      file: "/Step4.png", 
+      alt: "Withdraw Button" 
+    },
+    { 
+      step: 2, 
+      title: "Enter Amount", 
+      text: "Enter the amount you wish to withdraw (Minimum: 100 ETB).",
+      file: "/Step8.png", 
+      alt: "Enter Amount" 
+    },
+    { 
+      step: 3, 
+      title: "Choose Payment Method", 
+      text: "Select your preferred withdrawal method: Telebirr or CBE Birr.",
+      file: "/Step4.png", 
+      alt: "Payment Method" 
+    },
+    { 
+      step: 4, 
+      title: "Enter Account Details", 
+      text: "Enter your Telebirr phone number or bank account number where the funds should be sent.",
+      file: "/Step4.png", 
+      alt: "Account Details" 
+    },
+    { 
+      step: 5, 
+      title: "Enter Account Holder Name", 
+      text: "Enter the full name of the account holder to complete the withdrawal request.",
+      file: "/Step4.png", 
+      alt: "Account Holder Name" 
+    }
+  ],
+  am: [
+    { 
+      step: 1, 
+      title: "ገንዘብ ማውጣት ይጀምሩ", 
+      text: "ከዋና ማውጫ 'ገንዘብ አውጣ' የሚለውን ቁልፍ ይጫኑ።",
+      file: "/Step4.png", 
+      alt: "ገንዘብ ማውጫ ቁልፍ" 
+    },
+    { 
+      step: 2, 
+      title: "መጠን ያስገቡ", 
+      text: "ማውጣት የሚፈልጉትን መጠን ያስገቡ (አነስተኛ: 100 ብር)።",
+      file: "/Step8.png", 
+      alt: "መጠን ማስገቢያ" 
+    },
+    { 
+      step: 3, 
+      title: "የመቀበያ መንገድ ይምረጡ", 
+      text: "የሚመርጡትን የመቀበያ መንገድ ይምረጡ: ቴሌብር ወይም ሲቢኢ ብር።",
+      file: "/Step4.png", 
+      alt: "የመቀበያ መንገድ" 
+    },
+    { 
+      step: 4, 
+      title: "የሂሳብ ዝርዝር ያስገቡ", 
+      text: "ገንዘቡ የሚላክበትን የቴሌብር ስልክ ቁጥር ወይም የባንክ ሂሳብ ቁጥር ያስገቡ።",
+      file: "/Step4.png", 
+      alt: "የሂሳብ ዝርዝር" 
+    },
+    { 
+      step: 5, 
+      title: "የሂሳብ ባለቤት ስም ያስገቡ", 
+      text: "የመውጫ ጥያቄውን ለማጠናቀቅ የሂሳቡን ባለቤት ሙሉ ስም ያስገቡ።",
+      file: "/Step4.png", 
+      alt: "የሂሳብ ባለቤት ስም" 
+    }
+  ]
+};
+
+// How to Play Bingo Steps (Game Instructions - KEEP THIS)
+const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
+  en: [
+    { 
+      step: 1, 
+      title: "Select a Game", 
+      text: 'Click "Play Bingo" from the main menu to see available game options. Select a game that matches your preferred bet amount.',
+      file: "/Step5.png", 
+      alt: "Select a Game" 
+    },
+    { 
+      step: 2, 
+      title: "Select Your Cards", 
+      text: "For the selected game, choose your bingo cards. You can select up to 2 cards and change your selection until the timer reaches 0 seconds or the game starts.",
+      note: "Note: You can clear selected cards before the game starts for a refund. After the game starts, you cannot clear your selected cards.", 
+      file: "/Step10.png", 
+      alt: "Select Your Cards" 
+    },
+    { 
+      step: 3, 
+      title: "Game Play", 
+      text: "When the game starts (after the timer reaches 0), numbers will be called automatically. Mark the called numbers on your card as they appear.",
+      file: "/Step9.png", 
+      alt: "Game Play" 
+    },
+    { 
+      step: 4, 
+      title: "Winning", 
+      text: 'If you complete a winning pattern (Row, Column, Diagonal, or Corners), click the "BINGO" button. The system will verify your win.',
+      note: "Important: Never click the Bingo button if you haven't actually won, as the system will block your cards for false claims.", 
+      file: "/Stepp11.png", 
+      alt: "Winning" 
+    },
+  ],
+  am: [
+    { 
+      step: 1, 
+      title: "ጨዋታ መምረጥ", 
+      text: 'ከዋና ማውጫ "ቢንጎ ተጫወት" የሚለውን ተጭነው የሚገኙ ጨዋታዎችን ይመልከቱ እና በሚመርጡት የውርርድ መጠን የሚስማማ ይምረጡ።',
+      file: "/Step5.png", 
+      alt: "ጨዋታ መምረጥ" 
+    },
+    { 
+      step: 2, 
+      title: "ካርዶችን መምረጥ", 
+      text: "ለተመረጠው ጨዋታ የቢንጎ ካርዶችዎን ይምረጡ። እስከ 2 ካርዶች መምረጥ ይችላሉ እና ሰዓት ቆጣሪው 0 ሰከንድ እስኪደርስ ወይም ጨዋታው እስኪጀመር ድረስ ምርጫዎን መለወጥ ይችላሉ።",
+      note: "ማስታወሻ: ጨዋታው ከመጀመሩ በፊት የተመረጡ ካርዶችን ማጽዳት እና ገንዘብ መመለስ ይችላሉ። ጨዋታው ከተጀመረ በኋላ የተመረጡ ካርዶችን ማጽዳት አይችሉም።", 
+      file: "/Step10.png", 
+      alt: "ካርዶችን መምረጥ" 
+    },
+    { 
+      step: 3, 
+      title: "ጨዋታ መጫወት", 
+      text: "ጨዋታው ሲጀመር (ሰዓት ቆጣሪው 0 ሲደርስ) ቁጥሮች በራስ-ሰር ይጠራሉ። በካርድዎ ላይ የተጠሩትን ቁጥሮች ሲታዩ ምልክት ያድርጉባቸው።",
+      file: "/Step9.png", 
+      alt: "ጨዋታ መጫወት" 
+    },
+    { 
+      step: 4, 
+      title: "ማሸነፍ", 
+      text: 'የማሸነፊያ ቅደም ተከተል (ረድፍ፣ አምድ፣ ዲያግናል፣ ወይም ማእዘኖች) ካጠናቀቁ "BINGO" የሚለውን ቁልፍ ይጫኑ። ስርዓቱ ድልዎን ያረጋግጣል።',
+      note: "አስፈላጊ: በእውነት ካላሸነፉ በስተቀር የቢንጎ ቁልፍን በጭራሽ አይጫኑ፣ ምክንያቱም ስርዓቱ ለሐሰት የይገባኛል ጥያቄ ካርዶችዎን ያግዳል።", 
+      file: "/Stepp11.png", 
+      alt: "ማሸነፍ" 
+    },
+  ]
+};
+
+export default function HowToPlayModal({ open, onClose, language = 'en' }: HowToPlayModalProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [activeStep, setActiveStep] = useState(0);
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Get the appropriate steps based on language and tab
+  const depositSteps = language === 'am' ? DepositSteps.am : DepositSteps.en;
+  const withdrawalSteps = language === 'am' ? WithdrawalSteps.am : WithdrawalSteps.en;
+  const howToPlaySteps = language === 'am' ? HowToPlaySteps.am : HowToPlaySteps.en;
+
+  const getCurrentSteps = (): StepType[] => {
+    switch(activeTab) {
+      case 0: return depositSteps;
+      case 1: return withdrawalSteps;
+      case 2: return howToPlaySteps;
+      default: return depositSteps;
+    }
+  };
+
+  const currentSteps = getCurrentSteps();
+
+  // Reset active step when modal opens or tab changes
+  useEffect(() => {
+    if (open) {
+      setActiveStep(0);
+    }
+  }, [open, activeTab]);
+
+  const handleNext = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
+  const handleStepChange = (step: number) => {
+    setActiveStep(step);
+  };
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+    setActiveStep(0);
+  };
+
+  const totalSteps = currentSteps.length;
+
+  const getTabLabel = (index: number) => {
+    if (language === 'am') {
+      switch(index) {
+        case 0: return '💰 ገንዘብ ማስገባት';
+        case 1: return '💸 ገንዘብ ማውጣት';
+        case 2: return '🎮 እንዴት መጫወት እንደሚቻል';
+        default: return '';
+      }
+    } else {
+      switch(index) {
+        case 0: return '💰 Deposit';
+        case 1: return '💸 Withdraw';
+        case 2: return '🎮 How to Play';
+        default: return '';
+      }
+    }
+  };
+
+  const getTabColor = (index: number) => {
+    switch(index) {
+      case 0: return '#2e7d32';
+      case 1: return '#d32f2f';
+      case 2: return '#1976d2';
+      default: return '#1976d2';
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      aria-labelledby="how-to-play-modal"
+      aria-describedby="how-to-play-instructions"
+    >
+      <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: isMobile ? '95%' : '90%',
+        maxWidth: 800,
+        maxHeight: '90vh',
+        bgcolor: 'background.paper',
+        borderRadius: 3,
+        boxShadow: 24,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <Box sx={{
+          p: 2,
+          borderBottom: '1px solid #e0e0e0',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          bgcolor: '#f8f9fa'
+        }}>
+          <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+            {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play Gasha Bingo'}
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        {/* Content */}
+        <Box sx={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          p: 3 
+        }}>
+          {/* Tabs */}
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ 
+              mb: 3,
+              borderBottom: '2px solid #e0e0e0',
+              '& .MuiTab-root': {
+                fontWeight: 'bold',
+                textTransform: 'none',
+                fontSize: '0.9rem',
+                minWidth: 'auto',
+                px: 2
+              }
+            }}
+          >
+            <Tab label={getTabLabel(0)} />
+            <Tab label={getTabLabel(1)} />
+            <Tab label={getTabLabel(2)} />
+          </Tabs>
+
+          {/* Section Title */}
+          <Typography variant="h6" sx={{ 
+            fontWeight: 'bold', 
+            color: getTabColor(activeTab),
+            mb: 2,
+            borderBottom: `2px solid ${getTabColor(activeTab)}`,
+            pb: 1
+          }}>
+            {activeTab === 0 && (language === 'am' ? '📝 ገንዘብ ማስገባት ደረጃዎች' : '📝 Deposit Steps')}
+            {activeTab === 1 && (language === 'am' ? '📝 ገንዘብ ማውጣት ደረጃዎች' : '📝 Withdrawal Steps')}
+            {activeTab === 2 && (language === 'am' ? '📝 የጨዋታ መመሪያ' : '📝 Game Instructions')}
+          </Typography>
+
+          {/* Stepper */}
+          <Stepper activeStep={activeStep} orientation="vertical">
+            {currentSteps.map((step, index) => (
+              <Step key={step.step}>
+                <StepLabel 
+                  onClick={() => handleStepChange(index)}
+                  sx={{ cursor: 'pointer' }}
+                >
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    {step.title}
+                  </Typography>
+                </StepLabel>
+                <StepContent>
+                  <Typography variant="body2" sx={{ color: '#424242', mb: 1 }}>
+                    {step.text}
+                  </Typography>
+                  {/* Only show note if it exists */}
+                  {step.note && (
+                    <Typography variant="body2" sx={{ 
+                      color: '#ed6c02', 
+                      mb: 1,
+                      fontStyle: 'italic',
+                      bgcolor: '#fff3e0',
+                      p: 1,
+                      borderRadius: 1
+                    }}>
+                      {step.note}
+                    </Typography>
+                  )}
+                  <Box sx={{ 
+                    position: 'relative',
+                    width: '100%',
+                    maxWidth: 400,
+                    height: 200,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    border: '1px solid #e0e0e0',
+                    mb: 2,
+                    bgcolor: '#f5f5f5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Image
+                      src={step.file}
+                      alt={step.alt}
+                      fill
+                      style={{ objectFit: 'contain' }}
+                    />
+                  </Box>
+                  <Box sx={{ mb: 2 }}>
+                    <Button
+                      variant="contained"
+                      onClick={handleNext}
+                      sx={{ mr: 1 }}
+                      disabled={index === totalSteps - 1}
+                    >
+                      {language === 'am' ? 'ቀጥል' : 'Continue'}
+                    </Button>
+                    <Button
+                      disabled={index === 0}
+                      onClick={handleBack}
+                    >
+                      {language === 'am' ? 'ተመለስ' : 'Back'}
+                    </Button>
+                  </Box>
+                </StepContent>
+              </Step>
+            ))}
+          </Stepper>
+
+          {activeStep === totalSteps - 1 && (
+            <Paper square elevation={0} sx={{ p: 3, bgcolor: '#f5f5f5', mt: 2 }}>
+              <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 'bold', mb: 1 }}>
+                {language === 'am' 
+                  ? '✅ ጠቅላላ! አሁን ወደ ጨዋታው መመለስ ይችላሉ!'
+                  : '✅ All set! You can now return to the game!'}
+              </Typography>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={onClose}
+                fullWidth
+              >
+                {language === 'am' ? '🎮 ወደ ጨዋታ ተመለስ' : '🎮 Return to Game'}
+              </Button>
+            </Paper>
+          )}
+
+          {/* Important Notes */}
+          <Box sx={{ 
+            mt: 3,
+            p: 2,
+            bgcolor: '#fff8e1',
+            borderRadius: 2,
+            borderLeft: '4px solid #f9a825'
+          }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#f57f17' }}>
+              {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
+            </Typography>
+            <ul style={{ margin: '8px 0', paddingLeft: '20px', color: '#424242' }}>
+              <li>
+                {language === 'am' 
+                  ? 'አነስተኛ ገቢ: 10 ብር'
+                  : 'Minimum Deposit: 10 ETB'}
+              </li>
+              <li>
+                {language === 'am' 
+                  ? 'ከ 50 ብር በላይ ሲያስገቡ 10% ቦነስ ያገኛሉ'
+                  : '10% bonus on deposits above 50 ETB'}
+              </li>
+              <li>
+                {language === 'am' 
+                  ? 'አነስተኛ ወጪ: 100 ብር'
+                  : 'Minimum Withdrawal: 100 ETB'}
+              </li>
+              <li>
+                {language === 'am' 
+                  ? 'ሁሉም ግብይቶች ከተረጋገጡ በኋላ ይሰራሉ'
+                  : 'All transactions are processed after verification'}
+              </li>
+              <li>
+                {language === 'am' 
+                  ? 'ለማንኛውም ችግር የደንበኞች አገልግሎትን ያግኙ'
+                  : 'Contact customer support for any issues'}
+              </li>
+            </ul>
+          </Box>
+        </Box>
+      </Box>
+    </Modal>
+  );
+}

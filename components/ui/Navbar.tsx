@@ -82,9 +82,9 @@ const Navbar: React.FC = () => {
                 <Link href="/auth/login" className="hover:underline px-3">
                   Login
                 </Link>
-                <Link href="/auth/register" className="hover:underline px-3">
+                {/* <Link href="/auth/register" className="hover:underline px-3">
                   Register
-                </Link>
+                </Link> */}
               </>
             )}
           </div>
@@ -176,9 +176,9 @@ const Navbar: React.FC = () => {
                   <Link href="/auth/login" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     Login
                   </Link>
-                  <Link href="/auth/register" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
+                  {/* <Link href="/auth/register" className="hover:underline px-3 py-2" onClick={() => setIsMenuOpen(false)}>
                     Register
-                  </Link>
+                  </Link> */}
                 </>
               )}
             </div>
