@@ -12,26 +12,31 @@ interface MobileHeaderProps {
   title: string;
   showWallet?: boolean;
   onMenuClick?: () => void;
+  backgroundColor?: string; // NEW: Accept backgroundColor prop
 }
 
 export default function MobileHeader({
   title,
   showWallet = true,
   onMenuClick,
+  backgroundColor: propBackgroundColor, // NEW
 }: MobileHeaderProps) {
   const { logout } = useAuth();
   const router = useRouter();
   const [wallet, setWallet] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // NEW: Background color state
-  const [backgroundColor, setBackgroundColor] = useState(() => {
+  // Use prop if provided, otherwise use localStorage
+  const [localBgColor, setLocalBgColor] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedColor = localStorage.getItem('bingoBgColor');
       return savedColor || 'white';
     }
     return 'white';
   });
+
+  // Use prop or local state - prop takes priority
+  const backgroundColor = propBackgroundColor || localBgColor;
 
   // Color helper functions
   const getTextColor = () => {
@@ -59,7 +64,7 @@ export default function MobileHeader({
     const handleStorageChange = () => {
       const savedColor = localStorage.getItem('bingoBgColor');
       if (savedColor) {
-        setBackgroundColor(savedColor);
+        setLocalBgColor(savedColor);
       }
     };
 
@@ -68,7 +73,7 @@ export default function MobileHeader({
     // Also listen for custom event from color picker
     const handleColorChange = (e: CustomEvent) => {
       if (e.detail?.color) {
-        setBackgroundColor(e.detail.color);
+        setLocalBgColor(e.detail.color);
       }
     };
     window.addEventListener('bgColorChange' as any, handleColorChange as any);

@@ -36,17 +36,26 @@ const navigationItems = [
   }
 ];
 
-export default function MobileNavigation() {
+interface MobileNavigationProps {
+  backgroundColor?: string; // NEW: Accept backgroundColor prop
+}
+
+export default function MobileNavigation({ 
+  backgroundColor: propBackgroundColor // NEW
+}: MobileNavigationProps) {
   const pathname = usePathname();
 
-  // NEW: Background color state
-  const [backgroundColor, setBackgroundColor] = useState(() => {
+  // Use prop if provided, otherwise use localStorage
+  const [localBgColor, setLocalBgColor] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedColor = localStorage.getItem('bingoBgColor');
       return savedColor || 'white';
     }
     return 'white';
   });
+
+  // Use prop or local state - prop takes priority
+  const backgroundColor = propBackgroundColor || localBgColor;
 
   // Color helper functions
   const getTextColor = () => {
@@ -74,7 +83,7 @@ export default function MobileNavigation() {
     const handleStorageChange = () => {
       const savedColor = localStorage.getItem('bingoBgColor');
       if (savedColor) {
-        setBackgroundColor(savedColor);
+        setLocalBgColor(savedColor);
       }
     };
 
@@ -83,7 +92,7 @@ export default function MobileNavigation() {
     // Also listen for custom event from color picker
     const handleColorChange = (e: CustomEvent) => {
       if (e.detail?.color) {
-        setBackgroundColor(e.detail.color);
+        setLocalBgColor(e.detail.color);
       }
     };
     window.addEventListener('bgColorChange' as any, handleColorChange as any);

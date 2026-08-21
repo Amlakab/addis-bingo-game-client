@@ -48,6 +48,17 @@ export default function LobbyPage() {
 
   const { isLoading, isAuthenticated, user } = useTelegramAuth();
 
+  // Get text color based on background
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
   if (isLoading) {
     return <LoadingSpinner />;
   }
@@ -110,7 +121,13 @@ export default function LobbyPage() {
 
   if (gameStarted) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-5">
+      <div 
+        className="min-h-screen pb-5"
+        style={{ 
+          backgroundColor: backgroundColor,
+          color: getTextColor()
+        }}
+      >
         <main className="p-2 px-0">
           <GameInterface
             players={players}
@@ -129,8 +146,18 @@ export default function LobbyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <MobileHeader title="Game Lobby" showWallet={true} />
+    <div 
+      className="min-h-screen pb-20"
+      style={{ 
+        backgroundColor: backgroundColor,
+        color: getTextColor()
+      }}
+    >
+      <MobileHeader 
+        title="Game Lobby" 
+        showWallet={true}
+        backgroundColor={backgroundColor}
+      />
       
       <main className="p-4 px-0 pb-24 pt-16">
         {currentPage === 'bet-selection' ? (
@@ -156,7 +183,9 @@ export default function LobbyPage() {
         )}
       </main>
 
-      {currentPage === 'bet-selection' && <MobileNavigation />}
+      {currentPage === 'bet-selection' && (
+        <MobileNavigation backgroundColor={backgroundColor} />
+      )}
     </div>
   );
 }
