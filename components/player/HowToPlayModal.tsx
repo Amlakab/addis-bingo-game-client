@@ -16,7 +16,9 @@ import {
   useTheme,
   useMediaQuery,
   Tabs,
-  Tab
+  Tab,
+  Dialog,
+  DialogContent
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import Image from 'next/image';
@@ -318,6 +320,8 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [activeStep, setActiveStep] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [fullscreenAlt, setFullscreenAlt] = useState<string>('');
 
   // Get the appropriate steps based on language and tab
   const howToPlaySteps = language === 'am' ? HowToPlaySteps.am : HowToPlaySteps.en;
@@ -371,6 +375,16 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
     setActiveStep(0);
   };
 
+  const handleImageClick = (imageSrc: string, imageAlt: string) => {
+    setFullscreenImage(imageSrc);
+    setFullscreenAlt(imageAlt);
+  };
+
+  const handleCloseFullscreen = () => {
+    setFullscreenImage(null);
+    setFullscreenAlt('');
+  };
+
   const totalSteps = currentSteps.length;
 
   const getTabLabel = (index: number) => {
@@ -401,199 +415,310 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
   };
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      aria-labelledby="how-to-play-modal"
-      aria-describedby="how-to-play-instructions"
-    >
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        aria-labelledby="how-to-play-modal"
+        aria-describedby="how-to-play-instructions"
+      >
         <Box sx={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        height: '100vh',
-        bgcolor: 'background.paper',
-        borderRadius: 0, // Remove border radius
-        boxShadow: 24,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        }}>
-        {/* Header */}
-        <Box sx={{
-          p: 2,
-          borderBottom: '1px solid #e0e0e0',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          bgcolor: 'background.paper',
+          borderRadius: 0,
+          boxShadow: 24,
+          overflow: 'hidden',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          bgcolor: '#f8f9fa'
+          flexDirection: 'column',
         }}>
-          <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-            {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play Gasha Bingo'}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        {/* Content */}
-        <Box sx={{ 
-          flex: 1, 
-          overflow: 'auto', 
-          p: 3 
-        }}>
-          {/* Tabs */}
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{ 
-              mb: 3,
-              borderBottom: '2px solid #e0e0e0',
-              '& .MuiTab-root': {
-                fontWeight: 'bold',
-                textTransform: 'none',
-                fontSize: '0.9rem',
-                minWidth: 'auto',
-                px: 2
-              }
-            }}
-          >
-            <Tab label={getTabLabel(0)} />
-            <Tab label={getTabLabel(1)} />
-            <Tab label={getTabLabel(2)} />
-          </Tabs>
-
-          {/* Section Title */}
-          <Typography variant="h6" sx={{ 
-            fontWeight: 'bold', 
-            color: getTabColor(activeTab),
-            mb: 2,
-            borderBottom: `2px solid ${getTabColor(activeTab)}`,
-            pb: 1
+          {/* Header */}
+          <Box sx={{
+            p: 2,
+            borderBottom: '1px solid #e0e0e0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            bgcolor: '#f8f9fa',
+            flexShrink: 0
           }}>
-            {activeTab === 0 && (language === 'am' ? '📝 የጨዋታ መመሪያ' : '📝 Game Instructions')}
-            {activeTab === 1 && (language === 'am' ? '📝 ገንዘብ ማስገባት ደረጃዎች' : '📝 Deposit Steps')}
-            {activeTab === 2 && (language === 'am' ? '📝 ገንዘብ ማውጣት ደረጃዎች' : '📝 Withdrawal Steps')}
-          </Typography>
+            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+              {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play Gasha Bingo'}
+            </Typography>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
 
-          {/* Stepper */}
-          <Stepper activeStep={activeStep} orientation="vertical">
-            {currentSteps.map((step, index) => (
-              <Step key={step.step}>
-                <StepLabel 
-                  onClick={() => handleStepChange(index)}
-                  sx={{ cursor: 'pointer' }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                    {step.title}
-                  </Typography>
-                </StepLabel>
-                <StepContent>
-                  <Typography variant="body2" sx={{ color: '#424242', mb: 1 }}>
-                    {step.text}
-                  </Typography>
-                  {/* Only show note if it exists */}
-                  {step.note && (
-                    <Typography variant="body2" sx={{ 
-                      color: '#ed6c02', 
-                      mb: 1,
-                      fontStyle: 'italic',
-                      bgcolor: '#fff3e0',
-                      p: 1,
-                      borderRadius: 1
-                    }}>
-                      {step.note}
+          {/* Content */}
+          <Box sx={{ 
+            flex: 1, 
+            overflow: 'auto', 
+            p: 3,
+            pb: 4
+          }}>
+            {/* Tabs */}
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              variant="scrollable"
+              scrollButtons="auto"
+              sx={{ 
+                mb: 3,
+                borderBottom: '2px solid #e0e0e0',
+                '& .MuiTab-root': {
+                  fontWeight: 'bold',
+                  textTransform: 'none',
+                  fontSize: '0.9rem',
+                  minWidth: 'auto',
+                  px: 2
+                }
+              }}
+            >
+              <Tab label={getTabLabel(0)} />
+              <Tab label={getTabLabel(1)} />
+              <Tab label={getTabLabel(2)} />
+            </Tabs>
+
+            {/* Section Title */}
+            <Typography variant="h6" sx={{ 
+              fontWeight: 'bold', 
+              color: getTabColor(activeTab),
+              mb: 2,
+              borderBottom: `2px solid ${getTabColor(activeTab)}`,
+              pb: 1
+            }}>
+              {activeTab === 0 && (language === 'am' ? '📝 የጨዋታ መመሪያ' : '📝 Game Instructions')}
+              {activeTab === 1 && (language === 'am' ? '📝 ገንዘብ ማስገባት ደረጃዎች' : '📝 Deposit Steps')}
+              {activeTab === 2 && (language === 'am' ? '📝 ገንዘብ ማውጣት ደረጃዎች' : '📝 Withdrawal Steps')}
+            </Typography>
+
+            {/* Stepper */}
+            <Stepper activeStep={activeStep} orientation="vertical">
+              {currentSteps.map((step, index) => (
+                <Step key={step.step}>
+                  <StepLabel 
+                    onClick={() => handleStepChange(index)}
+                    sx={{ cursor: 'pointer' }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      {step.title}
                     </Typography>
-                  )}
-                  <Box sx={{ 
-                    position: 'relative',
-                    width: '100%',
-                    maxWidth: 400,
-                    height: 200,
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                    border: '1px solid #e0e0e0',
-                    mb: 2,
-                    bgcolor: '#f5f5f5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Image
-                      src={step.file}
-                      alt={step.alt}
-                      fill
-                      style={{ objectFit: 'contain' }}
-                    />
-                  </Box>
-                  <Box sx={{ mb: 2 }}>
-                    <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      sx={{ mr: 1 }}
-                      disabled={index === totalSteps - 1}
+                  </StepLabel>
+                  <StepContent>
+                    <Typography variant="body2" sx={{ color: '#424242', mb: 1 }}>
+                      {step.text}
+                    </Typography>
+                    {/* Only show note if it exists */}
+                    {step.note && (
+                      <Typography variant="body2" sx={{ 
+                        color: '#ed6c02', 
+                        mb: 1,
+                        fontStyle: 'italic',
+                        bgcolor: '#fff3e0',
+                        p: 1,
+                        borderRadius: 1
+                      }}>
+                        {step.note}
+                      </Typography>
+                    )}
+                    <Box 
+                      sx={{ 
+                        position: 'relative',
+                        width: '100%',
+                        maxWidth: 400,
+                        height: 200,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                        border: '1px solid #e0e0e0',
+                        mb: 2,
+                        bgcolor: '#f5f5f5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                          boxShadow: 3
+                        }
+                      }}
+                      onClick={() => handleImageClick(step.file, step.alt)}
                     >
-                      {language === 'am' ? 'ቀጥል' : 'Continue'}
-                    </Button>
-                    <Button
-                      disabled={index === 0}
-                      onClick={handleBack}
-                    >
-                      {language === 'am' ? 'ተመለስ' : 'Back'}
-                    </Button>
-                  </Box>
-                </StepContent>
-              </Step>
-            ))}
-          </Stepper>
+                      <Image
+                        src={step.file}
+                        alt={step.alt}
+                        fill
+                        style={{ objectFit: 'contain' }}
+                      />
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          bgcolor: 'rgba(0,0,0,0.6)',
+                          color: 'white',
+                          p: 1,
+                          textAlign: 'center',
+                          fontSize: '0.75rem',
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease',
+                          '&:hover': {
+                            opacity: 1
+                          }
+                        }}
+                      >
+                        🔍 {language === 'am' ? 'ለማስፋት ጠቅ ያድርጉ' : 'Click to enlarge'}
+                      </Box>
+                    </Box>
+                    <Box sx={{ mb: 2 }}>
+                      <Button
+                        variant="contained"
+                        onClick={handleNext}
+                        sx={{ mr: 1 }}
+                        disabled={index === totalSteps - 1}
+                      >
+                        {language === 'am' ? 'ቀጥል' : 'Continue'}
+                      </Button>
+                      <Button
+                        disabled={index === 0}
+                        onClick={handleBack}
+                      >
+                        {language === 'am' ? 'ተመለስ' : 'Back'}
+                      </Button>
+                    </Box>
+                  </StepContent>
+                </Step>
+              ))}
+            </Stepper>
 
-          {activeStep === totalSteps - 1 && (
-            <Paper square elevation={0} sx={{ p: 3, bgcolor: '#f5f5f5', mt: 2 }}>
-              <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 'bold', mb: 1 }}>
-                {language === 'am' 
-                  ? '✅ ጠቅላላ! አሁን ወደ ጨዋታው መመለስ ይችላሉ!'
-                  : '✅ All set! You can now return to the game!'}
+            {activeStep === totalSteps - 1 && (
+              <Paper square elevation={0} sx={{ p: 3, bgcolor: '#f5f5f5', mt: 2 }}>
+                <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 'bold', mb: 1 }}>
+                  {language === 'am' 
+                    ? '✅ ጠቅላላ! አሁን ወደ ጨዋታው መመለስ ይችላሉ!'
+                    : '✅ All set! You can now return to the game!'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={onClose}
+                  fullWidth
+                >
+                  {language === 'am' ? '🎮 ወደ ጨዋታ ተመለስ' : '🎮 Return to Game'}
+                </Button>
+              </Paper>
+            )}
+
+            {/* Dynamic Important Notes based on active tab */}
+            <Box sx={{ 
+              mt: 3,
+              p: 2,
+              bgcolor: '#fff8e1',
+              borderRadius: 2,
+              borderLeft: `4px solid ${getTabColor(activeTab)}`
+            }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getTabColor(activeTab), mb: 1 }}>
+                {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
               </Typography>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={onClose}
-                fullWidth
-              >
-                {language === 'am' ? '🎮 ወደ ጨዋታ ተመለስ' : '🎮 Return to Game'}
-              </Button>
-            </Paper>
-          )}
-
-         {/* Dynamic Important Notes based on active tab */}
-<Box sx={{ 
-  mt: 3,
-  p: 2,
-  bgcolor: '#fff8e1',
-  borderRadius: 2,
-  borderLeft: `4px solid ${getTabColor(activeTab)}`
-}}>
-  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getTabColor(activeTab), mb: 1 }}>
-    {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
-  </Typography>
-  <Box sx={{ pl: 2 }}>
-    {currentNotes.map((note, index) => (
-      <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 0.5 }}>
-        <Typography component="span" sx={{ mr: 1, color: getTabColor(activeTab) }}>•</Typography>
-        <Typography variant="body2" sx={{ color: '#424242' }}>
-          {note}
-        </Typography>
-      </Box>
-    ))}
-  </Box>
-</Box>
+              <Box sx={{ pl: 2 }}>
+                {currentNotes.map((note, index) => (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 0.5 }}>
+                    <Typography component="span" sx={{ mr: 1, color: getTabColor(activeTab) }}>•</Typography>
+                    <Typography variant="body2" sx={{ color: '#424242' }}>
+                      {note}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Box>
         </Box>
-      </Box>
-    </Modal>
+      </Modal>
+
+      {/* Fullscreen Image Dialog */}
+      <Dialog
+        open={!!fullscreenImage}
+        onClose={handleCloseFullscreen}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'rgba(0,0,0,0.92)',
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+            width: '100vw',
+            height: '100vh',
+            margin: 0,
+            borderRadius: 0,
+            position: 'relative'
+          }
+        }}
+        BackdropProps={{
+          sx: {
+            bgcolor: 'rgba(0,0,0,0.95)'
+          }
+        }}
+      >
+        <IconButton
+          onClick={handleCloseFullscreen}
+          sx={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 10,
+            color: 'white',
+            bgcolor: 'rgba(0,0,0,0.5)',
+            '&:hover': {
+              bgcolor: 'rgba(0,0,0,0.8)'
+            }
+          }}
+        >
+          <CloseIcon sx={{ fontSize: 32 }} />
+        </IconButton>
+        <DialogContent
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0,
+            height: '100vh',
+            width: '100vw'
+          }}
+        >
+          {fullscreenImage && (
+            <Box
+              sx={{
+                position: 'relative',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Image
+                src={fullscreenImage}
+                alt={fullscreenAlt}
+                fill
+                style={{ 
+                  objectFit: 'contain',
+                  maxWidth: '100%',
+                  maxHeight: '100%'
+                }}
+                sizes="100vw"
+                priority
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
