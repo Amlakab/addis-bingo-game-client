@@ -29,13 +29,13 @@ export default function AboutPage() {
       <div className="container mx-auto px-4 py-8 pb-24 pt-20">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-bold text-center text-purple-800 mb-8">
-            About Feta Bingo
+            About Gasha Bingo
           </h1>
           
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-purple-700 mb-4">Our Story</h2>
             <p className="text-gray-700 mb-4">
-              Feta Bingo was born from a passion for classic bingo games and the desire to bring people together 
+              Gasha Bingo was born from a passion for classic bingo games and the desire to bring people together 
               in a fun, engaging, and modern digital environment. Founded in 2023, our platform has grown to 
               become a favorite destination for bingo enthusiasts worldwide.
             </p>
@@ -61,7 +61,7 @@ export default function AboutPage() {
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-purple-700 mb-4">Technology</h2>
             <p className="text-gray-700 mb-4">
-              Feta Bingo is built on a robust tech stack that ensures smooth gameplay and real-time interactions:
+              Gasha Bingo is built on a robust tech stack that ensures smooth gameplay and real-time interactions:
             </p>
             
             <div className="grid md:grid-cols-2 gap-4">
@@ -111,7 +111,7 @@ export default function AboutPage() {
           <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 className="text-2xl font-semibold text-purple-700 mb-4">Responsible Gaming</h2>
             <p className="text-gray-700 mb-4">
-              At Feta Bingo, we are committed to promoting responsible gaming. We provide tools to help you 
+              At Gasha Bingo, we are committed to promoting responsible gaming. We provide tools to help you 
               manage your gaming experience, including deposit limits, time reminders, and self-exclusion options.
             </p>
             <p className="text-gray-700">
@@ -125,7 +125,7 @@ export default function AboutPage() {
               href="/auth/register" 
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition duration-300"
             >
-              Join Feta Bingo Today
+              Join Gasha Bingo Today
             </Link>
           </div>
         </div>

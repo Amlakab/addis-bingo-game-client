@@ -26,12 +26,12 @@ const Navbar: React.FC = () => {
           <Link href="/" className="flex items-center space-x-2">
             <Image
               src="/amlakie.jpg"
-              alt="Feta Bingo Logo"
+              alt="Gasha Bingo Logo"
               width={40}
               height={40}
               className="rounded-full"
             />
-            <span className="text-2xl font-bold">Feta Bingo</span>
+            <span className="text-2xl font-bold">Gasha Bingo</span>
           </Link>
 
           {/* Desktop Menu */}

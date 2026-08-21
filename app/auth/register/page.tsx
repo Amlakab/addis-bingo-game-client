@@ -201,7 +201,7 @@ export default function RegisterPage() {
       <div className="container mx-auto px-4 py-8 pt-24">
         <div id="register-form" className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-purple-800 mb-4">Join Feta Bingo</h1>
+            <h1 className="text-4xl font-bold text-purple-800 mb-4">Join Gasha Bingo</h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Create your account and start playing exciting multiplayer bingo games today
             </p>
@@ -405,7 +405,7 @@ export default function RegisterPage() {
             {/* Benefits Section */}
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
-                <h3 className="text-xl font-semibold text-purple-700 mb-4">Why Join Feta Bingo?</h3>
+                <h3 className="text-xl font-semibold text-purple-700 mb-4">Why Join Gasha Bingo?</h3>
                 <ul className="space-y-4">
                   <li className="flex items-start">
                     <div className="bg-green-100 p-2 rounded-full mr-3">

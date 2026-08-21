@@ -109,7 +109,7 @@ export default function LoginPage() {
         <div id="login-form" className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold text-purple-800 mb-4">
-              Welcome to Feta Bingo
+              Welcome to Gasha Bingo
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Sign in to your account and join the exciting world of multiplayer
@@ -274,7 +274,7 @@ export default function LoginPage() {
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
                 <h3 className="text-xl font-semibold text-purple-700 mb-4">
-                  Why Join Feta Bingo?
+                  Why Join Gasha Bingo?
                 </h3>
                 <div className="space-y-4">
                   {/* Multiplayer */}

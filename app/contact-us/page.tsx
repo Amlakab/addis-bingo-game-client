@@ -50,7 +50,7 @@ export default function ContactUsPage() {
               Contact Us
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Have questions or need assistance? We're here to help you with any inquiries about Feta Bingo.
+              Have questions or need assistance? We're here to help you with any inquiries about Gasha Bingo.
             </p>
           </div>
 

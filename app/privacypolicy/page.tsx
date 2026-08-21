@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-purple-700 mb-4">1. Introduction</h2>
                 <p className="text-gray-700 mb-4">
-                  Feta Bingo ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy 
+                  Gasha Bingo ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy 
                   explains how we collect, use, disclose, and safeguard your information when you use our gaming platform.
                 </p>
               </section>
@@ -141,8 +141,8 @@ export default function PrivacyPolicyPage() {
                 <h2 className="text-2xl font-semibold text-purple-700 mb-4">11. Contact Us</h2>
                 <p className="text-gray-700">
                   If you have any questions about this Privacy Policy, please contact us at:{' '}
-                  <a href="mailto:privacy@fetabingo.com" className="text-purple-600 hover:underline">
-                    privacy@fetabingo.com
+                  <a href="mailto:privacy@Gashabingo.com" className="text-purple-600 hover:underline">
+                    privacy@Gashabingo.com
                   </a>
                 </p>
               </section>
@@ -150,8 +150,8 @@ export default function PrivacyPolicyPage() {
               <div className="mt-8 p-4 bg-blue-50 rounded-lg">
                 <p className="text-blue-700 text-sm">
                   For data protection requests or concerns, you may also contact our Data Protection Officer at{' '}
-                  <a href="mailto:dpo@fetabingo.com" className="text-blue-600 hover:underline">
-                    dpo@fetabingo.com
+                  <a href="mailto:dpo@Gashabingo.com" className="text-blue-600 hover:underline">
+                    dpo@Gashabingo.com
                   </a>
                 </p>
               </div>
