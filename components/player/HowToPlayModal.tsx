@@ -323,6 +323,60 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [fullscreenAlt, setFullscreenAlt] = useState<string>('');
 
+  // NEW: Background color state
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
+  // Listen for background color changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      if (savedColor) {
+        setBackgroundColor(savedColor);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    const handleColorChange = (e: CustomEvent) => {
+      if (e.detail?.color) {
+        setBackgroundColor(e.detail.color);
+      }
+    };
+    window.addEventListener('bgColorChange' as any, handleColorChange as any);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('bgColorChange' as any, handleColorChange as any);
+    };
+  }, []);
+
   // Get the appropriate steps based on language and tab
   const howToPlaySteps = language === 'am' ? HowToPlaySteps.am : HowToPlaySteps.en;
   const depositSteps = language === 'am' ? DepositSteps.am : DepositSteps.en;
@@ -430,27 +484,31 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
           bottom: 0,
           width: '100vw',
           height: '100vh',
-          bgcolor: 'background.paper',
+          bgcolor: getCardBackground(),
           borderRadius: 0,
           boxShadow: 24,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
+          color: getTextColor()
         }}>
           {/* Header */}
           <Box sx={{
             p: 2,
-            borderBottom: '1px solid #e0e0e0',
+            borderBottom: `1px solid ${getTextColor()}20`,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            bgcolor: '#f8f9fa',
+            bgcolor: backgroundColor === 'white' ? '#f8f9fa' : 'rgba(255,255,255,0.05)',
             flexShrink: 0
           }}>
-            <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+            <Typography variant="h5" component="h2" sx={{ 
+              fontWeight: 'bold', 
+              color: '#1976d2'
+            }}>
               {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play Gasha Bingo'}
             </Typography>
-            <IconButton onClick={onClose} size="small">
+            <IconButton onClick={onClose} size="small" sx={{ color: getTextColor() }}>
               <CloseIcon />
             </IconButton>
           </Box>
@@ -460,7 +518,8 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             flex: 1, 
             overflow: 'auto', 
             p: 3,
-            pb: 4
+            pb: 4,
+            color: getTextColor()
           }}>
             {/* Tabs */}
             <Tabs
@@ -470,13 +529,20 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
               scrollButtons="auto"
               sx={{ 
                 mb: 3,
-                borderBottom: '2px solid #e0e0e0',
+                borderBottom: `2px solid ${getTextColor()}20`,
                 '& .MuiTab-root': {
                   fontWeight: 'bold',
                   textTransform: 'none',
                   fontSize: '0.9rem',
                   minWidth: 'auto',
-                  px: 2
+                  px: 2,
+                  color: getTextColor(),
+                  '&.Mui-selected': {
+                    color: getTabColor(activeTab)
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  backgroundColor: getTabColor(activeTab)
                 }
               }}
             >
@@ -499,19 +565,24 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             </Typography>
 
             {/* Stepper */}
-            <Stepper activeStep={activeStep} orientation="vertical">
+            <Stepper activeStep={activeStep} orientation="vertical" sx={{ color: getTextColor() }}>
               {currentSteps.map((step, index) => (
                 <Step key={step.step}>
                   <StepLabel 
                     onClick={() => handleStepChange(index)}
-                    sx={{ cursor: 'pointer' }}
+                    sx={{ 
+                      cursor: 'pointer',
+                      '& .MuiStepLabel-label': {
+                        color: getTextColor()
+                      }
+                    }}
                   >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: getTextColor() }}>
                       {step.title}
                     </Typography>
                   </StepLabel>
                   <StepContent>
-                    <Typography variant="body2" sx={{ color: '#424242', mb: 1 }}>
+                    <Typography variant="body2" sx={{ color: getTextColor(), mb: 1, opacity: 0.9 }}>
                       {step.text}
                     </Typography>
                     {/* Only show note if it exists */}
@@ -520,7 +591,7 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
                         color: '#ed6c02', 
                         mb: 1,
                         fontStyle: 'italic',
-                        bgcolor: '#fff3e0',
+                        bgcolor: 'rgba(237, 108, 2, 0.1)',
                         p: 1,
                         borderRadius: 1
                       }}>
@@ -535,9 +606,9 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
                         height: 200,
                         borderRadius: 2,
                         overflow: 'hidden',
-                        border: '1px solid #e0e0e0',
+                        border: `1px solid ${getTextColor()}20`,
                         mb: 2,
-                        bgcolor: '#f5f5f5',
+                        bgcolor: backgroundColor === 'white' ? '#f5f5f5' : 'rgba(255,255,255,0.05)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -589,6 +660,7 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
                       <Button
                         disabled={index === 0}
                         onClick={handleBack}
+                        sx={{ color: getTextColor() }}
                       >
                         {language === 'am' ? 'ተመለስ' : 'Back'}
                       </Button>
@@ -599,7 +671,11 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             </Stepper>
 
             {activeStep === totalSteps - 1 && (
-              <Paper square elevation={0} sx={{ p: 3, bgcolor: '#f5f5f5', mt: 2 }}>
+              <Paper square elevation={0} sx={{ 
+                p: 3, 
+                bgcolor: backgroundColor === 'white' ? '#f5f5f5' : 'rgba(255,255,255,0.05)',
+                mt: 2
+              }}>
                 <Typography variant="body2" sx={{ color: '#2e7d32', fontWeight: 'bold', mb: 1 }}>
                   {language === 'am' 
                     ? '✅ ጠቅላላ! አሁን ወደ ጨዋታው መመለስ ይችላሉ!'
@@ -620,7 +696,7 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             <Box sx={{ 
               mt: 3,
               p: 2,
-              bgcolor: '#fff8e1',
+              bgcolor: backgroundColor === 'white' ? '#fff8e1' : 'rgba(255, 248, 225, 0.1)',
               borderRadius: 2,
               borderLeft: `4px solid ${getTabColor(activeTab)}`
             }}>
@@ -631,7 +707,7 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
                 {currentNotes.map((note, index) => (
                   <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 0.5 }}>
                     <Typography component="span" sx={{ mr: 1, color: getTabColor(activeTab) }}>•</Typography>
-                    <Typography variant="body2" sx={{ color: '#424242' }}>
+                    <Typography variant="body2" sx={{ color: getTextColor(), opacity: 0.9 }}>
                       {note}
                     </Typography>
                   </Box>
