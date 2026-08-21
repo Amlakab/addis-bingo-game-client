@@ -18,8 +18,8 @@ const menuItems = [
   { name: 'Transactions', href: '/agent/transactions', icon: History },
   { name: 'Analytics', href: '/agent/analytics', icon: BarChart3 },
   { name: 'Feedback', href: '/agent/feedback', icon: Wallet },
-  { name: 'Wallet', href: '/agent/wallet', icon: Wallet },
-  { name: 'Settings', href: '/agent/settings', icon: Settings },
+  // { name: 'Wallet', href: '/agent/wallet', icon: Wallet },
+  // { name: 'Settings', href: '/agent/settings', icon: Settings },
 ];
 
 export default function AdminSidebar({ isOpen, onClose }) {

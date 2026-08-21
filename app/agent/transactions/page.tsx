@@ -64,6 +64,61 @@ type StatsType = {
   recentTransactions: TransactionType[];
 };
 
+// ✅ SORT FUNCTION: Pending first (oldest pending first), then others (most recent first)
+const sortTransactions = (transactions: TransactionType[]) => {
+  return [...transactions].sort((a, b) => {
+    const aIsPending = a.status === 'pending';
+    const bIsPending = b.status === 'pending';
+    
+    // If both are pending: sort by oldest first (ascending)
+    if (aIsPending && bIsPending) {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
+    
+    // If both are NOT pending (completed/failed): sort by newest first (descending)
+    if (!aIsPending && !bIsPending) {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    
+    // If one is pending and the other is not: pending comes first
+    if (aIsPending && !bIsPending) return -1;
+    if (!aIsPending && bIsPending) return 1;
+    
+    return 0;
+  });
+};
+
+// Add this helper function to detect and render URLs
+const renderWithLinks = (text: string): React.ReactNode => {
+  if (!text) return text;
+  
+  // Regex to match URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  
+  // Split the text by URLs
+  const parts: string[] = text.split(urlRegex);
+  const matches: string[] = text.match(urlRegex) || [];
+  
+  // Build the result with links
+  return parts.map((part: string, index: number) => {
+    // If this part matches a URL, render it as a link
+    if (matches.includes(part)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 underline break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 export default function AdminTransactionsPage() {
   const [transactions, setTransactions] = useState<TransactionType[]>([]);
   const [stats, setStats] = useState<StatsType | null>(null);
@@ -139,7 +194,9 @@ export default function AdminTransactionsPage() {
       if (filters.page) params.append('page', filters.page.toString());
       
       const res = await api.get(`/transactions?${params.toString()}`);
-      setTransactions(res.data.data);
+      const data = res.data.data;
+      // Apply sorting: Pending first (oldest first), then others (newest first)
+      setTransactions(sortTransactions(data));
       setPagination(res.data.pagination);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
@@ -741,19 +798,9 @@ export default function AdminTransactionsPage() {
                     {selectedTransaction.transactionId && (
                       <div>
                         <p className="text-xs text-gray-500 font-sans">Transaction ID/Link</p>
-                        {getTransactionLink(selectedTransaction) ? (
-                          <a 
-                            href={getTransactionLink(selectedTransaction) as string}
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center text-blue-600 hover:text-blue-800 text-xs md:text-sm break-all"
-                          >
-                            <ExternalLink className="h-3 w-3 md:h-4 md:w-4 mr-1 flex-shrink-0" />
-                            {selectedTransaction.transactionId}
-                          </a>
-                        ) : (
-                          <p className="text-xs md:text-sm font-mono break-all">{selectedTransaction.transactionId}</p>
-                        )}
+                        <div className="text-xs md:text-sm font-sans break-all">
+                          {renderWithLinks(selectedTransaction.transactionId)}
+                        </div>
                       </div>
                     )}
                     {selectedTransaction.reason && (
