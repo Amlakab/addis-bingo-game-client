@@ -36,9 +36,16 @@ export default function LobbyPage() {
   const [currentPage, setCurrentPage] = useState<'bet-selection' | 'player-lobby'>('bet-selection');
   const [remainingTime, setRemainingTime] = useState(45);
   const [createdAt, setCreatedAt] = useState<Date>(new Date());
- 
 
-  // Add this inside your component
+  // NEW: Background color state with localStorage persistence
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
   const { isLoading, isAuthenticated, user } = useTelegramAuth();
 
   if (isLoading) {
@@ -60,7 +67,6 @@ export default function LobbyPage() {
     setPlayers(selectedPlayers);
     setBet(betAmount);
     
-    // Update game sessions status to playing (only when timer reaches 0)
     try {
       for (const player of selectedPlayers) {
         const response = await api.get(`/game/sessions/card/${player.id}`);
@@ -79,11 +85,10 @@ export default function LobbyPage() {
     }
   };
 
-  // Handle direct navigation to game (without updating session status)
   const handleDirectToGame = (selectedPlayers: PlayerSelection[], betAmount: number) => {
     setPlayers(selectedPlayers);
     setBet(betAmount);
-    setGameStarted(true); // Directly go to game without updating status
+    setGameStarted(true);
   };
 
   const handleBackToLobby = () => {
@@ -100,7 +105,6 @@ export default function LobbyPage() {
 
   const handleBackToPlayerLobby = () => {
     setGameStarted(false);
-    // Keep players and bet intact, just go back to player lobby
     setCurrentPage('player-lobby');
   };
 
@@ -116,39 +120,43 @@ export default function LobbyPage() {
             language={language}
             earningsPercentage={earningsPercentage}
             setLanguage={setLanguage}
+            backgroundColor={backgroundColor}
+            setBackgroundColor={setBackgroundColor}
           />
         </main>
-        {/* <MobileNavigation /> */}
       </div>
     );
   }
 
   return (
-  <div className="min-h-screen bg-gray-50 pb-20">
-    <MobileHeader title="Game Lobby" showWallet={true} />
-    
-    <main className="p-4 px-0 pb-24 pt-16">
-      {currentPage === 'bet-selection' ? (
-        <BetSelectionPage 
-          onPlay={handlePlay}
-          language={language}
-        />
-      ) : (
-        <PlayerLobby 
-          onStartGame={handleStartGame}
-          onDirectToGame={handleDirectToGame}
-          initialBet={bet}
-          initialTime={remainingTime}
-          createdAt={createdAt}
-          language={language}
-          setLanguage={setLanguage}
-          onBackToLobby={handleBackToLobby}
-        />
-      )}
-    </main>
-    {/* <Footer /> */}
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <MobileHeader title="Game Lobby" showWallet={true} />
+      
+      <main className="p-4 px-0 pb-24 pt-16">
+        {currentPage === 'bet-selection' ? (
+          <BetSelectionPage 
+            onPlay={handlePlay}
+            language={language}
+            backgroundColor={backgroundColor}
+            setBackgroundColor={setBackgroundColor}
+          />
+        ) : (
+          <PlayerLobby 
+            onStartGame={handleStartGame}
+            onDirectToGame={handleDirectToGame}
+            initialBet={bet}
+            initialTime={remainingTime}
+            createdAt={createdAt}
+            language={language}
+            setLanguage={setLanguage}
+            onBackToLobby={handleBackToLobby}
+            backgroundColor={backgroundColor}
+            setBackgroundColor={setBackgroundColor}
+          />
+        )}
+      </main>
 
-    {currentPage === 'bet-selection' && <MobileNavigation />}
-  </div>
-);
+      {currentPage === 'bet-selection' && <MobileNavigation />}
+    </div>
+  );
 }
