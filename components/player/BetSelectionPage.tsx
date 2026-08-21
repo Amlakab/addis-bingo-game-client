@@ -156,12 +156,18 @@ const BetSelectionPage = ({
     return {};
   };
 
-  // NEW: Handle background color change
+  // NEW: Handle background color change with event dispatch
   const handleBackgroundColorChange = (color: string) => {
     if (setBackgroundColor) {
       setBackgroundColor(color);
     }
     localStorage.setItem('bingoBgColor', color);
+    
+    // Dispatch custom event for other components to listen
+    const event = new CustomEvent('bgColorChange', { 
+      detail: { color } 
+    });
+    window.dispatchEvent(event);
   };
 
   useEffect(() => {
@@ -323,6 +329,7 @@ const BetSelectionPage = ({
     return userBalance < betAmount;
   };
 
+  // FIXED: Loading state with background color
   if (!isClient) {
     return (
       <Box sx={{ 
@@ -330,15 +337,19 @@ const BetSelectionPage = ({
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+          : backgroundColor,
+        color: getTextColor()
       }}>
-        <Typography variant="h6">
+        <Typography variant="h6" sx={{ color: getTextColor() }}>
           {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
         </Typography>
       </Box>
     );
   }
 
+  // FIXED: Loading games state with background color
   if (isLoadingGames) {
     return (
       <Box sx={{ 
@@ -346,9 +357,12 @@ const BetSelectionPage = ({
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+          : backgroundColor,
+        color: getTextColor()
       }}>
-        <Typography variant="h6">
+        <Typography variant="h6" sx={{ color: getTextColor() }}>
           {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
         </Typography>
       </Box>
@@ -390,7 +404,7 @@ const BetSelectionPage = ({
             color: getTextColor()
           }}>
             <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
-            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+            <Typography variant="body1" sx={{ fontWeight: 'bold', color: getTextColor() }}>
               {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
             </Typography>
             {isLoadingBalance ? (
@@ -448,7 +462,7 @@ const BetSelectionPage = ({
                     opacity: isDisabled ? 0.7 : 1,
                     position: 'relative',
                     overflow: 'visible',
-                    border: canPlay ? '2px solid #4caf50' : '1px solid #e0e0e0',
+                    border: canPlay ? '2px solid #4caf50' : `1px solid ${getTextColor()}30`,
                     height: '100%',
                     transition: 'all 0.3s ease',
                     color: getTextColor()
@@ -494,10 +508,10 @@ const BetSelectionPage = ({
                       p: 1 
                     }}>
                       <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
-                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
                         {status.playerCount || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7 }}>
+                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
                         {language === 'am' ? "ተጫዋች" : "Players"}
                       </Typography>
                     </Box>
@@ -513,10 +527,10 @@ const BetSelectionPage = ({
                       p: 1 
                     }}>
                       <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
-                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
                         {(status.prizePool || 0).toFixed(2)}
                       </Typography>
-                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7 }}>
+                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
                         {language === 'am' ? "ደራሽ" : "Prize"}
                       </Typography>
                     </Box>
@@ -590,7 +604,8 @@ const BetSelectionPage = ({
             textAlign: 'center',
             maxWidth: 500,
             fontSize: { xs: '0.75rem', sm: '0.875rem' },
-            opacity: 0.8
+            opacity: 0.8,
+            color: getTextColor()
           }}>
             {language === 'am' 
               ? "ሁሉም ጨዋታዎች ፍትሃዊ የበጋ ስርዓት ይጠቀማሉ። አሸናፊዎች የሽልማት ማከማቻውን 80% ይቀበላሉ።"
@@ -640,7 +655,7 @@ const BetSelectionPage = ({
                       height: { xs: 20, sm: 24 },
                       borderRadius: '50%',
                       backgroundColor: color,
-                      border: backgroundColor === color ? '3px solid #1976d2' : '2px solid rgba(255,255,255,0.3)',
+                      border: backgroundColor === color ? '3px solid #1976d2' : `2px solid ${getTextColor()}30`,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       '&:hover': {
