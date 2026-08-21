@@ -64,6 +64,8 @@ interface GameInterfaceProps {
   language?: 'en' | 'am';
   earningsPercentage?: number;
   setLanguage?: (lang: 'en' | 'am') => void;
+  backgroundColor?: string;
+  setBackgroundColor?: (color: string) => void;
 }
 
 const GameInterface = ({ 
@@ -73,7 +75,9 @@ const GameInterface = ({
   onBackToPlayerLobby,
   language = 'am',
   earningsPercentage = 20,
-  setLanguage
+  setLanguage,
+  backgroundColor = 'white',
+  setBackgroundColor
 }: GameInterfaceProps) => {
   // State declarations
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
@@ -131,6 +135,135 @@ const GameInterface = ({
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // NEW: Color helper functions (matching offline code)
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.9)';
+      case 'green': return 'rgba(30, 70, 30, 0.9)';
+      case 'blue': return 'rgba(30, 50, 80, 0.9)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.9)';
+      default: return 'rgba(255, 255, 255, 0.8)';
+    }
+  };
+
+  const getButtonVariant = () => {
+    switch(backgroundColor) {
+      case 'black': return 'outlined';
+      case 'green': return 'outlined';
+      case 'blue': return 'outlined';
+      case 'yellow': return 'outlined';
+      default: return 'contained';
+    }
+  };
+
+  const getButtonColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'primary';
+      case 'green': return 'success';
+      case 'blue': return 'info';
+      case 'yellow': return 'warning';
+      default: return 'primary';
+    }
+  };
+
+  const getButtonStyle = () => {
+    const textColor = getTextColor();
+    const buttonVariant = getButtonVariant();
+    
+    if (buttonVariant === 'outlined') {
+      return {
+        borderColor: textColor,
+        color: textColor,
+        '&:hover': {
+          borderColor: textColor,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        }
+      };
+    }
+    return {};
+  };
+
+  const getSelectBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return '#333';
+      case 'green': return '#2e7d32';
+      case 'blue': return '#1976d2';
+      case 'yellow': return '#ffeb3b';
+      default: return '#fff';
+    }
+  };
+
+  const getSelectTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getMarkedNumberStyle = () => {
+    if (backgroundColor === 'black' || backgroundColor === 'green' || backgroundColor === 'blue' || backgroundColor === 'yellow') {
+      return {
+        background: 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+        border: '2px solid #2E7D32',
+        color: 'black'
+      };
+    } else {
+      return {
+        background: 'linear-gradient(145deg, #4CAF50, #8BC34A)',
+        border: '2px solid #2E7D32',
+        color: 'white'
+      };
+    }
+  };
+
+  const getUnmarkedNumberStyle = () => {
+    switch(backgroundColor) {
+      case 'black': 
+        return {
+          background: 'transparent',
+          border: '2px solid #e0e0e0',
+          color: 'white'
+        };
+      case 'green': 
+        return {
+          background: 'transparent',
+          border: '2px solid #e0e0e0',
+          color: 'white'
+        };
+      case 'blue': 
+        return {
+          background: 'transparent',
+          border: '2px solid #e0e0e0',
+          color: 'white'
+        };
+      case 'yellow': 
+        return {
+          background: 'transparent',
+          border: '2px solid #e0e0e0',
+          color: 'black'
+        };
+      default: 
+        return {
+          background: 'linear-gradient(145deg, #ffffff, #e0e0e0)',
+          border: '2px solid #e0e0e0',
+          color: 'black'
+        };
+    }
+  };
 
   // Function to play local Amharic audio files
   const playAmharicNumberAudio = (number: string) => {
@@ -430,8 +563,6 @@ const GameInterface = ({
         userWon
       });
       
-      //const userWon = user && data.winners.some(winner => winner.id === user._id);
-      
       if (userWon) {
         if (language === 'am') {
           playAmharicGameAudio('won');
@@ -542,7 +673,7 @@ const GameInterface = ({
     webSocketService.off('game-state', handleGameState);
     webSocketService.off('sessions-updated', handleSessionsUpdate);
     webSocketService.off('connected', handleWebSocketConnected);
-    webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
+    webSocketService.off('timer-states-update', handleTimerStatesUpdate);
 
     webSocketService.on('number-called', handleNumberCalled);
     webSocketService.on('game-stopped', handleGameStopped);
@@ -551,10 +682,10 @@ const GameInterface = ({
     webSocketService.on('game-state', handleGameState);
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('connected', handleWebSocketConnected);
-    webSocketService.on('timer-states-update', handleTimerStatesUpdate); // NEW
+    webSocketService.on('timer-states-update', handleTimerStatesUpdate);
 
     webSocketService.send('get-sessions', { betAmount: bet });
-    webSocketService.send('get-timer-states'); // Request initial timer states
+    webSocketService.send('get-timer-states');
 
     return () => {
       webSocketService.off('number-called', handleNumberCalled);
@@ -564,7 +695,7 @@ const GameInterface = ({
       webSocketService.off('game-state', handleGameState);
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('connected', handleWebSocketConnected);
-      webSocketService.off('timer-states-update', handleTimerStatesUpdate); // NEW
+      webSocketService.off('timer-states-update', handleTimerStatesUpdate);
       
       if (gracePeriodTimerRef.current) {
         clearInterval(gracePeriodTimerRef.current);
@@ -659,7 +790,7 @@ const GameInterface = ({
       // If countdown is 45, start immediately
       if (countdown === 1 || countdown === 0 || countdown === 45 || countdown === 44 || countdown === 43 || countdown === 42 || countdown === 41) {
         startGame();
-        return; // no need to start interval
+        return;
       }
 
       if (countdownIntervalRef.current) {
@@ -667,19 +798,6 @@ const GameInterface = ({
       }
 
       console.log(`Starting countdown with server time: ${countdown}s`);
-
-      // countdownIntervalRef.current = setInterval(() => {
-      //   setCountdown(prev => {
-      //     if (prev <= 1) {
-      //       if (countdownIntervalRef.current) {
-      //         clearInterval(countdownIntervalRef.current);
-      //       }
-      //       startGame();  // <-- Start when countdown reaches 0
-      //       return 0;
-      //     }
-      //     return prev - 1;
-      //   });
-      // }, 1000);
     }
 
     return () => {
@@ -1240,7 +1358,10 @@ const GameInterface = ({
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '100vh',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          : backgroundColor,
+        color: getTextColor()
       }}>
         <CircularProgress />
       </Box>
@@ -1251,10 +1372,13 @@ const GameInterface = ({
     <Box sx={{ 
       p: 1, 
       textAlign: 'center',
-      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      background: backgroundColor === 'white' 
+        ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+        : backgroundColor,
       minHeight: '40vh',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      color: getTextColor()
     }}>
       
       {/* Grace Period Indicator */}
@@ -1312,10 +1436,11 @@ const GameInterface = ({
         alignItems: 'center',
         p: 0.5,
         minHeight: "8vh",
-        background: 'rgba(255,255,255,0.8)',
+        background: getCardBackground(),
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         mb: 1,
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        color: getTextColor()
       }}>
         {!gameStarted ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
@@ -1382,12 +1507,13 @@ const GameInterface = ({
           display: 'flex',
           flexDirection: 'column',
           p: 0.5,
-          background: 'rgba(255,255,255,0.7)',
+          background: getCardBackground(),
           borderRadius: 2,
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           overflow: 'auto',
           minHeight: '25vh',
-          minWidth: 0
+          minWidth: 0,
+          color: getTextColor()
         }}>
           {/* BINGO Header */}
           <Box sx={{ 
@@ -1413,90 +1539,92 @@ const GameInterface = ({
 
           {/* Number Grid */}
           <Box
-  sx={{
-    flex: 1,
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    gridAutoRows: "minmax(30px, auto)",
-    gap: 0.15, // minimized gap
-    overflow: "auto",
-    p: 0.15,   // minimized padding
-  }}
->
-  {["B", "I", "N", "G", "O"].map((letter, colIndex) => {
-    const ranges = [
-      { min: 1, max: 15 },
-      { min: 16, max: 30 },
-      { min: 31, max: 45 },
-      { min: 46, max: 60 },
-      { min: 61, max: 75 },
-    ];
+            sx={{
+              flex: 1,
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gridAutoRows: "minmax(30px, auto)",
+              gap: 0.15,
+              overflow: "auto",
+              p: 0.15,
+            }}
+          >
+            {["B", "I", "N", "G", "O"].map((letter, colIndex) => {
+              const ranges = [
+                { min: 1, max: 15 },
+                { min: 16, max: 30 },
+                { min: 31, max: 45 },
+                { min: 46, max: 60 },
+                { min: 61, max: 75 },
+              ];
 
-    return (
-      <Box
-        key={letter}
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.2, // minimized inner gap
-        }}
-      >
-        {Array.from({ length: 15 }, (_, i) => {
-          const num = ranges[colIndex].min + i;
-          const fullNumber = `${letter}-${num}`;
-          const isCalled = calledNumbers.includes(fullNumber);
+              return (
+                <Box
+                  key={letter}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.2,
+                  }}
+                >
+                  {Array.from({ length: 15 }, (_, i) => {
+                    const num = ranges[colIndex].min + i;
+                    const fullNumber = `${letter}-${num}`;
+                    const isCalled = calledNumbers.includes(fullNumber);
 
-          return (
-            <motion.div key={num} whileHover={{ scale: 1.05 }}>
-              <Box
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  minHeight: 30,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "4px",
+                    return (
+                      <motion.div key={num} whileHover={{ scale: 1.05 }}>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            minHeight: 30,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "4px",
+                            background: isCalled
+                              ? "linear-gradient(135deg, #43A047, #7CB342)"
+                              : backgroundColor === 'white'
+                                ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
+                                : "rgba(255,255,255,0.15)",
+                            color: isCalled ? "white" : getTextColor(),
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            transition: "all 0.15s ease-in-out",
+                            border: isCalled
+                              ? "2px solid #2e7d32"
+                              : backgroundColor === 'white'
+                                ? "2px solid #cfcfcf"
+                                : "2px solid rgba(255,255,255,0.2)",
+                            boxShadow: isCalled
+                              ? "0 2px 5px rgba(0,0,0,0.20)"
+                              : "0 1px 3px rgba(0,0,0,0.10)",
+                          }}
+                        >
+                          {num}
+                        </Box>
+                      </motion.div>
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </Box>
 
-                  // ⭐ Modern gradient background
-                  background: isCalled
-                    ? "linear-gradient(135deg, #43A047, #7CB342)"
-                    : "linear-gradient(135deg, #fafafa, #e9e9e9)",
-
-                  color: isCalled ? "white" : "text.primary",
-                  fontWeight: "bold",
-                  fontSize: "0.85rem",
-                  transition: "all 0.15s ease-in-out",
-
-                  // ⭐ Clean border + subtle shadow
-                  border: isCalled
-                    ? "2px solid #2e7d32"
-                    : "2px solid #cfcfcf",
-
-                  boxShadow: isCalled
-                    ? "0 2px 5px rgba(0,0,0,0.20)"
-                    : "0 1px 3px rgba(0,0,0,0.10)",
-                }}
-              >
-                {num}
-              </Box>
-            </motion.div>
-          );
-        })}
-      </Box>
-    );
-  })}
-</Box>
-
-          
           {!isReady && (
             <Button 
-              variant="contained" 
+              variant={getButtonVariant()}
               color="error"
               onClick={handleBackToLobbyWithRefund}
               fullWidth
               size="small"
-              sx={{ fontSize: '0.95rem', mt: 1, p: 0.5 }}
+              sx={{ 
+                fontSize: '0.95rem', 
+                mt: 1, 
+                p: 0.5,
+                ...getButtonStyle()
+              }}
             >
               {language === 'am' ? 'ካርዶችን አጥፋ' : 'Clear Cards'}
             </Button>
@@ -1506,11 +1634,12 @@ const GameInterface = ({
           {gameStarted && (
             <Box sx={{ 
               p: 1,
-              background: 'rgba(255,255,255,0.9)',
+              background: getCardBackground(),
               borderRadius: 2,
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               mt: 1,
-              minHeight: '3vh'
+              minHeight: '3vh',
+              color: getTextColor()
             }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
                 {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
@@ -1566,7 +1695,7 @@ const GameInterface = ({
                 />
               }
               label={
-                <Typography variant="body2" sx={{ fontSize: '0.95rem' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.95rem', color: getTextColor() }}>
                   {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound Off')}
                 </Typography>
               }
@@ -1575,7 +1704,18 @@ const GameInterface = ({
               value={language}
               onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
               size="small"
-              sx={{ minWidth: 40, fontSize: '0.7rem' }}
+              sx={{ 
+                minWidth: 40, 
+                fontSize: '0.7rem',
+                backgroundColor: getSelectBackground(),
+                color: getSelectTextColor(),
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: getSelectTextColor()
+                },
+                '& .MuiSvgIcon-root': {
+                  color: getSelectTextColor()
+                }
+              }}
             >
               <MenuItem value="en">EN</MenuItem>
               <MenuItem value="am">AM</MenuItem>
@@ -1587,18 +1727,15 @@ const GameInterface = ({
             flex: 1,
             overflow: 'auto',
             p: 0.5,
-            background: 'rgba(255,255,255,0.5)',
+            background: getCardBackground(),
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             display: 'flex',
             flexDirection: 'column',
             gap: 1,
-            minHeight: '25vh'
+            minHeight: '25vh',
+            color: getTextColor()
           }}>
-            {/* <Typography variant="body2" gutterBottom sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-              {language === 'am' ? 'የእርስዎ ካርዶች' : 'Your Cards'}
-            </Typography> */}
-            
             {userCards.length === 0 ? (
               <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
                 {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
@@ -1611,146 +1748,148 @@ const GameInterface = ({
                 
                 return (
                   <Card 
-  key={player.id} 
-  sx={{ 
-    p: 0.4,
-    background: isBlocked 
-      ? "rgba(244,67,54,0.10)" 
-      : "rgba(255,255,255,0.85)",
-    border: isBlocked 
-      ? "2px solid #f44336" 
-      : "1.5px solid #dcdcdc",
-    borderRadius: "4px",
-    boxShadow: isBlocked
-      ? "0 2px 6px rgba(244,67,54,0.25)"
-      : "0 2px 5px rgba(0,0,0,0.10)",
-    transition: "all 0.2s ease"
-  }}
->
-  <Typography 
-    variant="body2" 
-    sx={{ 
-      fontWeight: "bold",
-      mb: 1,
-      fontSize: "1rem",
-      color: isBlocked ? "#d32f2f" : "text.primary"
-    }}
-  >
-    {language === "am" ? "ካርድ" : "Card"} #{player.id}
-    {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
-    {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
-  </Typography>
+                    key={player.id} 
+                    sx={{ 
+                      p: 0.4,
+                      background: isBlocked 
+                        ? "rgba(244,67,54,0.10)" 
+                        : getCardBackground(),
+                      border: isBlocked 
+                        ? "2px solid #f44336" 
+                        : "1.5px solid rgba(255,255,255,0.2)",
+                      borderRadius: "4px",
+                      boxShadow: isBlocked
+                        ? "0 2px 6px rgba(244,67,54,0.25)"
+                        : "0 2px 5px rgba(0,0,0,0.10)",
+                      transition: "all 0.2s ease",
+                      color: getTextColor()
+                    }}
+                  >
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: "bold",
+                        mb: 1,
+                        fontSize: "1rem",
+                        color: isBlocked ? "#d32f2f" : getTextColor()
+                      }}
+                    >
+                      {language === "am" ? "ካርድ" : "Card"} #{player.id}
+                      {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
+                      {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
+                    </Typography>
 
-  {/* BINGO Card Container */}
-  <Box
-    sx={{
-      display: "grid",
-      gridTemplateColumns: "repeat(5, 1fr)",
-      gap: 0.15,
-      mb: 0.6
-    }}
-  >
-    {/* BINGO Header */}
-    {["B", "I", "N", "G", "O"].map((letter) => (
-      <Box
-        key={letter}
-        sx={{
-          p: 0.4,
-          background: "linear-gradient(135deg, #1976d2, #2196f3)",
-          color: "white",
-          fontWeight: "bold",
-          fontSize: "0.85rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: "6px 6px 0 0",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
-        }}
-      >
-        {letter}
-      </Box>
-    ))}
+                    {/* BINGO Card Container */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: 0.15,
+                        mb: 0.6
+                      }}
+                    >
+                      {/* BINGO Header */}
+                      {["B", "I", "N", "G", "O"].map((letter) => (
+                        <Box
+                          key={letter}
+                          sx={{
+                            p: 0.4,
+                            background: "linear-gradient(135deg, #1976d2, #2196f3)",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "6px 6px 0 0",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                          }}
+                        >
+                          {letter}
+                        </Box>
+                      ))}
 
-    {/* Card Numbers */}
-    {transposeCard(card).map((row, rowIdx) =>
-      row.map((num, colIdx) => {
-        const letter = "BINGO"[colIdx];
-        const fullNumber = `${letter}-${num}`;
-        const isUserMarked = userMarkedNumbers[fullNumber];
+                      {/* Card Numbers */}
+                      {transposeCard(card).map((row, rowIdx) =>
+                        row.map((num, colIdx) => {
+                          const letter = "BINGO"[colIdx];
+                          const fullNumber = `${letter}-${num}`;
+                          const isUserMarked = userMarkedNumbers[fullNumber];
 
-        return (
-          <Box
-            key={`${rowIdx}-${colIdx}`}
-            onClick={() => toggleUserMark(fullNumber)}
-            sx={{
-              p: 0.35,
-              border: "1.2px solid #d0d0d0",
-              background:
-                rowIdx === 2 && colIdx === 2
-                  ? "rgba(255,235,59,0.35)" // Free space
-                  : isUserMarked
-                  ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
-                  : "linear-gradient(135deg, #ffffff, #f1f1f1)",
-              color: isUserMarked ? "white" : "text.primary",
-              fontWeight: isUserMarked ? "bold" : "normal",
-              fontSize: "0.85rem",
-              minHeight: 26,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "4px",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: isUserMarked
-                ? "0 2px 5px rgba(0,0,0,0.20)"
-                : "0 2px 5px rgba(0,0,0,0.10)",
+                          return (
+                            <Box
+                              key={`${rowIdx}-${colIdx}`}
+                              onClick={() => toggleUserMark(fullNumber)}
+                              sx={{
+                                p: 0.35,
+                                border: "1.2px solid rgba(255,255,255,0.2)",
+                                background:
+                                  rowIdx === 2 && colIdx === 2
+                                    ? "rgba(255,235,59,0.35)"
+                                    : isUserMarked
+                                    ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
+                                    : backgroundColor === 'white'
+                                      ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
+                                      : "rgba(255,255,255,0.1)",
+                                color: isUserMarked ? "white" : getTextColor(),
+                                fontWeight: isUserMarked ? "bold" : "normal",
+                                fontSize: "0.85rem",
+                                minHeight: 26,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                boxShadow: isUserMarked
+                                  ? "0 2px 5px rgba(0,0,0,0.20)"
+                                  : "0 2px 5px rgba(0,0,0,0.10)",
+                                "&:hover": {
+                                  background: isUserMarked
+                                    ? "rgba(255,152,0,0.75)"
+                                    : "rgba(0,0,0,0.08)"
+                                }
+                              }}
+                            >
+                              {num === 0 ? "*" : num}
+                            </Box>
+                          );
+                        })
+                      )}
+                    </Box>
 
-              "&:hover": {
-                background: isUserMarked
-                  ? "rgba(255,152,0,0.75)"
-                  : "rgba(0,0,0,0.08)"
-              }
-            }}
-          >
-            {num === 0 ? "*" : num}
+                    {/* Bingo Button */}
+                    <Button
+                      variant={getButtonVariant()}
+                      color="success"
+                      onClick={() => handleBingo(player.id)}
+                      disabled={
+                        isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+                      }
+                      fullWidth
+                      size="small"
+                      sx={{
+                        fontSize: "0.8rem",
+                        borderRadius: "6px",
+                        opacity:
+                          isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+                            ? 0.6
+                            : 1,
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+                        ...getButtonStyle()
+                      }}
+                    >
+                      {submittedBingoCards.includes(player.id)
+                        ? language === "am"
+                          ? "ቀርቧል"
+                          : "SUBMITTED"
+                        : "BINGO"}
+                    </Button>
+                  </Card>
+                );
+              })
+            )}
           </Box>
-        );
-      })
-    )}
-  </Box>
-
-  {/* Bingo Button */}
-  <Button
-    variant="contained"
-    color="success"
-    onClick={() => handleBingo(player.id)}
-    disabled={
-      isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-    }
-    fullWidth
-    size="small"
-    sx={{
-      fontSize: "0.8rem",
-      borderRadius: "6px",
-      opacity:
-        isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-          ? 0.6
-          : 1,
-      boxShadow: "0 2px 5px rgba(0,0,0,0.15)"
-    }}
-  >
-    {submittedBingoCards.includes(player.id)
-      ? language === "am"
-        ? "ቀርቧል"
-        : "SUBMITTED"
-      : "BINGO"}
-  </Button>
-</Card>
-
-                      );
-                    })
-                  )}
-                </Box>
         </Box>
       </Box>
 

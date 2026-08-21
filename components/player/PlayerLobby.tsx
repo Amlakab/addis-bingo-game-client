@@ -10,7 +10,6 @@ import {
 import { motion } from 'framer-motion';
 import api from '@/app/utils/api';
 
-
 interface PlayerSelection {
   id: number;
   userId: string;
@@ -25,6 +24,8 @@ interface PlayerLobbyProps {
   setLanguage?: (lang: 'en' | 'am') => void;
   onBackToLobby?: () => void;
   onDirectToGame?: (players: PlayerSelection[], bet: number) => void;
+  backgroundColor?: string;
+  setBackgroundColor?: (color: string) => void;
 }
 
 interface GameSession {
@@ -56,7 +57,9 @@ const PlayerLobby = ({
   language = 'am',
   setLanguage,
   onBackToLobby,
-  onDirectToGame
+  onDirectToGame,
+  backgroundColor = 'white',
+  setBackgroundColor
 }: PlayerLobbyProps) => {
   const [selectedPlayers, setSelectedPlayers] = useState<PlayerSelection[]>([]);
   const [betAmount, setBetAmount] = useState(initialBet);
@@ -77,20 +80,118 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
-  // Add state to track pending operations and prevent duplicates
   const [pendingOperations, setPendingOperations] = useState<Set<number>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Calculate responsive button size based on screen width
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
+  const getButtonVariant = () => {
+    switch(backgroundColor) {
+      case 'black': return 'outlined';
+      case 'green': return 'outlined';
+      case 'blue': return 'outlined';
+      case 'yellow': return 'outlined';
+      default: return 'contained';
+    }
+  };
+
+  const getButtonColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'primary';
+      case 'green': return 'success';
+      case 'blue': return 'info';
+      case 'yellow': return 'warning';
+      default: return 'primary';
+    }
+  };
+
+  const getButtonStyle = () => {
+    const textColor = getTextColor();
+    const buttonVariant = getButtonVariant();
+    
+    if (buttonVariant === 'outlined') {
+      return {
+        borderColor: textColor,
+        color: textColor,
+        '&:hover': {
+          borderColor: textColor,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        }
+      };
+    }
+    return {};
+  };
+
+  // FIXED: getTextFieldStyle without duplicate properties
+  const getTextFieldStyle = () => {
+    const textColor = getTextColor();
+    return {
+      '& .MuiInputLabel-root': {
+        color: textColor,
+      },
+      '& .MuiOutlinedInput-root': {
+        color: textColor,
+        borderRadius: 1,
+        background: 'rgba(255,255,255,0.1)',
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        '& fieldset': {
+          borderColor: textColor,
+        },
+        '&:hover fieldset': {
+          borderColor: textColor,
+        },
+        '&.Mui-focused fieldset': {
+          borderColor: textColor,
+        },
+      },
+      '& .MuiInputBase-input': {
+        color: textColor,
+        fontSize: { xs: "0.75rem", sm: "0.9rem" },
+        p: { xs: 0.5, sm: 1 },
+      },
+      '& .MuiInputBase-input.Mui-disabled': {
+        color: textColor,
+        opacity: 0.8,
+      },
+    };
+  };
+
+  // Handle background color change
+  const handleBackgroundColorChange = (color: string) => {
+    if (setBackgroundColor) {
+      setBackgroundColor(color);
+    }
+    localStorage.setItem('bingoBgColor', color);
+  };
+
+  // Calculate responsive button size
   useEffect(() => {
     const calculateButtonSize = () => {
       if (!gridContainerRef.current) return;
       
       const containerWidth = gridContainerRef.current.offsetWidth;
-      // Calculate size based on container width (10 columns with gaps)
       const calculatedSize = Math.max(30, Math.min(50, (containerWidth - 18) / 10));
       setButtonSize(calculatedSize);
     };
@@ -126,13 +227,11 @@ const PlayerLobby = ({
       setWallet(user.wallet || 0);
     }
     
-    // Setup WebSocket listeners
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     webSocketService.on('timer-states-update', handleTimerStatesUpdate);
     
-    // Request initial session data and timer states
     webSocketService.send('get-sessions', { betAmount });
     webSocketService.send('get-timer-states');
     
@@ -144,26 +243,20 @@ const PlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
-  // Handle timer states update from server
   const handleTimerStatesUpdate = (timerStates: {[key: number]: BetTimerState}) => {
     console.log('Received timer states in PlayerLobby:', timerStates);
     
     if (timerStates[betAmount]) {
       const timerState = timerStates[betAmount];
-      // Use the timer value directly from server - no client-side calculation
       setRemainingTime(timerState.timer);
-      
-      // Update player count and prize pool from server data
       setPlayerCount(timerState.playerCount);
       setPrizePool(timerState.prizePool);
     }
   };
 
-  // Check for playing status sessions and handle timer expiration
   useEffect(() => {
     if (!isClient) return;
     
-    // Logic 2: Check if any session has 'playing' status
     const checkPlayingStatus = () => {
       if (Object.keys(occupiedCardsByUser).length > 0) {
         const userSessions = Object.entries(occupiedCardsByUser)
@@ -171,14 +264,12 @@ const PlayerLobby = ({
           .map(([cardNumber]) => parseInt(cardNumber));
         
         if (userSessions.length > 0) {
-          // Check if any of the user's sessions have playing status
           webSocketService.send('get-sessions', { betAmount }, (sessions: GameSession[]) => {
             const userPlayingSessions = sessions.filter(
               session => session.userId._id === user?._id && session.status === 'playing'
             );
             
             if (userPlayingSessions.length > 0) {
-              // User has sessions with playing status, clear selections and go back
               handleCancelSelectionsAndGoBack();
             }
           });
@@ -188,36 +279,27 @@ const PlayerLobby = ({
     
     checkPlayingStatus();
     
-    // Timer logic - now using server-provided time
     if (remainingTime === 4 || remainingTime === 3 || remainingTime === 2 || remainingTime === 1 || remainingTime === 0) {
-      // Timer reached 0 - Logic 1: Clear selections if less than 3 players
       if (playerCount < 3) {
         if (selectedPlayers.length > 0) {
-          // Clear user's selections and go back to bet selection
           handleCancelSelectionsAndGoBack();
         } else if (onBackToLobby) {
           onBackToLobby();
         }
       } else { 
         if(selectedPlayers.length > 0 ) {
-          // Enough players and user has selections, proceed to game
           handleDirectToGame();
         }
         else {
-          // Enough players but user has no selections, just go back to lobby
           if (onBackToLobby) {
             onBackToLobby();
           }
         }
-        // Enough players, proceed to game
-        //handleDirectToGame();
       }
     }
   }, [isClient, remainingTime, selectedPlayers, betAmount, onStartGame, playerCount, onBackToLobby, occupiedCardsByUser, user, webSocketService]);
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
-    // REMOVED: Client-side time calculation - now using server time
-    
     const betSessions = sessions.filter(session => session.betAmount === betAmount);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
@@ -236,26 +318,13 @@ const PlayerLobby = ({
       setSelectedPlayers(userSelectedCards);
     }
     
-    // REMOVED: Client-side player count and prize pool calculation - now using server data
-    
-    // Logic 2: Check if any session has 'playing' status for current user
     const userPlayingSessions = betSessions.filter(
       session => session.userId._id === user?._id && session.status === 'playing'
     );
     
     if (userPlayingSessions.length > 0) {
-      // User has sessions with playing status, clear selections and go back
       handleCancelSelectionsAndGoBack();
     }
-
-    // if(playerCount < 3) {
-    //   setToastMessage(language === 'am' 
-    //     ? 'በቂ ተጫዋቾች አልሆኑም። የተመረጡት ካርዶች ተፈትተዋል።' 
-    //     : 'Not enough players. Your selected cards have been cleared.'
-    //   );
-    //   setShowToast(true);
-    //   handleCancelSelectionsAndGoBack();
-    // }
   };
 
   const handleSessionCreated = (session: GameSession) => {
@@ -267,7 +336,6 @@ const PlayerLobby = ({
         [session.cardNumber]: session.userId._id
       }));
       
-      // Player count and prize pool are now handled by server timer states
       if (user && session.userId._id === user._id) {
         setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
       }
@@ -278,16 +346,13 @@ const PlayerLobby = ({
     setWallet(newWallet);
   };
 
-  // New function to handle canceling selections and going back
   const handleCancelSelectionsAndGoBack = async () => {
     if (!isClient || !webSocketService || !user) return;
     
     setIsLoading(true);
     try {
-      // Clear selected players locally first
       setSelectedPlayers([]);
       
-      // Clear selections in database
       if (webSocketService) {
         webSocketService.send('clear-selected', {
           betAmount: betAmount,
@@ -295,14 +360,12 @@ const PlayerLobby = ({
         });
       }
       
-      // Show appropriate message
       const msg = language === 'am' 
         ? 'መርጠው የነበሩት ካርዶች ተፈትተዋል። ወደ የባህር ገንዘብ ምርጫ ተመለስ።' 
         : 'Your selected cards have been cleared. Returning to bet selection.';
       setToastMessage(msg);
       setShowToast(true);
       
-      // Wait a moment for the user to see the message, then go back
       setTimeout(() => {
         if (onBackToLobby) {
           onBackToLobby();
@@ -319,9 +382,7 @@ const PlayerLobby = ({
     }
   };
 
-  // Enhanced togglePlayer function with comprehensive validation
   const togglePlayer = async (id: number) => {
-    // Prevent multiple simultaneous operations
     if (isProcessing || pendingOperations.has(id)) {
       return;
     }
@@ -337,46 +398,33 @@ const PlayerLobby = ({
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
     
-    // VALIDATION 1: Cards selected by others should not be clickable
     if (isSelectedByOthers) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
       setWalletError(true);
       return;
     }
 
-    // VALIDATION 2: Prevent duplicate operations
     if (pendingOperations.has(id)) {
       return;
     }
 
-    // Add to pending operations to prevent duplicates
     setPendingOperations(prev => new Set(prev).add(id));
     setIsProcessing(true);
 
     try {
       if (isSelectedByUser) {
-        // Deselect card logic
-        
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
-        
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
         });
-
-        
-
       } else {
-        // Select card logic
-        
-        // VALIDATION 3: Check if user already has 2 cards selected
         if (selectedPlayers.length >= 2) {
           setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
           setWalletError(true);
           return;
         }
 
-        // VALIDATION 4: Check sufficient balance for the new selection
         const totalCost = (selectedPlayers.length + 1) * betAmount;
         if (wallet < totalCost) {
           setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
@@ -384,17 +432,14 @@ const PlayerLobby = ({
           return;
         }
 
-        // VALIDATION 5: Double-check card is not occupied (race condition protection)
         if (occupiedCards.includes(id)) {
           setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
           setWalletError(true);
           return;
         }
 
-        // Update local state optimistically
         setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-// alert(user.agent_id);
-        // Send creation request
+
         webSocketService.send('create-session', {
           userId: user._id,
           agentId: user.agent_id || '',
@@ -411,12 +456,10 @@ const PlayerLobby = ({
       setErrorMessage(errorMsg);
       setWalletError(true);
       
-      // Revert optimistic update on error
       if (!isSelectedByUser) {
         setSelectedPlayers(prev => prev.filter(p => p.id !== id));
       }
     } finally {
-      // Remove from pending operations
       setPendingOperations(prev => {
         const newSet = new Set(prev);
         newSet.delete(id);
@@ -427,83 +470,73 @@ const PlayerLobby = ({
     }
   };
 
-  // Handle direct navigation to game (without updating session status)
- const handleDirectToGame = async () => {
-  if (!isClient || !webSocketService || !user || !onDirectToGame) return;
+  const handleDirectToGame = async () => {
+    if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
-  try {
-    // ✅ NEW: Fetch user's sessions from the API to validate
-    const response = await api.get(`/game/sessions/user/${user._id}`);
-    const userSessions = response.data;
-    
-    // Filter sessions for current bet amount and active/ready status
-    const currentBetSessions = userSessions.filter((session: GameSession) => 
-      session.betAmount === betAmount && 
-      ['active', 'ready'].includes(session.status)
-    );
+    try {
+      const response = await api.get(`/game/sessions/user/${user._id}`);
+      const userSessions = response.data;
+      
+      const currentBetSessions = userSessions.filter((session: GameSession) => 
+        session.betAmount === betAmount && 
+        ['active', 'ready'].includes(session.status)
+      );
 
-    // ✅ VALIDATION: Check if user has exactly 1 or 2 sessions
-    if (currentBetSessions.length === 0) {
+      if (currentBetSessions.length === 0) {
+        setToastMessage(language === 'am' 
+          ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
+          : 'Please select at least 1 card'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      if (currentBetSessions.length > 2) {
+        setToastMessage(language === 'am' 
+          ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
+          : 'You cannot select more than 2 cards'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      const validatedSelectedPlayers: PlayerSelection[] = currentBetSessions.map((session: GameSession) => ({
+        id: session.cardNumber,
+        userId: session.userId._id
+      }));
+
+      if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
+        setToastMessage(language === 'am' 
+          ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
+          : 'You can only select 1 to 2 cards'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      webSocketService.send('fund-wallet', {
+        betAmount: betAmount,
+        userId: user._id
+      });
+
+      webSocketService.send('update-session-status-by-user-bet', {
+        userId: user._id,
+        betAmount: betAmount,
+        status: 'ready'
+      });
+
+      onDirectToGame(validatedSelectedPlayers, betAmount);
+
+    } catch (error) {
+      console.error('Error in handleDirectToGame:', error);
       setToastMessage(language === 'am' 
-        ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
-        : 'Please select at least 1 card'
+        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
+        : 'Error occurred while processing game entry'
       );
       setShowToast(true);
-      return;
     }
+  };
 
-    if (currentBetSessions.length > 2) {
-      setToastMessage(language === 'am' 
-        ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
-        : 'You cannot select more than 2 cards'
-      );
-      setShowToast(true);
-      return;
-    }
-
-    // Extract selected players from the fetched sessions
-    const validatedSelectedPlayers: PlayerSelection[] = currentBetSessions.map((session: GameSession) => ({
-      id: session.cardNumber,
-      userId: session.userId._id
-    }));
-
-    // ✅ VALIDATION: Ensure we have 1 or 2 players
-    if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
-      setToastMessage(language === 'am' 
-        ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
-        : 'You can only select 1 to 2 cards'
-      );
-      setShowToast(true);
-      return;
-    }
-
-    // 1. First call fund-wallet
-    webSocketService.send('fund-wallet', {
-      betAmount: betAmount,
-      userId: user._id
-    });
-
-    // 2. Then call update session status to ready
-    webSocketService.send('update-session-status-by-user-bet', {
-      userId: user._id,
-      betAmount: betAmount,
-      status: 'ready'
-    });
-
-    // 3. Redirect to game with validated players
-    onDirectToGame(validatedSelectedPlayers, betAmount);
-
-  } catch (error) {
-    console.error('Error in handleDirectToGame:', error);
-    setToastMessage(language === 'am' 
-      ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
-      : 'Error occurred while processing game entry'
-    );
-    setShowToast(true);
-  }
-};
-
-  // Original method to handle canceling selections (without going back)
   const handleCancelSelections = async () => {
     if (!isClient || !webSocketService || !user) return;
     
@@ -512,7 +545,6 @@ const PlayerLobby = ({
     setIsLoading(true);
     try {
       if (webSocketService) {
-        // First update all sessions with this bet amount to 'playing' status
         webSocketService.send('clear-selected', {
           betAmount: betAmount,
           userId: user._id
@@ -521,7 +553,6 @@ const PlayerLobby = ({
         console.error('WebSocket service not available');
       }
       
-      // Clear selected players
       setSelectedPlayers([]);
       
     } catch (error: any) {
@@ -553,11 +584,11 @@ const PlayerLobby = ({
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       style={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      overflow: 'hidden' // Prevent the whole container from scrolling
-    }}
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
     >
       {/* Bet Amount and Stats Row */}
       <Box
@@ -566,13 +597,14 @@ const PlayerLobby = ({
           justifyContent: "space-between",
           alignItems: "center",
           p: 1,
-          background: "rgba(255,255,255,0.8)",
+          background: getCardBackground(),
           boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
           mb: 2,
           flexDirection: "row",
           gap: { xs: 1, sm: 2 },
           flexWrap: "nowrap",
-          flexShrink: 0, // Prevent shrinking
+          flexShrink: 0,
+          color: getTextColor()
         }}
       >
         {/* Bet Input */}
@@ -582,30 +614,22 @@ const PlayerLobby = ({
           size="small"
           value={betAmount}
           disabled
-          onChange={(e) => setBetAmount(Number(e.target.value))}
           sx={{
             width: { xs: 100, sm: 150 },
-            "& .MuiOutlinedInput-root": {
-              borderRadius: 1,
-              background: "white",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-            },
-            "& .MuiInputBase-input": {
-              fontSize: { xs: "0.75rem", sm: "0.9rem" },
-              p: { xs: 0.5, sm: 1 },
-            },
+            ...getTextFieldStyle(),
           }}
           InputProps={{
             inputProps: { min: 0 },
           }}
         />
 
-        {/* Timer - Now using server-provided time directly */}
+        {/* Timer */}
         <Typography
           variant="h6"
           sx={{
             fontSize: { xs: "0.8rem", sm: "1rem" },
             whiteSpace: "nowrap",
+            color: getTextColor()
           }}
         >
           {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
@@ -620,7 +644,7 @@ const PlayerLobby = ({
             flexWrap: "nowrap",
           }}
         >
-          {/* Players - Now using server-provided player count */}
+          {/* Players */}
           <Card
             sx={{
               minWidth: { xs: 50, sm: 90 },
@@ -664,7 +688,7 @@ const PlayerLobby = ({
             </CardContent>
           </Card>
 
-          {/* Prize Pool - Now using server-provided prize pool */}
+          {/* Prize Pool */}
           <Card
             sx={{
               minWidth: { xs: 50, sm: 90 },
@@ -714,108 +738,115 @@ const PlayerLobby = ({
       <Box sx={{ 
         p: { xs: 0.5, sm: 0.5 }, 
         textAlign: 'center',
-        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          : backgroundColor,
         minHeight: '50vh',
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        color: getTextColor()
       }}>
         <Box
-  ref={gridContainerRef}
-  sx={{
-    flex: 1,
-    display: 'grid',
-    gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`, // ✅ 10 columns
-    gridAutoRows: 'minmax(42px, auto)',
-    gap: 0.5,
-    justifyContent: 'center',
-    p: 0.5,
-    background: 'rgba(255,255,255,0.7)',
-    borderRadius: 2,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    overflow: 'auto', // ✅ Enable scrolling
-    mb: 0.5,
-    mx: 'auto',
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box',
-    maxHeight: '450px', // ✅ Limit height to enable vertical scroll
-  }}
->
-  {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
-    const isOccupied = occupiedCards.includes(id);
-    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-    const isSelectedByOthers = isOccupied && !isSelectedByUser;
-    const isPending = pendingOperations.has(id);
-    const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
-
-    return (
-      <motion.div
-        key={id}
-        whileHover={{ scale: isDisabled ? 1 : 1.05 }}
-        whileTap={{ scale: isDisabled ? 1 : 0.95 }}
-        style={{ width: '100%', height: '100%' }}
-      >
-        <Box
-          onClick={() => !isDisabled && togglePlayer(id)}
+          ref={gridContainerRef}
           sx={{
-            width: '100%',
-            height: '100%',
-            minHeight: 42,
-            display: 'flex',
-            alignItems: 'center',
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`,
+            gridAutoRows: 'minmax(42px, auto)',
+            gap: 0.5,
             justifyContent: 'center',
-            borderRadius: '4px',
-            fontWeight: 'bold',
-            fontSize: '0.8rem',
-            cursor: isDisabled ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s ease',
-            opacity: isDisabled ? 0.7 : 1,
-
-            background: isSelectedByUser
-              ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
-              : isSelectedByOthers
-              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
-              : 'linear-gradient(145deg, #ffffff, #e0e0e0)',
-
-            color: isSelectedByUser
-              ? 'white'
-              : isSelectedByOthers
-              ? '#d32f2f'
-              : 'text.primary',
-
-            border: isSelectedByUser
-              ? '2px solid #2E7D32'
-              : isSelectedByOthers
-              ? '2px solid #d32f2f'
-              : '1px solid #e0e0e0',
-
-            boxShadow: isSelectedByUser
-              ? '0 4px 8px rgba(76,175,80,0.3)'
-              : isSelectedByOthers
-              ? '0 2px 4px rgba(244,67,54,0.2)'
-              : '0 2px 4px rgba(33,150,243,0.2)',
-
-            '&:hover': !isDisabled ? {
-              background: isSelectedByUser
-                ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                : 'linear-gradient(145deg, #f5f5f5, #e0e0e0)',
-            } : {},
+            p: 0.5,
+            background: getCardBackground(),
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            overflow: 'auto',
+            mb: 0.5,
+            mx: 'auto',
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            maxHeight: '450px',
           }}
         >
-          {isPending ? (
-            <CircularProgress size={20} />
-          ) : (
-            id
-          )}
-        </Box>
-      </motion.div>
-    );
-  })}
-</Box>
+          {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
+            const isOccupied = occupiedCards.includes(id);
+            const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+            const isSelectedByOthers = isOccupied && !isSelectedByUser;
+            const isPending = pendingOperations.has(id);
+            const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
 
-        {/* Action Buttons - Two buttons in one row */}
+            return (
+              <motion.div
+                key={id}
+                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <Box
+                  onClick={() => !isDisabled && togglePlayer(id)}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: 42,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: isDisabled ? 0.7 : 1,
+
+                    background: isSelectedByUser
+                      ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+                      : isSelectedByOthers
+                      ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
+                      : backgroundColor === 'white'
+                        ? 'linear-gradient(145deg, #ffffff, #e0e0e0)'
+                        : 'rgba(255,255,255,0.15)',
+
+                    color: isSelectedByUser
+                      ? 'white'
+                      : isSelectedByOthers
+                      ? '#d32f2f'
+                      : getTextColor(),
+
+                    border: isSelectedByUser
+                      ? '2px solid #2E7D32'
+                      : isSelectedByOthers
+                      ? '2px solid #d32f2f'
+                      : '1px solid rgba(255,255,255,0.2)',
+
+                    boxShadow: isSelectedByUser
+                      ? '0 4px 8px rgba(76,175,80,0.3)'
+                      : isSelectedByOthers
+                      ? '0 2px 4px rgba(244,67,54,0.2)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+
+                    '&:hover': !isDisabled ? {
+                      background: isSelectedByUser
+                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
+                        : backgroundColor === 'white'
+                          ? 'linear-gradient(145deg, #f5f5f5, #e0e0e0)'
+                          : 'rgba(255,255,255,0.25)',
+                    } : {},
+                  }}
+                >
+                  {isPending ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    id
+                  )}
+                </Box>
+              </motion.div>
+            );
+          })}
+        </Box>
+
+        {/* Action Buttons */}
         <Box
           sx={{
             width: '100%',
@@ -824,12 +855,11 @@ const PlayerLobby = ({
             px: 1,
             display: 'flex',
             gap: 1,
-            flexShrink: 0, // Prevent shrinking
+            flexShrink: 0,
           }}
         >
-          {/* Left Button */}
           <Button
-            variant="contained"
+            variant={getButtonVariant()}
             color={
               playerCount > 2 && selectedPlayers.length > 0
                 ? 'success'
@@ -852,6 +882,7 @@ const PlayerLobby = ({
               fontWeight: 'bold',
               borderRadius: 2,
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              ...getButtonStyle()
             }}
           >
             {playerCount > 2 && selectedPlayers.length > 0
@@ -867,9 +898,8 @@ const PlayerLobby = ({
               : 'Wait'}
           </Button>
 
-          {/* Right Button (Clear) */}
           <Button
-            variant="contained"
+            variant={getButtonVariant()}
             color="error"
             onClick={handleCancelSelections}
             disabled={selectedPlayers.length === 0 || isProcessing}
@@ -881,6 +911,7 @@ const PlayerLobby = ({
               borderRadius: 2,
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
               opacity: selectedPlayers.length === 0 ? 0.6 : 1,
+              ...getButtonStyle()
             }}
           >
             {language === 'am' ? 'አጽዳ' : 'Clear'}
@@ -901,7 +932,6 @@ const PlayerLobby = ({
           </Alert>
         </Snackbar>
 
-        {/* Toast message for automatic clearing */}
         <Snackbar
           open={showToast}
           autoHideDuration={3000}

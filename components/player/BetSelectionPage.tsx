@@ -1,17 +1,14 @@
-// =============================
-// File: BetSelectionPage.tsx (FULLY CORRECTED)
-// =============================
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
 import { 
   Box, Typography, Card, CardContent, Button,
-  useTheme, useMediaQuery, Chip, Skeleton
+  useTheme, useMediaQuery, Chip, Skeleton, Tooltip, IconButton
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { 
   SportsEsports, People, EmojiEvents, AccessTime,
-  AccountBalanceWallet
+  AccountBalanceWallet, ColorLens
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 import HowToPlayModal from '@/components/player/HowToPlayModal';
@@ -19,6 +16,8 @@ import HowToPlayModal from '@/components/player/HowToPlayModal';
 interface BetSelectionPageProps {
   onPlay: (betAmount: number, timeRemaining: number, players: number, createdAt: Date) => void;
   language?: 'en' | 'am';
+  backgroundColor?: string;
+  setBackgroundColor?: (color: string) => void;
 }
 
 interface GameSession {
@@ -60,7 +59,9 @@ interface Game {
 
 const BetSelectionPage = ({ 
   onPlay,
-  language = 'am'
+  language = 'am',
+  backgroundColor = 'white',
+  setBackgroundColor
 }: BetSelectionPageProps) => {
   const [betOptions, setBetOptions] = useState<number[]>([]);
   const [betStatuses, setBetStatuses] = useState<{[key: number]: BetStatus}>({});
@@ -76,6 +77,92 @@ const BetSelectionPage = ({
   
   // Track which bets have been reset to avoid multiple calls
   const resetTrackerRef = useRef<{[key: number]: boolean}>({});
+
+  // NEW: Color helper functions (matching offline code)
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.9)';
+      case 'green': return 'rgba(30, 70, 30, 0.9)';
+      case 'blue': return 'rgba(30, 50, 80, 0.9)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.9)';
+      default: return 'rgba(255, 255, 255, 0.8)';
+    }
+  };
+
+  const getButtonVariant = () => {
+    switch(backgroundColor) {
+      case 'black': return 'outlined';
+      case 'green': return 'outlined';
+      case 'blue': return 'outlined';
+      case 'yellow': return 'outlined';
+      default: return 'contained';
+    }
+  };
+
+  const getButtonColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'primary';
+      case 'green': return 'success';
+      case 'blue': return 'info';
+      case 'yellow': return 'warning';
+      default: return 'primary';
+    }
+  };
+
+  const getSelectBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return '#333';
+      case 'green': return '#2e7d32';
+      case 'blue': return '#1976d2';
+      case 'yellow': return '#ffeb3b';
+      default: return '#fff';
+    }
+  };
+
+  const getSelectTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getButtonStyle = () => {
+    const textColor = getTextColor();
+    const buttonVariant = getButtonVariant();
+    
+    if (buttonVariant === 'outlined') {
+      return {
+        borderColor: textColor,
+        color: textColor,
+        '&:hover': {
+          borderColor: textColor,
+          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        }
+      };
+    }
+    return {};
+  };
+
+  // NEW: Handle background color change
+  const handleBackgroundColorChange = (color: string) => {
+    if (setBackgroundColor) {
+      setBackgroundColor(color);
+    }
+    localStorage.setItem('bingoBgColor', color);
+  };
 
   useEffect(() => {
     setIsClient(true);
@@ -95,21 +182,15 @@ const BetSelectionPage = ({
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
-    // Fetch games from database
     fetchGames();
-    
-    // Fetch user balance on component mount
     fetchUserBalance();
 
-    // Setup WebSocket listener for timer updates
     const handleTimerStatesUpdate = (timerStates: {[key: number]: BetStatus}) => {
       console.log('Received timer states update:', timerStates);
       setBetStatuses(timerStates);
     };
 
     webSocketService.on('timer-states-update', handleTimerStatesUpdate);
-    
-    // Request initial timer states
     webSocketService.send('get-timer-states');
 
     return () => {
@@ -117,33 +198,24 @@ const BetSelectionPage = ({
     };
   }, [isClient, webSocketService]);
 
-  // ✅ AUTO-RESET FUNCTIONALITY: Reset every bet at exactly 45 seconds
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
     Object.entries(betStatuses).forEach(([betAmount, status]) => {
       const bet = Number(betAmount);
       
-      // Reset when timer is exactly 45 seconds (start of active phase)
       if (status.status === 'active' && status.timer === 45) {
-        // Check if we already reset this bet to avoid multiple calls
         if (!resetTrackerRef.current[bet]) {
           console.log(`🔄 Auto-resetting game at 45 seconds for bet ${bet}`);
-          
-          // Call reset-game event for this bet amount
           webSocketService.send('reset-game', { betAmount: bet });
-          
-          // Mark this bet as reset to prevent multiple calls
           resetTrackerRef.current[bet] = true;
           
-          // Clear the reset flag after a short delay to allow next cycle
           setTimeout(() => {
             resetTrackerRef.current[bet] = false;
           }, 2000);
         }
       }
       
-      // Reset the tracker when game goes back to ready state
       if (status.status === 'ready') {
         resetTrackerRef.current[bet] = false;
       }
@@ -156,11 +228,9 @@ const BetSelectionPage = ({
       const response = await api.get('/games');
       const games: Game[] = response.data.data;
       
-      // Extract bet amounts and sort them in ascending order
       const betAmounts = games.map(game => game.betAmount).sort((a, b) => a - b);
       setBetOptions(betAmounts);
       
-      // Initialize bet statuses with default values
       const initialStatuses: {[key: number]: BetStatus} = {};
       betAmounts.forEach(bet => {
         initialStatuses[bet] = {
@@ -185,7 +255,6 @@ const BetSelectionPage = ({
     try {
       setIsLoadingBalance(true);
       
-      // Get user data from localStorage
       const userDataString = localStorage.getItem('user');
       
       if (!userDataString) {
@@ -194,14 +263,10 @@ const BetSelectionPage = ({
         return;
       }
       
-      // Parse user data to get user ID
       const parsedUser: UserData = JSON.parse(userDataString);
-      
-      // Fetch latest user data from API
       const res = await api.get(`/user/${parsedUser._id}`);
       const userData: UserData = res.data.data;
       
-      // Set user balance from database
       setUserBalance(userData.wallet);
       
     } catch (error) {
@@ -298,12 +363,15 @@ const BetSelectionPage = ({
     >
       <Box sx={{ 
         minHeight: '40vh',
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+          : backgroundColor,
         p: { xs: 1.5, sm: 2.5 },
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        color: getTextColor()
       }}>
         {/* User Balance Display */}
         <motion.div
@@ -315,13 +383,14 @@ const BetSelectionPage = ({
             display: 'flex', 
             alignItems: 'center', 
             mb: 2,
-            background: 'rgba(255, 255, 255, 0.8)', 
+            background: getCardBackground(), 
             borderRadius: 2, 
             p: 1.5,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            color: getTextColor()
           }}>
             <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
-            <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#2c3e50' }}>
+            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
               {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
             </Typography>
             {isLoadingBalance ? (
@@ -375,13 +444,14 @@ const BetSelectionPage = ({
                   sx={{ 
                     borderRadius: 2,
                     boxShadow: canPlay ? '0 4px 14px rgba(0,0,0,0.15)' : '0 4px 14px rgba(0,0,0,0.08)',
-                    background: '#ffffff',
+                    background: getCardBackground(),
                     opacity: isDisabled ? 0.7 : 1,
                     position: 'relative',
                     overflow: 'visible',
                     border: canPlay ? '2px solid #4caf50' : '1px solid #e0e0e0',
                     height: '100%',
                     transition: 'all 0.3s ease',
+                    color: getTextColor()
                   }}
                 >
                   {/* Status Badge */}
@@ -405,7 +475,7 @@ const BetSelectionPage = ({
                   <CardContent sx={{ p: 2, textAlign: 'center' }}>
                     {/* Bet Amount */}
                     <Typography variant="h5" sx={{ 
-                      color: '#2c3e50', 
+                      color: getTextColor(), 
                       fontWeight: 'bold', 
                       mb: 1.5,
                       fontSize: { xs: '1.5rem', sm: '1.75rem' }
@@ -419,15 +489,15 @@ const BetSelectionPage = ({
                       alignItems: 'center', 
                       justifyContent: 'center',
                       mb: 1.5,
-                      background: '#f8f9fa', 
+                      background: 'rgba(0,0,0,0.05)', 
                       borderRadius: 1.5, 
                       p: 1 
                     }}>
                       <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
-                      <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
                         {status.playerCount || 0}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
+                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7 }}>
                         {language === 'am' ? "ተጫዋች" : "Players"}
                       </Typography>
                     </Box>
@@ -438,15 +508,15 @@ const BetSelectionPage = ({
                       alignItems: 'center', 
                       justifyContent: 'center',
                       mb: 2,
-                      background: '#f8f9fa', 
+                      background: 'rgba(0,0,0,0.05)', 
                       borderRadius: 1.5, 
                       p: 1 
                     }}>
                       <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
-                      <Typography variant="body1" sx={{ color: '#2c3e50', fontWeight: 'bold', fontSize: '1rem' }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
                         {(status.prizePool || 0).toFixed(2)}
                       </Typography>
-                      <Typography variant="body2" sx={{ color: '#7f8c8d', ml: 0.5, fontSize: '0.8rem' }}>
+                      <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7 }}>
                         {language === 'am' ? "ደራሽ" : "Prize"}
                       </Typography>
                     </Box>
@@ -469,49 +539,20 @@ const BetSelectionPage = ({
                     )}
 
                     <Button
-                      variant="contained"
+                      variant={getButtonVariant()}
+                      color={getButtonColor()}
                       size="small"
                       disabled={isDisabled || isLoadingBalance}
                       onClick={() => handlePlayClick(bet)}
                       startIcon={!isDisabledByBalance && !isLoadingBalance && canPlay ? <SportsEsports /> : undefined}
                       sx={{
                         textTransform: 'none',
-                        background: isLoadingBalance
-                          ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
-                          : canPlay
-                            ? 'linear-gradient(145deg, #3498db, #2980b9)'
-                            : isDisabledByBalance
-                              ? 'linear-gradient(145deg, #ff6b6b, #ee5a52)'
-                              : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
-                        color: 'white',
                         fontWeight: 'bold',
                         borderRadius: 1.5,
                         py: 0.7,
                         width: '100%',
                         fontSize: '0.9rem',
-                        boxShadow: isLoadingBalance
-                          ? '0 3px 6px rgba(0,0,0,0.1)'
-                          : canPlay
-                            ? '0 4px 8px rgba(52, 152, 219, 0.3)' 
-                            : isDisabledByBalance
-                              ? '0 3px 6px rgba(244, 67, 54, 0.3)'
-                              : '0 3px 6px rgba(0,0,0,0.1)',
-                        '&:hover': {
-                          background: isLoadingBalance
-                            ? 'linear-gradient(145deg, #bdc3c7, #95a5a6)'
-                            : canPlay
-                              ? 'linear-gradient(145deg, #2980b9, #2471a3)' 
-                              : isDisabledByBalance
-                                ? 'linear-gradient(145deg, #ee5a52, #d32f2f)'
-                                : 'linear-gradient(145deg, #bdc3c7, #95a5a6)',
-                          boxShadow: isLoadingBalance
-                            ? '0 3px 6px rgba(0,0,0,0.1)'
-                            : canPlay
-                              ? '0 6px 12px rgba(52, 152, 219, 0.4)' 
-                              : isDisabledByBalance
-                                ? '0 4px 8px rgba(244, 67, 54, 0.4)'
-                                : '0 3px 6px rgba(0,0,0,0.1)'
-                        },
+                        ...getButtonStyle(),
                         '&:disabled': {
                           background: isDisabledByBalance && !isLoadingBalance
                             ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)' 
@@ -538,7 +579,7 @@ const BetSelectionPage = ({
           })}
         </Box>
 
-        {/* Footer*/}
+        {/* Footer with How to Play and Background Color */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -546,29 +587,72 @@ const BetSelectionPage = ({
         >
           <Typography variant="body2" sx={{ 
             mt: 3, 
-            color: '#7f8c8d',
             textAlign: 'center',
             maxWidth: 500,
-            fontSize: { xs: '0.75rem', sm: '0.875rem' }
+            fontSize: { xs: '0.75rem', sm: '0.875rem' },
+            opacity: 0.8
           }}>
             {language === 'am' 
               ? "ሁሉም ጨዋታዎች ፍትሃዊ የበጋ ስርዓት ይጠቀማሉ። አሸናፊዎች የሽልማት ማከማቻውን 80% ይቀበላሉ።"
               : "All games use a fair random system. Winners receive 80% of the prize pool."
             }
           </Typography>
-          <Button
-            onClick={() => setHowToPlayOpen(true)}
-            variant="outlined"
-            color="info"
-            sx={{
-              fontWeight: 'bold',
+          
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', mt: 2, flexWrap: 'wrap' }}>
+            <Button
+              onClick={() => setHowToPlayOpen(true)}
+              variant={getButtonVariant()}
+              color={getButtonColor()}
+              sx={{
+                fontWeight: 'bold',
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                ...getButtonStyle()
+              }}
+            >
+              {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play'}
+            </Button>
+            
+            {/* Background Color Selection */}
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 0.5, 
+              alignItems: 'center',
+              background: getCardBackground(),
               borderRadius: 2,
-              px: 3,
-              py: 1
-            }}
-          >
-            {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play'}
-          </Button>
+              px: 1,
+              py: 0.5,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              <Tooltip title={language === 'am' ? 'የመቀመጫ ቀለም' : 'Background Color'}>
+                <IconButton size="small" sx={{ color: getTextColor() }}>
+                  <ColorLens />
+                </IconButton>
+              </Tooltip>
+              <Box sx={{ display: 'flex', gap: 0.3 }}>
+                {['white', 'black', 'green', 'blue', 'yellow'].map((color) => (
+                  <Box
+                    key={color}
+                    onClick={() => handleBackgroundColorChange(color)}
+                    sx={{
+                      width: { xs: 20, sm: 24 },
+                      height: { xs: 20, sm: 24 },
+                      borderRadius: '50%',
+                      backgroundColor: color,
+                      border: backgroundColor === color ? '3px solid #1976d2' : '2px solid rgba(255,255,255,0.3)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'scale(1.15)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                      }
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </Box>
         </motion.div>
       </Box>
 
