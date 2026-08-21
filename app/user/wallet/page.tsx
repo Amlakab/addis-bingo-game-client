@@ -93,6 +93,36 @@ export default function WalletPage() {
   const [isLoadingAccountants, setIsLoadingAccountants] = useState(true);
   const router = useRouter();
 
+  // NEW: Background color state
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
   // Payment configuration - will be populated from backend
   const [paymentConfig, setPaymentConfig] = useState({
     telebirr: {
@@ -134,14 +164,12 @@ export default function WalletPage() {
     const fetchAccountants = async () => {
       try {
         setIsLoadingAccountants(true);
-        // Fetch only active (not blocked) accountants, sorted by latest
         const res = await api.get('/accountants?blocked=false');
         const activeAccountants = res.data.data;
         setAccountants(activeAccountants);
         
-        // Update payment configuration with the latest active accountant
         if (activeAccountants.length > 0) {
-          const latestAccountant = activeAccountants[0]; // Get the latest accountant
+          const latestAccountant = activeAccountants[0];
           setPaymentConfig({
             telebirr: {
               phone: latestAccountant.phoneNumber,
@@ -204,28 +232,26 @@ export default function WalletPage() {
     showMessage('Copied to clipboard!', 'success');
   };
 
-  // ✅ If user not found (after loading), show message with navigation
   if (!user && !isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
         <MobileHeader title="Wallet" showWallet={true} />
         <div className="flex items-center justify-center h-64">
-          <p className="text-center text-gray-500">User not found</p>
+          <p className="text-center" style={{ color: getTextColor() }}>User not found</p>
         </div>
         <MobileNavigation />
       </div>
     );
   }
 
-  // ✅ Show loading spinner ONLY for content, navigation stays visible
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
         <MobileHeader title="Wallet" showWallet={true} />
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
+            <p className="mt-4" style={{ color: getTextColor() }}>Loading...</p>
           </div>
         </div>
         <MobileNavigation />
@@ -234,36 +260,27 @@ export default function WalletPage() {
   }
 
   const WalletOverview = () => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-lg shadow-md" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">Wallet Balance</h2>
+        <h2 className="text-xl font-bold" style={{ color: getTextColor() }}>Wallet Balance</h2>
         <Wallet className="h-6 w-6 text-blue-600" />
       </div>
 
       <div className="text-center mb-6">
         <p className="text-3xl font-bold text-green-600">{formatCurrency(user!.wallet)}</p>
-        <p className="text-gray-500 mt-2">Available Balance</p>
+        <p className="mt-2" style={{ color: getTextColor(), opacity: 0.7 }}>Available Balance</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg text-center">
-          <p className="text-sm text-blue-600 mb-1">Daily Earnings</p>
-          <p className="font-semibold">{formatCurrency(user!.dailyEarnings)}</p>
+        <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
+          <p className="text-sm mb-1" style={{ color: '#3b82f6' }}>Daily Earnings</p>
+          <p className="font-semibold" style={{ color: getTextColor() }}>{formatCurrency(user!.dailyEarnings)}</p>
         </div>
-        <div className="bg-green-50 p-4 rounded-lg text-center">
-          <p className="text-sm text-green-600 mb-1">Total Earnings</p>
-          <p className="font-semibold">{formatCurrency(user!.totalEarnings)}</p>
+        <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+          <p className="text-sm mb-1" style={{ color: '#22c55e' }}>Total Earnings</p>
+          <p className="font-semibold" style={{ color: getTextColor() }}>{formatCurrency(user!.totalEarnings)}</p>
         </div>
       </div>
-
-      {/* <div className="flex space-x-4">
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium flex items-center justify-center" onClick={() => setActiveTab('deposit')}>
-          <ArrowDown className="mr-2 h-5 w-5" /> Deposit
-        </motion.button>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium flex items-center justify-center" onClick={() => setActiveTab('withdraw')}>
-          <ArrowUp className="mr-2 h-5 w-5" /> Withdraw
-        </motion.button>
-      </div> */}
     </motion.div>
   );
 
@@ -280,8 +297,6 @@ export default function WalletPage() {
     const handlePaymentSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!amount || !userAccount || !userName) return;
-      
-      // Move to verification step
       setStep('verification');
     };
 
@@ -291,7 +306,6 @@ export default function WalletPage() {
 
       setLoading(true);
       try {
-        // Create deposit transaction with all required fields
         const payload = {
           userId: user!._id,
           amount: parseFloat(amount),
@@ -314,10 +328,8 @@ export default function WalletPage() {
         if (res.data.success) {
           showMessage('Deposit request submitted successfully! It will be processed after verification.', 'success');
           setActiveTab('overview');
-          // Refresh transactions
           const transactionsRes = await api.get(`/transactions/user/${user!._id}?limit=20&page=1`);
           setTransactions(transactionsRes.data.data);
-          // Reset form
           setAmount('');
           setUserAccount('');
           setUserName('');
@@ -344,29 +356,33 @@ export default function WalletPage() {
     };
 
     return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold mb-6 flex items-center">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-lg shadow-md" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
+        <h2 className="text-xl font-bold mb-6 flex items-center" style={{ color: getTextColor() }}>
           <ArrowDown className="mr-2 h-5 w-5 text-blue-600" />
           Deposit Funds
         </h2>
 
         {isLoadingAccountants ? (
           <div className="text-center py-8">
-            <p className="text-gray-600">Loading payment information...</p>
+            <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading payment information...</p>
           </div>
         ) : accountants.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-600">No payment methods available at the moment</p>
+            <p style={{ color: getTextColor(), opacity: 0.7 }}>No payment methods available at the moment</p>
           </div>
         ) : step === 'payment' ? (
           <form onSubmit={handlePaymentSubmit}>
-
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>Payment Method</label>
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'telebirr' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
+                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'telebirr' ? 'border-blue-500' : 'border-gray-300'}`}
+                  style={{ 
+                    backgroundColor: paymentMethod === 'telebirr' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                    borderColor: paymentMethod === 'telebirr' ? '#3b82f6' : getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   onClick={() => setPaymentMethod('telebirr')}
                 >
                   <Wallet className="h-6 w-6 mx-auto mb-2" />
@@ -374,7 +390,12 @@ export default function WalletPage() {
                 </button>
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'cbe' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`} 
+                  className={`p-4 border rounded-lg text-center ${paymentMethod === 'cbe' ? 'border-blue-500' : 'border-gray-300'}`}
+                  style={{ 
+                    backgroundColor: paymentMethod === 'cbe' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                    borderColor: paymentMethod === 'cbe' ? '#3b82f6' : getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   onClick={() => setPaymentMethod('cbe')}
                 >
                   <CreditCard className="h-6 w-6 mx-auto mb-2" />
@@ -384,56 +405,70 @@ export default function WalletPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>
                 Your Full Name
               </label>
               <input 
                 type="text" 
                 value={userName} 
                 onChange={(e) => setUserName(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{ 
+                  backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                  borderColor: getTextColor() + '30',
+                  color: getTextColor()
+                }}
                 placeholder="Enter your full name" 
                 required 
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>
                 Your {paymentMethod === 'telebirr' ? 'Phone Number' : 'Account Number'}
               </label>
               <input 
                 type="text" 
                 value={userAccount} 
                 onChange={(e) => setUserAccount(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{ 
+                  backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                  borderColor: getTextColor() + '30',
+                  color: getTextColor()
+                }}
                 placeholder={paymentMethod === 'telebirr' ? 'Enter your phone number' : 'Enter your account number'} 
                 required 
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>Amount</label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <DollarSign className="absolute left-3 top-3 h-5 w-5" style={{ color: getTextColor(), opacity: 0.5 }} />
                 <input 
                   type="number" 
                   value={amount} 
                   onChange={(e) => setAmount(e.target.value)} 
-                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                  className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ 
+                    backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                    borderColor: getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   placeholder="Enter amount" 
                   min="1" 
                   required 
                 />
               </div>
             </div>
-            
 
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-2">
+            <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
+              <p className="text-sm font-medium mb-2" style={{ color: getTextColor() }}>
                 {paymentMethod === 'telebirr' ? 'Payment Phone Number' : 'Payment Account Number'}
               </p>
               <div className="flex items-center justify-between">
-                <p className="text-lg font-semibold">
+                <p className="text-lg font-semibold" style={{ color: getTextColor() }}>
                   {paymentMethod === 'telebirr' ? paymentConfig.telebirr.phone : paymentConfig.cbe.account}
                 </p>
                 <button 
@@ -444,10 +479,10 @@ export default function WalletPage() {
                   {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
                 </button>
               </div>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm mt-2" style={{ color: getTextColor(), opacity: 0.7 }}>
                 {paymentMethod === 'telebirr' ? paymentConfig.telebirr.description : paymentConfig.cbe.description}
               </p>
-              <p className="text-sm font-medium text-gray-700 mt-2">
+              <p className="text-sm font-medium mt-2" style={{ color: getTextColor() }}>
                 Account Name: {paymentMethod === 'telebirr' ? paymentConfig.telebirr.name : paymentConfig.cbe.name}
               </p>
             </div>
@@ -456,26 +491,32 @@ export default function WalletPage() {
               whileHover={{ scale: 1.02 }} 
               whileTap={{ scale: 0.98 }} 
               type="submit" 
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium"
+              className="w-full text-white py-3 rounded-lg font-medium"
+              style={{ backgroundColor: '#2563eb' }}
             >
               Continue to Verification
             </motion.button>
           </form>
         ) : (
           <form onSubmit={handleVerificationSubmit}>
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm font-medium text-blue-700">
+            <div className="mb-6 p-4 rounded-lg" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
+              <p className="text-sm font-medium" style={{ color: '#3b82f6' }}>
                 Please make the payment to the provided account and enter the transaction ID below. And only enter the link of transaction id like ''https://apps.cbe.com.et:100/?id=FT252523Y5KXXXXXXXXX''
               </p>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>Transaction ID</label>
               <input 
                 type="text" 
                 value={transactionId} 
                 onChange={(e) => setTransactionId(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={{ 
+                  backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                  borderColor: getTextColor() + '30',
+                  color: getTextColor()
+                }}
                 placeholder="Enter transaction ID from your payment" 
                 required 
               />
@@ -487,7 +528,8 @@ export default function WalletPage() {
                 whileTap={{ scale: 0.98 }} 
                 type="button" 
                 onClick={() => setStep('payment')}
-                className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium"
+                className="flex-1 py-3 rounded-lg font-medium"
+                style={{ backgroundColor: '#d1d5db', color: '#374151' }}
               >
                 Back
               </motion.button>
@@ -496,7 +538,8 @@ export default function WalletPage() {
                 whileTap={{ scale: 0.98 }} 
                 type="submit" 
                 disabled={loading}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium"
+                className="flex-1 text-white py-3 rounded-lg font-medium disabled:opacity-50"
+                style={{ backgroundColor: '#2563eb' }}
               >
                 {loading ? 'Submitting...' : 'Submit'}
               </motion.button>
@@ -504,7 +547,7 @@ export default function WalletPage() {
           </form>
         )}
 
-        <button className="w-full mt-4 text-gray-600 py-2 rounded-lg font-medium" onClick={() => {
+        <button className="w-full mt-4 py-2 rounded-lg font-medium" style={{ color: getTextColor(), opacity: 0.7 }} onClick={() => {
           setStep('payment');
           setActiveTab('overview');
         }}>
@@ -525,13 +568,11 @@ export default function WalletPage() {
       e.preventDefault();
       if (!amount || !accountNumber || !accountName) return;
 
-      // Validate minimum withdrawal amount
       if (parseFloat(amount) < 100) {
         showMessage('Minimum withdrawal amount is 100 ETB', 'error');
         return;
       }
 
-      // Validate sufficient balance
       if (parseFloat(amount) > user!.wallet) {
         showMessage('Insufficient balance', 'error');
         return;
@@ -539,7 +580,6 @@ export default function WalletPage() {
 
       setLoading(true);
       try {
-        // Create withdrawal transaction with all required fields
         const payload = {
           userId: user!._id,
           amount: parseFloat(amount),
@@ -561,13 +601,11 @@ export default function WalletPage() {
         if (res.data.success) {
           showMessage('Withdrawal request submitted successfully! It will be processed shortly.', 'success');
           setActiveTab('overview');
-          // Refresh user data and transactions
           const userRes = await api.get(`/user/${user!._id}`);
           setUser(userRes.data.data);
           
           const transactionsRes = await api.get(`/transactions/user/${user!._id}?limit=20&page=1`);
           setTransactions(transactionsRes.data.data);
-          // Reset form
           setAmount('');
           setAccountNumber('');
           setAccountName('');
@@ -583,29 +621,33 @@ export default function WalletPage() {
     };
 
     return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold mb-6 flex items-center">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-lg shadow-md" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
+        <h2 className="text-xl font-bold mb-6 flex items-center" style={{ color: getTextColor() }}>
           <ArrowUp className="mr-2 h-5 w-5 text-green-600" />
           Withdraw Funds
         </h2>
 
         {isLoadingAccountants ? (
           <div className="text-center py-8">
-            <p className="text-gray-600">Loading payment information...</p>
+            <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading payment information...</p>
           </div>
         ) : accountants.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-600">No withdrawal methods available at the moment</p>
+            <p style={{ color: getTextColor(), opacity: 0.7 }}>No withdrawal methods available at the moment</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Withdrawal Method</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>Withdrawal Method</label>
               <div className="grid grid-cols-2 gap-4">
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'telebirr' ? 'border-green-500' : 'border-gray-300'}`}
+                  style={{ 
+                    backgroundColor: withdrawalMethod === 'telebirr' ? 'rgba(34, 197, 94, 0.1)' : 'transparent',
+                    borderColor: withdrawalMethod === 'telebirr' ? '#22c55e' : getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   onClick={() => setWithdrawalMethod('telebirr')}
                 >
                   <Wallet className="h-6 w-6 mx-auto mb-2" />
@@ -613,7 +655,12 @@ export default function WalletPage() {
                 </button>
                 <button 
                   type="button" 
-                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500 bg-green-50' : 'border-gray-300'}`} 
+                  className={`p-4 border rounded-lg text-center ${withdrawalMethod === 'cbe' ? 'border-green-500' : 'border-gray-300'}`}
+                  style={{ 
+                    backgroundColor: withdrawalMethod === 'cbe' ? 'rgba(34, 197, 94, 0.1)' : 'transparent',
+                    borderColor: withdrawalMethod === 'cbe' ? '#22c55e' : getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   onClick={() => setWithdrawalMethod('cbe')}
                 >
                   <CreditCard className="h-6 w-6 mx-auto mb-2" />
@@ -623,65 +670,80 @@ export default function WalletPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>
                 Account Holder Name
               </label>
               <input 
                 type="text" 
                 value={accountName} 
                 onChange={(e) => setAccountName(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                style={{ 
+                  backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                  borderColor: getTextColor() + '30',
+                  color: getTextColor()
+                }}
                 placeholder="Enter account holder name" 
                 required 
               />
             </div>
 
-             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>
                 Your {withdrawalMethod === 'telebirr' ? 'Phone Number' : 'Account Number'}
               </label>
               <input 
                 type="text" 
                 value={accountNumber} 
                 onChange={(e) => setAccountNumber(e.target.value)} 
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                style={{ 
+                  backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                  borderColor: getTextColor() + '30',
+                  color: getTextColor()
+                }}
                 placeholder={withdrawalMethod === 'telebirr' ? 'Enter your phone number' : 'Enter your account number'} 
                 required 
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+              <label className="block text-sm font-medium mb-2" style={{ color: getTextColor() }}>Amount</label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <DollarSign className="absolute left-3 top-3 h-5 w-5" style={{ color: getTextColor(), opacity: 0.5 }} />
                 <input 
                   type="number" 
                   value={amount} 
                   onChange={(e) => setAmount(e.target.value)} 
-                  className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                  className="pl-10 w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  style={{ 
+                    backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                    borderColor: getTextColor() + '30',
+                    color: getTextColor()
+                  }}
                   placeholder="Enter amount" 
                   min="100" 
                   max={user!.wallet} 
                   required 
                 />
               </div>
-              <p className="text-sm text-gray-500 mt-1">Available: {formatCurrency(user!.wallet)} (Minimum: 100 ETB)</p>
+              <p className="text-sm mt-1" style={{ color: getTextColor(), opacity: 0.7 }}>Available: {formatCurrency(user!.wallet)} (Minimum: 100 ETB)</p>
             </div>
-            
 
             <motion.button 
               whileHover={{ scale: 1.02 }} 
               whileTap={{ scale: 0.98 }} 
               type="submit" 
               disabled={loading}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium"
+              className="w-full text-white py-3 rounded-lg font-medium disabled:opacity-50"
+              style={{ backgroundColor: '#22c55e' }}
             >
               {loading ? 'Processing...' : `Withdraw ${amount ? formatCurrency(parseFloat(amount)) : ''}`}
             </motion.button>
           </form>
         )}
 
-        <button className="w-full mt-4 text-gray-600 py-2 rounded-lg font-medium" onClick={() => setActiveTab('overview')}>
+        <button className="w-full mt-4 py-2 rounded-lg font-medium" style={{ color: getTextColor(), opacity: 0.7 }} onClick={() => setActiveTab('overview')}>
           Back to Overview
         </button>
       </motion.div>
@@ -689,9 +751,9 @@ export default function WalletPage() {
   };
 
   const TransactionHistory = () => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-lg shadow-md">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="p-6 rounded-lg shadow-md" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+        <h2 className="text-xl font-bold flex items-center" style={{ color: getTextColor() }}>
           <History className="mr-2 h-5 w-5 text-blue-600" />
           Transaction History
         </h2>
@@ -699,12 +761,12 @@ export default function WalletPage() {
 
       {isLoadingTransactions ? (
         <div className="text-center py-8">
-          <p className="text-gray-600">Loading transactions...</p>
+          <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading transactions...</p>
         </div>
       ) : transactions.length === 0 ? (
         <div className="text-center py-8">
-          <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No transactions yet</p>
+          <History className="h-12 w-12 mx-auto mb-4" style={{ color: getTextColor(), opacity: 0.4 }} />
+          <p style={{ color: getTextColor(), opacity: 0.7 }}>No transactions yet</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -713,7 +775,8 @@ export default function WalletPage() {
               key={transaction._id} 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
-              className="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+              className="flex justify-between items-center p-4 border-b hover:opacity-80 transition-colors"
+              style={{ borderColor: getTextColor() + '20' }}
             >
               <div className="flex items-center">
                 <div className={`p-2 rounded-full ${transaction.type === 'deposit' || transaction.type === 'winning' ? 'bg-green-100' : 'bg-red-100'}`}>
@@ -723,30 +786,22 @@ export default function WalletPage() {
                   }
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium capitalize">{transaction.type.replace('_', ' ')}</p>
-                  <p className="text-sm text-gray-500">{transaction.description}</p>
-                  <p className="text-xs text-gray-400">{new Date(transaction.createdAt).toLocaleDateString()}</p>
+                  <p className="font-medium capitalize" style={{ color: getTextColor() }}>{transaction.type.replace('_', ' ')}</p>
+                  <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>{transaction.description}</p>
+                  <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>{new Date(transaction.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
               <div className="flex items-center">
                 <div className={`text-right mr-3 ${transaction.type === 'deposit' || transaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
                   <p className="font-semibold">{transaction.type === 'deposit' || transaction.type === 'winning' ? '+' : '-'}{formatCurrency(transaction.amount)}</p>
-                 <p
-                  className={`text-xs capitalize ${
-                    transaction.status === 'completed'
-                      ? 'text-green-500'
-                      : transaction.status === 'pending'
-                      ? 'text-yellow-500'
-                      : 'text-red-500'
-                  }`}
-                >
-                  {transaction.status}
-                </p>
-
+                  <p className={`text-xs capitalize ${transaction.status === 'completed' ? 'text-green-500' : transaction.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
+                    {transaction.status}
+                  </p>
                 </div>
                 <button 
                   onClick={() => handleViewTransaction(transaction)}
-                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                  className="p-2 hover:text-blue-600 transition-colors"
+                  style={{ color: getTextColor(), opacity: 0.7 }}
                 >
                   <Eye className="h-5 w-5" />
                 </button>
@@ -764,12 +819,10 @@ export default function WalletPage() {
     const getTransactionLink = () => {
       if (!selectedTransaction.transactionId) return null;
       
-      // If transactionId is already a full URL, use it directly
       if (selectedTransaction.transactionId.startsWith('http')) {
         return selectedTransaction.transactionId;
       }
       
-      // Otherwise, construct the URL based on the method
       if (selectedTransaction.method === 'cbe') {
         return `https://apps.cbe.com.et:100/?id=${selectedTransaction.transactionId}`;
       } else if (selectedTransaction.method === 'telebirr') {
@@ -782,86 +835,84 @@ export default function WalletPage() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-md max-h-screen overflow-y-auto">
+        <div className="rounded-lg w-full max-w-md max-h-screen overflow-y-auto" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold">Transaction Details</h3>
+              <h3 className="text-xl font-bold" style={{ color: getTextColor() }}>Transaction Details</h3>
               <button 
                 onClick={() => setShowTransactionModal(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="hover:opacity-70"
+                style={{ color: getTextColor() }}
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
             
             <div className="space-y-4">
-              {/* Basic Info Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Transaction Information</h4>
+              <div className="p-4 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
+                <h4 className="text-sm font-medium mb-2" style={{ color: getTextColor(), opacity: 0.7 }}>Transaction Information</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-xs text-gray-500">Type</p>
-                    <p className="font-medium capitalize">{selectedTransaction.type.replace('_', ' ')}</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Type</p>
+                    <p className="font-medium capitalize" style={{ color: getTextColor() }}>{selectedTransaction.type.replace('_', ' ')}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Status</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Status</p>
                     <p className={`capitalize font-medium ${selectedTransaction.status === 'completed' ? 'text-green-500' : selectedTransaction.status === 'pending' ? 'text-yellow-500' : 'text-red-500'}`}>
                       {selectedTransaction.status}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Amount</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Amount</p>
                     <p className={`font-semibold ${selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
                       {selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' ? '+' : '-'}
                       {formatCurrency(selectedTransaction.amount)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Method</p>
-                    <p className="font-medium capitalize">{selectedTransaction.method}</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Method</p>
+                    <p className="font-medium capitalize" style={{ color: getTextColor() }}>{selectedTransaction.method}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Dates Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Timeline</h4>
+              <div className="p-4 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
+                <h4 className="text-sm font-medium mb-2" style={{ color: getTextColor(), opacity: 0.7 }}>Timeline</h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-xs text-gray-500">Created</p>
-                    <p className="text-sm">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Created</p>
+                    <p className="text-sm" style={{ color: getTextColor() }}>{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Updated</p>
-                    <p className="text-sm">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Updated</p>
+                    <p className="text-sm" style={{ color: getTextColor() }}>{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Parties Card */}
               {(selectedTransaction.senderPhone || selectedTransaction.receiverPhone || selectedTransaction.senderName || selectedTransaction.receiverName) && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-gray-500 mb-2">Parties Involved</h4>
+                <div className="p-4 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: getTextColor(), opacity: 0.7 }}>Parties Involved</h4>
                   <div className="space-y-2">
                     {selectedTransaction.senderPhone && (
                       <div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>
                           {selectedTransaction.type === 'deposit' ? 'From (Your Account)' : 'From (Platform Account)'}
                         </p>
-                        <p className="text-sm">{selectedTransaction.senderPhone}</p>
+                        <p className="text-sm" style={{ color: getTextColor() }}>{selectedTransaction.senderPhone}</p>
                         {selectedTransaction.senderName && (
-                          <p className="text-sm font-medium">{selectedTransaction.senderName}</p>
+                          <p className="text-sm font-medium" style={{ color: getTextColor() }}>{selectedTransaction.senderName}</p>
                         )}
                       </div>
                     )}
                     {selectedTransaction.receiverPhone && (
                       <div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>
                           {selectedTransaction.type === 'deposit' ? 'To (Platform Account)' : 'To (Your Account)'}
                         </p>
-                        <p className="text-sm">{selectedTransaction.receiverPhone}</p>
+                        <p className="text-sm" style={{ color: getTextColor() }}>{selectedTransaction.receiverPhone}</p>
                         {selectedTransaction.receiverName && (
-                          <p className="text-sm font-medium">{selectedTransaction.receiverName}</p>
+                          <p className="text-sm font-medium" style={{ color: getTextColor() }}>{selectedTransaction.receiverName}</p>
                         )}
                       </div>
                     )}
@@ -869,33 +920,31 @@ export default function WalletPage() {
                 </div>
               )}
 
-              {/* Additional Info Card */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Additional Information</h4>
+              <div className="p-4 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
+                <h4 className="text-sm font-medium mb-2" style={{ color: getTextColor(), opacity: 0.7 }}>Additional Information</h4>
                 <div className="space-y-2">
                   <div>
-                    <p className="text-xs text-gray-500">Description</p>
-                    <p className="text-sm">{selectedTransaction.description}</p>
+                    <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Description</p>
+                    <p className="text-sm" style={{ color: getTextColor() }}>{selectedTransaction.description}</p>
                   </div>
                   {selectedTransaction.transactionId && (
                     <div>
-                      <p className="text-xs text-gray-500">Transaction ID</p>
-                      <p className="text-sm break-all">{selectedTransaction.transactionId}</p>
+                      <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Transaction ID</p>
+                      <p className="text-sm break-all" style={{ color: getTextColor() }}>{selectedTransaction.transactionId}</p>
                     </div>
                   )}
                   {selectedTransaction.reason && (
                     <div>
-                      <p className="text-xs text-gray-500">Reason</p>
+                      <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>Reason</p>
                       <p className="text-sm text-red-500">{selectedTransaction.reason}</p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Transaction Link */}
               {transactionLink && (
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-500 mb-2">Transaction Verification</h4>
+                <div className="p-4 rounded-lg" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: '#3b82f6' }}>Transaction Verification</h4>
                   <a 
                     href={transactionLink} 
                     target="_blank" 
@@ -915,10 +964,9 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
       <MobileHeader title="Wallet" showWallet={true}/>
       
-      {/* Message Notification */}
       {message && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-md ${
           message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
@@ -935,7 +983,6 @@ export default function WalletPage() {
         </AnimatePresence>
         <TransactionHistory />
       </div>
-      {/* <Footer /> */}
       <MobileNavigation />
       {showTransactionModal && <TransactionModal />}
     </div>

@@ -64,6 +64,36 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // NEW: Background color state
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
   // Use useCallback to memoize the showMessage function
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
@@ -181,10 +211,10 @@ export default function ProfilePage() {
   // ✅ If user not found (after loading), show message with navigation
   if (!user && !isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="min-h-screen bg-gray-50 pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
         <MobileHeader title="Profile" showWallet={false} />
         <div className="flex items-center justify-center h-64">
-          <p className="text-center text-gray-500">User not found</p>
+          <p className="text-center text-gray-500" style={{ color: getTextColor() }}>User not found</p>
         </div>
         <MobileNavigation />
       </div>
@@ -194,12 +224,12 @@ export default function ProfilePage() {
   // ✅ Show loading spinner ONLY for content, navigation stays visible
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="min-h-screen bg-gray-50 pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
         <MobileHeader title="Profile" showWallet={false} />
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
+            <p className="mt-4" style={{ color: getTextColor() }}>Loading...</p>
           </div>
         </div>
         <MobileNavigation />
@@ -211,51 +241,46 @@ export default function ProfilePage() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="p-6 rounded-lg shadow-md"
+      style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
     >
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+        <h2 className="text-xl font-bold flex items-center" style={{ color: getTextColor() }}>
           <User className="mr-2 h-5 w-5 text-blue-600" />
           Profile Information
         </h2>
-        {/* <button 
-          className="p-2 text-blue-600 rounded-full hover:bg-blue-50"
-          onClick={() => setShowPasswordModal(true)}
-        >
-          <Edit className="h-4 w-4" />
-        </button> */}
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-          <Phone className="h-5 w-5 text-gray-500 mr-3" />
+        <div className="flex items-center p-3 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.1)' }}>
+          <Phone className="h-5 w-5 mr-3" style={{ color: getTextColor() }} />
           <div>
-            <p className="text-sm text-gray-600">Phone Number</p>
-            <p className="font-medium">{user!.phone}</p>
+            <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Phone Number</p>
+            <p className="font-medium" style={{ color: getTextColor() }}>{user!.phone}</p>
           </div>
         </div>
 
-        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-          <Shield className="h-5 w-5 text-gray-500 mr-3" />
+        <div className="flex items-center p-3 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.1)' }}>
+          <Shield className="h-5 w-5 mr-3" style={{ color: getTextColor() }} />
           <div>
-            <p className="text-sm text-gray-600">Account Type</p>
-            <p className="font-medium capitalize">{user!.role}</p>
+            <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Account Type</p>
+            <p className="font-medium capitalize" style={{ color: getTextColor() }}>{user!.role}</p>
           </div>
         </div>
 
-        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-          <Shield className="h-5 w-5 text-gray-500 mr-3" />
+        <div className="flex items-center p-3 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.1)' }}>
+          <Shield className="h-5 w-5 mr-3" style={{ color: getTextColor() }} />
           <div>
-            <p className="text-sm text-gray-600">Account Status</p>
-            <p className="font-medium">{user!.isActive ? 'Active' : 'Inactive'}</p>
+            <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Account Status</p>
+            <p className="font-medium" style={{ color: getTextColor() }}>{user!.isActive ? 'Active' : 'Inactive'}</p>
           </div>
         </div>
 
-        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-          <Calendar className="h-5 w-5 text-gray-500 mr-3" />
+        <div className="flex items-center p-3 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.1)' }}>
+          <Calendar className="h-5 w-5 mr-3" style={{ color: getTextColor() }} />
           <div>
-            <p className="text-sm text-gray-600">Member Since</p>
-            <p className="font-medium">{new Date(user!.createdAt).toLocaleDateString()}</p>
+            <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Member Since</p>
+            <p className="font-medium" style={{ color: getTextColor() }}>{new Date(user!.createdAt).toLocaleDateString()}</p>
           </div>
         </div>
       </div>
@@ -266,35 +291,36 @@ export default function ProfilePage() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }} 
       animate={{ opacity: 1, y: 0 }} 
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="p-6 rounded-lg shadow-md"
+      style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
     >
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold flex items-center">
+        <h2 className="text-xl font-bold flex items-center" style={{ color: getTextColor() }}>
           <Wallet className="mr-2 h-5 w-5 text-green-600" />
           Wallet Summary
         </h2>
-        <CreditCard className="h-5 w-5 text-gray-400" />
+        <CreditCard className="h-5 w-5" style={{ color: getTextColor(), opacity: 0.5 }} />
       </div>
 
       <div className="space-y-4">
-        <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-          <span className="text-blue-700">Current Balance:</span>
-          <span className="font-semibold text-blue-700">{formatCurrency(user!.wallet || 0)}</span>
+        <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
+          <span style={{ color: '#3b82f6' }}>Current Balance:</span>
+          <span className="font-semibold" style={{ color: '#3b82f6' }}>{formatCurrency(user!.wallet || 0)}</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-          <span className="text-green-700">Daily Earnings:</span>
-          <span className="font-semibold text-green-700">{formatCurrency(user!.dailyEarnings || 0)}</span>
+        <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+          <span style={{ color: '#22c55e' }}>Daily Earnings:</span>
+          <span className="font-semibold" style={{ color: '#22c55e' }}>{formatCurrency(user!.dailyEarnings || 0)}</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-          <span className="text-yellow-700">Weekly Earnings:</span>
-          <span className="font-semibold text-yellow-700">{formatCurrency(user!.weeklyEarnings || 0)}</span>
+        <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>
+          <span style={{ color: '#eab308' }}>Weekly Earnings:</span>
+          <span className="font-semibold" style={{ color: '#eab308' }}>{formatCurrency(user!.weeklyEarnings || 0)}</span>
         </div>
 
-        <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-          <span className="text-purple-700">Total Earnings:</span>
-          <span className="font-semibold text-purple-700">{formatCurrency(user!.totalEarnings || 0)}</span>
+        <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)' }}>
+          <span style={{ color: '#a855f7' }}>Total Earnings:</span>
+          <span className="font-semibold" style={{ color: '#a855f7' }}>{formatCurrency(user!.totalEarnings || 0)}</span>
         </div>
       </div>
     </motion.div>
@@ -358,10 +384,10 @@ export default function ProfilePage() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg w-full max-w-md">
+        <div className="rounded-lg w-full max-w-md" style={{ backgroundColor: getCardBackground(), color: getTextColor() }}>
           <div className="p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold flex items-center">
+              <h3 className="text-xl font-bold flex items-center" style={{ color: getTextColor() }}>
                 <Lock className="mr-2 h-5 w-5" />
                 Change Password
               </h3>
@@ -374,7 +400,8 @@ export default function ProfilePage() {
                     confirmPassword: ''
                   });
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="hover:opacity-70"
+                style={{ color: getTextColor() }}
               >
                 <X className="h-6 w-6" />
               </button>
@@ -382,7 +409,7 @@ export default function ProfilePage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1" style={{ color: getTextColor() }}>
                   Current Password
                 </label>
                 <div className="relative">
@@ -390,13 +417,19 @@ export default function ProfilePage() {
                     type={showCurrentPassword ? "text" : "password"} 
                     value={localPasswordData.currentPassword}
                     onChange={(e) => handleLocalChange('currentPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    className="w-full p-3 border rounded-lg pr-10"
+                    style={{ 
+                      backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                      borderColor: getTextColor(),
+                      color: getTextColor()
+                    }}
                     placeholder="Enter current password"
                     required
                   />
                   <button 
                     type="button"
-                    className="absolute right-3 top-3 text-gray-500"
+                    className="absolute right-3 top-3"
+                    style={{ color: getTextColor() }}
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                   >
                     {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -405,7 +438,7 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1" style={{ color: getTextColor() }}>
                   New Password
                 </label>
                 <div className="relative">
@@ -413,14 +446,20 @@ export default function ProfilePage() {
                     type={showNewPassword ? "text" : "password"} 
                     value={localPasswordData.newPassword}
                     onChange={(e) => handleLocalChange('newPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    className="w-full p-3 border rounded-lg pr-10"
+                    style={{ 
+                      backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                      borderColor: getTextColor(),
+                      color: getTextColor()
+                    }}
                     placeholder="Enter new password"
                     required
                     minLength={6}
                   />
                   <button 
                     type="button"
-                    className="absolute right-3 top-3 text-gray-500"
+                    className="absolute right-3 top-3"
+                    style={{ color: getTextColor() }}
                     onClick={() => setShowNewPassword(!showNewPassword)}
                   >
                     {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -429,7 +468,7 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1" style={{ color: getTextColor() }}>
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -437,14 +476,20 @@ export default function ProfilePage() {
                     type={showConfirmPassword ? "text" : "password"} 
                     value={localPasswordData.confirmPassword}
                     onChange={(e) => handleLocalChange('confirmPassword', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg pr-10"
+                    className="w-full p-3 border rounded-lg pr-10"
+                    style={{ 
+                      backgroundColor: backgroundColor === 'white' ? '#fff' : 'rgba(255,255,255,0.1)',
+                      borderColor: getTextColor(),
+                      color: getTextColor()
+                    }}
                     placeholder="Confirm new password"
                     required
                     minLength={6}
                   />
                   <button 
                     type="button"
-                    className="absolute right-3 top-3 text-gray-500"
+                    className="absolute right-3 top-3"
+                    style={{ color: getTextColor() }}
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -463,14 +508,16 @@ export default function ProfilePage() {
                       confirmPassword: ''
                     });
                   }}
-                  className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium"
+                  className="flex-1 py-3 rounded-lg font-medium"
+                  style={{ backgroundColor: '#d1d5db', color: '#374151' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium disabled:opacity-50"
+                  className="flex-1 text-white py-3 rounded-lg font-medium disabled:opacity-50"
+                  style={{ backgroundColor: '#2563eb' }}
                 >
                   {isChangingPassword ? 'Changing...' : 'Change Password'}
                 </button>
@@ -483,7 +530,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
       <MobileHeader title="Profile" showWallet={false} />
       
       {/* Message Notification */}
@@ -497,16 +544,24 @@ export default function ProfilePage() {
       
       <div className="p-4 px-0 space-y-6 pb-24 pt-16">
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="rounded-lg shadow-md overflow-hidden" style={{ backgroundColor: getCardBackground() }}>
           <div className="flex">
             <button 
-              className={`flex-1 py-3 text-center font-medium ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+              className={`flex-1 py-3 text-center font-medium ${activeTab === 'profile' ? 'text-white' : ''}`}
+              style={{ 
+                backgroundColor: activeTab === 'profile' ? '#2563eb' : 'transparent',
+                color: activeTab === 'profile' ? 'white' : getTextColor()
+              }}
               onClick={() => setActiveTab('profile')}
             >
               Profile
             </button>
             <button 
-              className={`flex-1 py-3 text-center font-medium ${activeTab === 'wallet' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+              className={`flex-1 py-3 text-center font-medium ${activeTab === 'wallet' ? 'text-white' : ''}`}
+              style={{ 
+                backgroundColor: activeTab === 'wallet' ? '#2563eb' : 'transparent',
+                color: activeTab === 'wallet' ? 'white' : getTextColor()
+              }}
               onClick={() => setActiveTab('wallet')}
             >
               Wallet
@@ -524,38 +579,39 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ delay: 0.2 }}
-          className="bg-white p-6 rounded-lg shadow-md"
+          className="p-6 rounded-lg shadow-md"
+          style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
         >
-          <h2 className="text-xl font-bold mb-4 flex items-center">
+          <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: getTextColor() }}>
             <TrendingUp className="mr-2 h-5 w-5 text-purple-600" />
             Performance Overview
           </h2>
           
           {statsLoading ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">Loading statistics...</p>
+              <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading statistics...</p>
             </div>
           ) : gameHistory.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No games played yet</p>
+              <p style={{ color: getTextColor(), opacity: 0.7 }}>No games played yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-blue-600 mb-1">Games Played</p>
-                <p className="font-semibold">{stats.gamesPlayed}</p>
+              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
+                <p className="text-sm mb-1" style={{ color: '#3b82f6' }}>Games Played</p>
+                <p className="font-semibold" style={{ color: getTextColor() }}>{stats.gamesPlayed}</p>
               </div>
-              <div className="bg-green-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-green-600 mb-1">Games Won</p>
-                <p className="font-semibold">{stats.gamesWon}</p>
+              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+                <p className="text-sm mb-1" style={{ color: '#22c55e' }}>Games Won</p>
+                <p className="font-semibold" style={{ color: getTextColor() }}>{stats.gamesWon}</p>
               </div>
-              <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-yellow-600 mb-1">Win Rate</p>
-                <p className="font-semibold">{stats.winRate.toFixed(1)}%</p>
+              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>
+                <p className="text-sm mb-1" style={{ color: '#eab308' }}>Win Rate</p>
+                <p className="font-semibold" style={{ color: getTextColor() }}>{stats.winRate.toFixed(1)}%</p>
               </div>
-              <div className="bg-purple-50 p-4 rounded-lg text-center">
-                <p className="text-sm text-purple-600 mb-1">Avg. Earnings</p>
-                <p className="font-semibold">{formatCurrency(stats.averageEarnings)}</p>
+              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)' }}>
+                <p className="text-sm mb-1" style={{ color: '#a855f7' }}>Avg. Earnings</p>
+                <p className="font-semibold" style={{ color: getTextColor() }}>{formatCurrency(stats.averageEarnings)}</p>
               </div>
             </div>
           )}
@@ -567,27 +623,28 @@ export default function ProfilePage() {
             initial={{ opacity: 0, y: 20 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ delay: 0.3 }}
-            className="bg-white p-6 rounded-lg shadow-md"
+            className="p-6 rounded-lg shadow-md"
+            style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
           >
-            <h2 className="text-xl font-bold mb-4 flex items-center">
+            <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: getTextColor() }}>
               <Calendar className="mr-2 h-5 w-5 text-blue-600" />
               Recent Games
             </h2>
             
             <div className="space-y-3">
               {gameHistory.slice(0, 5).map((game) => (
-                <div key={game._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div key={game._id} className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: backgroundColor === 'white' ? '#f3f4f6' : 'rgba(255,255,255,0.05)' }}>
                   <div>
-                    <p className="font-medium">Bet: {formatCurrency(game.betAmount)}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="font-medium" style={{ color: getTextColor() }}>Bet: {formatCurrency(game.betAmount)}</p>
+                    <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>
                       {new Date(game.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold 'text-green-600' : 'text-green-600'}`}>
+                    <p className={`font-semibold ${game.winnerId === user?._id ? 'text-green-600' : ''}`} style={{ color: game.winnerId === user?._id ? '#22c55e' : getTextColor() }}>
                       {game.winnerId === user?._id ? `Won: ${formatCurrency(game.prizePool)}` : 'Won'}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>
                       {game.numberOfPlayers} players
                     </p>
                   </div>
@@ -597,7 +654,6 @@ export default function ProfilePage() {
           </motion.div>
         )}
       </div>
-      {/* <Footer /> */}
 
       <MobileNavigation />
       {showPasswordModal && <PasswordChangeModal />}

@@ -41,6 +41,36 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // NEW: Background color state
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
   useEffect(() => {
     const fetchHistory = async () => {
       if (!user) return;
@@ -84,9 +114,10 @@ export default function HistoryPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-6 rounded-lg shadow-md "
+      className="p-6 rounded-lg shadow-md"
+      style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
     >
-      <h2 className="text-xl font-bold mb-4 flex items-center">
+      <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: getTextColor() }}>
         <Clock className="mr-2 h-5 w-5 text-blue-600" />
         Recent Games
       </h2>
@@ -113,8 +144,8 @@ export default function HistoryPage() {
         </div>
       ) : games.length === 0 ? (
         <div className="text-center py-8">
-          <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No games played yet.</p>
+          <Clock className="h-12 w-12 mx-auto mb-4" style={{ color: getTextColor(), opacity: 0.4 }} />
+          <p style={{ color: getTextColor(), opacity: 0.7 }}>No games played yet.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -127,7 +158,8 @@ export default function HistoryPage() {
                 key={game._id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                className="flex justify-between items-center p-4 border-b border-gray-100 hover:opacity-80 transition-colors"
+                style={{ borderColor: getTextColor() + '20' }}
               >
                 <div className="flex items-center">
                   <div className={`p-2 rounded-full ${isWinner ? 'bg-green-100' : 'bg-gray-100'}`}>
@@ -138,20 +170,20 @@ export default function HistoryPage() {
                     )}
                   </div>
                   <div className="ml-3">
-                    <p className="font-medium">Bingo Game #{game._id.slice(-4)}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium" style={{ color: getTextColor() }}>Bingo Game #{game._id.slice(-4)}</p>
+                    <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>
                       {formatDate(game.createdAt)} • {game.numberOfPlayers} players
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>
                       Bet: {formatCurrency(game.betAmount)} • Prize: {formatCurrency(game.prizePool)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`font-semibold ${isWinner ? 'text-green-600' : 'text-gray-600'}`}>
+                  <p className={`font-semibold ${isWinner ? 'text-green-600' : ''}`} style={{ color: isWinner ? '#22c55e' : getTextColor() }}>
                     {isWinner ? 'Won' : 'Lost'}
                   </p>
-                  <p className="text-sm text-gray-500">Card #{game.winnerCard}</p>
+                  <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Card #{game.winnerCard}</p>
                 </div>
               </motion.div>
             );
@@ -165,9 +197,10 @@ export default function HistoryPage() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white p-6 rounded-lg shadow-md"
+      className="p-6 rounded-lg shadow-md"
+      style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
     >
-      <h2 className="text-xl font-bold mb-4 flex items-center">
+      <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: getTextColor() }}>
         <Award className="mr-2 h-5 w-5 text-yellow-600" />
         Your Winnings
       </h2>
@@ -194,8 +227,8 @@ export default function HistoryPage() {
         </div>
       ) : winnings.length === 0 ? (
         <div className="text-center py-8">
-          <Award className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No winnings yet.</p>
+          <Award className="h-12 w-12 mx-auto mb-4" style={{ color: getTextColor(), opacity: 0.4 }} />
+          <p style={{ color: getTextColor(), opacity: 0.7 }}>No winnings yet.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -204,22 +237,23 @@ export default function HistoryPage() {
               key={winning._id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex justify-between items-center p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+              className="flex justify-between items-center p-4 border-b border-gray-100 hover:opacity-80 transition-colors"
+              style={{ borderColor: getTextColor() + '20' }}
             >
               <div className="flex items-center">
                 <div className="p-2 rounded-full bg-yellow-100">
                   <Award className="h-5 w-5 text-yellow-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="font-medium">Game #{winning.gameId.slice(-4)}</p>
-                  <p className="text-sm text-gray-500 capitalize">
+                  <p className="font-medium" style={{ color: getTextColor() }}>Game #{winning.gameId.slice(-4)}</p>
+                  <p className="text-sm capitalize" style={{ color: getTextColor(), opacity: 0.7 }}>
                     {winning.pattern.replace(/-/g, ' ')} • {formatDate(winning.createdAt)}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-semibold text-green-600">+{formatCurrency(winning.amount)}</p>
-                <p className="text-sm text-gray-500">Prize</p>
+                <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Prize</p>
               </div>
             </motion.div>
           ))}
@@ -238,33 +272,34 @@ export default function HistoryPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-6 rounded-lg shadow-md"
+        className="p-6 rounded-lg shadow-md"
+        style={{ backgroundColor: getCardBackground(), color: getTextColor() }}
       >
-        <h2 className="text-xl font-bold mb-4 flex items-center">
+        <h2 className="text-xl font-bold mb-4 flex items-center" style={{ color: getTextColor() }}>
           <Calendar className="mr-2 h-5 w-5 text-purple-600" />
           Your Stats
         </h2>
         
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg text-center">
-            <p className="text-2xl font-bold text-blue-600">{totalGames}</p>
-            <p className="text-sm text-blue-600">Total Games</p>
+          <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)' }}>
+            <p className="text-2xl font-bold" style={{ color: '#3b82f6' }}>{totalGames}</p>
+            <p className="text-sm" style={{ color: '#3b82f6' }}>Total Games</p>
           </div>
-          <div className="bg-green-50 p-4 rounded-lg text-center">
-            <p className="text-2xl font-bold text-green-600">{gamesWon}</p>
-            <p className="text-sm text-green-600">Games Won</p>
+          <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)' }}>
+            <p className="text-2xl font-bold" style={{ color: '#22c55e' }}>{gamesWon}</p>
+            <p className="text-sm" style={{ color: '#22c55e' }}>Games Won</p>
           </div>
-          <div className="bg-yellow-50 p-4 rounded-lg text-center">
-            <p className="text-2xl font-bold text-yellow-600">
+          <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)' }}>
+            <p className="text-2xl font-bold" style={{ color: '#eab308' }}>
               {formatCurrency(totalWinnings)}
             </p>
-            <p className="text-sm text-yellow-600">Total Winnings</p>
+            <p className="text-sm" style={{ color: '#eab308' }}>Total Winnings</p>
           </div>
-          <div className="bg-purple-50 p-4 rounded-lg text-center">
-            <p className="text-2xl font-bold text-purple-600">
+          <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'rgba(168, 85, 247, 0.15)' }}>
+            <p className="text-2xl font-bold" style={{ color: '#a855f7' }}>
               {winRate}%
             </p>
-            <p className="text-sm text-purple-600">Win Rate</p>
+            <p className="text-sm" style={{ color: '#a855f7' }}>Win Rate</p>
           </div>
         </div>
       </motion.div>
@@ -272,22 +307,30 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
       <MobileHeader title="History" />
       
       <div className="p-4 px-0 space-y-6 pb-24 pt-16">
         <StatsOverview />
         
         {/* Tab Navigation */}
-        <div className="flex bg-white rounded-lg shadow-sm p-1">
+        <div className="flex rounded-lg shadow-sm p-1" style={{ backgroundColor: getCardBackground() }}>
           <button
-            className={`flex-1 py-2 px-4 rounded-md text-center font-medium ${activeTab === 'games' ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
+            className={`flex-1 py-2 px-4 rounded-md text-center font-medium ${activeTab === 'games' ? 'text-white' : ''}`}
+            style={{ 
+              backgroundColor: activeTab === 'games' ? '#3b82f6' : 'transparent',
+              color: activeTab === 'games' ? 'white' : getTextColor()
+            }}
             onClick={() => setActiveTab('games')}
           >
             Games
           </button>
           <button
-            className={`flex-1 py-2 px-4 rounded-md text-center font-medium ${activeTab === 'winnings' ? 'bg-yellow-100 text-yellow-600' : 'text-gray-600'}`}
+            className={`flex-1 py-2 px-4 rounded-md text-center font-medium ${activeTab === 'winnings' ? 'text-white' : ''}`}
+            style={{ 
+              backgroundColor: activeTab === 'winnings' ? '#eab308' : 'transparent',
+              color: activeTab === 'winnings' ? 'white' : getTextColor()
+            }}
             onClick={() => setActiveTab('winnings')}
           >
             Winnings
@@ -296,7 +339,6 @@ export default function HistoryPage() {
         
         {activeTab === 'games' ? <GameHistory /> : <WinningsHistory />}
       </div>
-      {/* <Footer /> */}
 
       <MobileNavigation />
     </div>

@@ -99,6 +99,36 @@ export default function UserDashboard() {
   const [loadingGames, setLoadingGames] = useState(true);
   const [loadingActivities, setLoadingActivities] = useState(true);
 
+  // NEW: Background color state
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedColor = localStorage.getItem('bingoBgColor');
+      return savedColor || 'white';
+    }
+    return 'white';
+  });
+
+  // Color helper functions
+  const getTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
+  const getCardBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
+    }
+  };
+
   // 🔹 Fetch full user from backend using localStorage like MobileHeader
  useEffect(() => {
   const fetchUser = async () => {
@@ -253,7 +283,7 @@ export default function UserDashboard() {
 
 if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 w-full">
+      <div className="min-h-screen w-full" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
         <MobileHeader title="Dashboard" />
         <div className="flex items-center justify-center h-screen w-full pt-16 pb-16">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -278,7 +308,7 @@ if (loading) {
   const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full">
+    <div className="min-h-screen w-full" style={{ backgroundColor: backgroundColor, color: getTextColor() }}>
       <MobileHeader title="Dashboard" />
 
       <main className="px-4 px-0 pb-24 pt-16 w-full max-w-full mx-auto overflow-x-hidden">
@@ -288,8 +318,8 @@ if (loading) {
           animate={{ opacity: 1, y: 0 }} 
           className="text-center w-full mb-6 pt-4"
         >
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome back!</h2>
-          <p className="text-gray-600">Ready to play some Bingo?</p>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: getTextColor() }}>Welcome back!</h2>
+          <p style={{ color: getTextColor(), opacity: 0.7 }}>Ready to play some Bingo?</p>
         </motion.div>
 
         {/* Wallet Overview */}
@@ -299,7 +329,7 @@ if (loading) {
           transition={{ delay: 0.1 }}
           className="w-full mb-6"
         >
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-lg w-full">
+          <div className="text-white p-6 rounded-lg w-full" style={{ background: 'linear-gradient(to right, #2563eb, #7c3aed)' }}>
             <h3 className="text-white text-xl font-bold mb-4">Your Wallet</h3>
             <div className="grid grid-cols-2 gap-4 w-full">
               <div className="w-full">
@@ -337,20 +367,20 @@ if (loading) {
           transition={{ delay: 0.2 }} 
           className="grid grid-cols-3 gap-4 w-full mb-6"
         >
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+          <div className="p-4 rounded-lg text-center shadow-sm w-full" style={{ backgroundColor: getCardBackground() }}>
             <Trophy className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
-            <p className="text-xl font-bold text-gray-900">{wins}</p>
-            <p className="text-xs text-gray-600">Wins</p>
+            <p className="text-xl font-bold" style={{ color: getTextColor() }}>{wins}</p>
+            <p className="text-xs" style={{ color: getTextColor(), opacity: 0.7 }}>Wins</p>
           </div>
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+          <div className="p-4 rounded-lg text-center shadow-sm w-full" style={{ backgroundColor: getCardBackground() }}>
             <Play className="h-6 w-6 text-blue-500 mx-auto mb-2" />
-            <p className="text-xl font-bold text-gray-900">{totalGames}</p>
-            <p className="text-xs text-gray-600">Games</p>
+            <p className="text-xl font-bold" style={{ color: getTextColor() }}>{totalGames}</p>
+            <p className="text-xs" style={{ color: getTextColor(), opacity: 0.7 }}>Games</p>
           </div>
-          <div className="bg-white p-4 rounded-lg text-center shadow-sm w-full">
+          <div className="p-4 rounded-lg text-center shadow-sm w-full" style={{ backgroundColor: getCardBackground() }}>
             <TrendingUp className="h-6 w-6 text-green-500 mx-auto mb-2" />
-            <p className="text-xl font-bold text-gray-900">{winRate}%</p>
-            <p className="text-xs text-gray-600">Win Rate</p>
+            <p className="text-xl font-bold" style={{ color: getTextColor() }}>{winRate}%</p>
+            <p className="text-xs" style={{ color: getTextColor(), opacity: 0.7 }}>Win Rate</p>
           </div>
         </motion.div>
 
@@ -362,39 +392,39 @@ if (loading) {
           className="w-full mb-6"
         >
           <div className="flex items-center justify-between mb-4 w-full">
-            <h3 className="text-lg font-semibold text-gray-900">Available Games</h3>
-            <span className="text-xs text-gray-600">
+            <h3 className="text-lg font-semibold" style={{ color: getTextColor() }}>Available Games</h3>
+            <span className="text-xs" style={{ color: getTextColor(), opacity: 0.7 }}>
               Total: {games.length} • Active: {activeGames.length} • Playing: {inProgressGames.length}
             </span>
           </div>
 
           {loadingGames ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+            <div className="p-6 rounded-lg shadow-sm text-center w-full" style={{ backgroundColor: getCardBackground() }}>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading games...</p>
+              <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading games...</p>
             </div>
           ) : games.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
-              <Clock className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">No Games Available</h4>
-              <p className="text-gray-600 mb-4 text-sm">New games will be available soon. Check back later!</p>
+            <div className="p-6 rounded-lg shadow-sm text-center w-full" style={{ backgroundColor: getCardBackground() }}>
+              <Clock className="h-10 w-10 mx-auto mb-4" style={{ color: getTextColor(), opacity: 0.4 }} />
+              <h4 className="text-lg font-medium mb-2" style={{ color: getTextColor() }}>No Games Available</h4>
+              <p className="mb-4 text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>New games will be available soon. Check back later!</p>
               <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm" onClick={() => window.location.reload()}>
                 Refresh
               </button>
             </div>
           ) : (
-            <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+            <div className="p-4 rounded-lg shadow-sm w-full" style={{ backgroundColor: getCardBackground() }}>
               <div className="mb-4 w-full">
-                <h4 className="font-semibold text-gray-900 mb-3">Active Games ({activeGames.length})</h4>
+                <h4 className="font-semibold mb-3" style={{ color: getTextColor() }}>Active Games ({activeGames.length})</h4>
                 {activeGames.length > 0 ? (
                   <div className="space-y-2 w-full">
                     {activeGames.map((game) => {
                       const status = getGameStatus(game.betAmount);
                       return (
-                        <div key={game._id} className="flex items-center justify-between p-2 bg-blue-50 rounded w-full">
+                        <div key={game._id} className="flex items-center justify-between p-2 rounded w-full" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)' }}>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{formatCurrency(game.betAmount)} Bet</p>
-                            <div className="flex items-center text-xs text-gray-600 mt-1">
+                            <p className="font-medium truncate" style={{ color: getTextColor() }}>{formatCurrency(game.betAmount)} Bet</p>
+                            <div className="flex items-center text-xs mt-1" style={{ color: getTextColor(), opacity: 0.7 }}>
                               <Users className="h-3 w-3 mr-1 flex-shrink-0" />
                               <span className="truncate">{status.playerCount} players • Prize: {formatCurrency(status.prizePool)}</span>
                             </div>
@@ -405,21 +435,21 @@ if (loading) {
                     })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No active games at the moment</p>
+                  <p style={{ color: getTextColor(), opacity: 0.5 }}>No active games at the moment</p>
                 )}
               </div>
 
               <div className="mb-4 w-full">
-                <h4 className="font-semibold text-gray-900 mb-3">In Progress ({inProgressGames.length})</h4>
+                <h4 className="font-semibold mb-3" style={{ color: getTextColor() }}>In Progress ({inProgressGames.length})</h4>
                 {inProgressGames.length > 0 ? (
                   <div className="space-y-2 w-full">
                     {inProgressGames.map((game) => {
                       const status = getGameStatus(game.betAmount);
                       return (
-                        <div key={game._id} className="flex items-center justify-between p-2 bg-yellow-50 rounded w-full">
+                        <div key={game._id} className="flex items-center justify-between p-2 rounded w-full" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{formatCurrency(game.betAmount)} Bet</p>
-                            <div className="flex items-center text-xs text-gray-600 mt-1">
+                            <p className="font-medium truncate" style={{ color: getTextColor() }}>{formatCurrency(game.betAmount)} Bet</p>
+                            <div className="flex items-center text-xs mt-1" style={{ color: getTextColor(), opacity: 0.7 }}>
                               <Users className="h-3 w-3 mr-1 flex-shrink-0" />
                               <span className="truncate">{status.playerCount} players • Prize: {formatCurrency(status.prizePool)}</span>
                             </div>
@@ -430,11 +460,11 @@ if (loading) {
                     })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No games in progress</p>
+                  <p style={{ color: getTextColor(), opacity: 0.5 }}>No games in progress</p>
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 text-center w-full">
+              <div className="mt-4 pt-4 border-t text-center w-full" style={{ borderColor: getTextColor() + '20' }}>
                 <p className="text-sm text-green-600 mb-3">Win 80% of the prize pool!</p>
                 <button 
                   className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-medium w-full" 
@@ -454,30 +484,30 @@ if (loading) {
           transition={{ delay: 0.4 }}
           className="w-full mb-6"
         >
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <h3 className="text-lg font-semibold mb-4" style={{ color: getTextColor() }}>Recent Activity</h3>
           
           {loadingActivities ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
+            <div className="p-6 rounded-lg shadow-sm text-center w-full" style={{ backgroundColor: getCardBackground() }}>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading activities...</p>
+              <p style={{ color: getTextColor(), opacity: 0.7 }}>Loading activities...</p>
             </div>
           ) : recentActivities.length === 0 ? (
-            <div className="bg-white p-6 rounded-lg shadow-sm text-center w-full">
-              <Clock className="h-10 w-10 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">No Recent Activity</h4>
-              <p className="text-gray-600 text-sm">Start playing games to see your activity here</p>
+            <div className="p-6 rounded-lg shadow-sm text-center w-full" style={{ backgroundColor: getCardBackground() }}>
+              <Clock className="h-10 w-10 mx-auto mb-4" style={{ color: getTextColor(), opacity: 0.4 }} />
+              <h4 className="text-lg font-medium mb-2" style={{ color: getTextColor() }}>No Recent Activity</h4>
+              <p className="text-sm" style={{ color: getTextColor(), opacity: 0.7 }}>Start playing games to see your activity here</p>
             </div>
           ) : (
-            <div className="bg-white p-4 rounded-lg shadow-sm w-full">
+            <div className="p-4 rounded-lg shadow-sm w-full" style={{ backgroundColor: getCardBackground() }}>
               <div className="space-y-3 w-full">
                 {recentActivities.map((activity) => (
-                  <div key={activity.type + activity.data._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0 w-full">
+                  <div key={activity.type + activity.data._id} className="flex items-center justify-between py-2 border-b last:border-b-0 w-full" style={{ borderColor: getTextColor() + '20' }}>
                     {activity.type === 'transaction' ? (
                       <>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium capitalize truncate">{(activity.data as TransactionType).type.replace('_', ' ')}</p>
-                          <p className="text-sm text-gray-600 truncate">{(activity.data as TransactionType).description}</p>
-                          <p className="text-xs text-gray-400">{new Date(activity.date).toLocaleDateString()}</p>
+                          <p className="font-medium capitalize truncate" style={{ color: getTextColor() }}>{(activity.data as TransactionType).type.replace('_', ' ')}</p>
+                          <p className="text-sm truncate" style={{ color: getTextColor(), opacity: 0.7 }}>{(activity.data as TransactionType).description}</p>
+                          <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>{new Date(activity.date).toLocaleDateString()}</p>
                         </div>
                         <div className={`text-right flex-shrink-0 ml-2 ${(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
                           <p className="font-semibold truncate">{(activity.data as TransactionType).type === 'deposit' || (activity.data as TransactionType).type === 'winning' ? '+' : '-'}{formatCurrency((activity.data as TransactionType).amount)}</p>
@@ -489,9 +519,9 @@ if (loading) {
                     ) : (
                       <>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">Game Win!</p>
-                          <p className="text-sm text-gray-600 truncate">Card #{((activity.data as GameHistoryType).winnerCard)} • {((activity.data as GameHistoryType).numberOfPlayers)} players</p>
-                          <p className="text-xs text-gray-400">{new Date(activity.date).toLocaleDateString()}</p>
+                          <p className="font-medium truncate" style={{ color: getTextColor() }}>Game Win!</p>
+                          <p className="text-sm truncate" style={{ color: getTextColor(), opacity: 0.7 }}>Card #{((activity.data as GameHistoryType).winnerCard)} • {((activity.data as GameHistoryType).numberOfPlayers)} players</p>
+                          <p className="text-xs" style={{ color: getTextColor(), opacity: 0.5 }}>{new Date(activity.date).toLocaleDateString()}</p>
                         </div>
                         <div className="text-right text-green-600 flex-shrink-0 ml-2">
                           <p className="font-semibold truncate">+{formatCurrency((activity.data as GameHistoryType).prizePool)}</p>
@@ -506,7 +536,6 @@ if (loading) {
           )}
         </motion.div>
       </main>
-      {/* <Footer /> */}
 
       <MobileNavigation />
     </div>
