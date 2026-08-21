@@ -13,6 +13,12 @@ const GameContainer = () => {
     createdAt: Date;
   } | null>(null);
 
+  // NEW: Background color state with localStorage persistence
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    const savedColor = localStorage.getItem('bingoBgColor');
+    return savedColor || 'white';
+  });
+
   const handlePlay = (betAmount: number, timeRemaining: number, players: number, createdAt: Date) => {
     setGameParams({ betAmount, timeRemaining, players, createdAt });
     setCurrentView('player-lobby');
@@ -27,6 +33,12 @@ const GameContainer = () => {
     setCurrentView('bet-selection');
   };
 
+  // NEW: Handle direct to game from PlayerLobby
+  const handleDirectToGame = (players: any[], bet: number) => {
+    // This will be handled by the parent component
+    console.log('Direct to game with players:', players, 'and bet:', bet);
+  };
+
   if (currentView === 'player-lobby' && gameParams) {
     return (
       <PlayerLobby
@@ -35,11 +47,20 @@ const GameContainer = () => {
         initialTime={gameParams.timeRemaining}
         createdAt={gameParams.createdAt}
         onBackToLobby={handleBackToLobby}
+        onDirectToGame={handleDirectToGame}
+        backgroundColor={backgroundColor}
+        setBackgroundColor={setBackgroundColor}
       />
     );
   }
 
-  return <BetSelectionPage onPlay={handlePlay} />;
+  return (
+    <BetSelectionPage 
+      onPlay={handlePlay}
+      backgroundColor={backgroundColor}
+      setBackgroundColor={setBackgroundColor}
+    />
+  );
 };
 
 export default GameContainer;
