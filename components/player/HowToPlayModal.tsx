@@ -261,6 +261,58 @@ const HowToPlaySteps: { en: StepType[]; am: StepType[] } = {
   ]
 };
 
+// Important Notes configurations
+const ImportantNotes = {
+  howToPlay: {
+    en: [
+      'You can clear selected cards before the game starts and receive a refund',
+      'After the game starts, you cannot clear your selected cards',
+      'Never click the Bingo button unless you have a valid winning pattern',
+      'False Bingo claims will result in your cards being blocked for that game',
+      'Winnings are automatically credited to your wallet after verification'
+    ],
+    am: [
+      'ጨዋታው ከመጀመሩ በፊት የተመረጡ ካርዶችን ማጽዳት እና ገንዘብ መመለስ ይችላሉ',
+      'ጨዋታው ከተጀመረ በኋላ የተመረጡ ካርዶችን ማጽዳት አይችሉም',
+      'ትክክለኛ የማሸነፊያ ቅደም ተከተል ከሌለዎት በስተቀር የቢንጎ ቁልፍን በጭራሽ አይጫኑ',
+      'የሐሰት የቢንጎ የይገባኛል ጥያቄ ካርዶችዎ ለዚያ ጨዋታ እንዲታገዱ ያደርጋል',
+      'ድሎች ከተረጋገጡ በኋላ በራስ-ሰር ወደ ቦርሳዎ ይጨመራሉ'
+    ]
+  },
+  deposit: {
+    en: [
+      'Minimum deposit amount: 10 ETB',
+      'Have bonus on deposits above 50 ETB',
+      'Bonus is automatically credited after successful deposit',
+      'Transaction ID must be submitted within 5 minutes',
+      'Deposits are processed 24/7'
+    ],
+    am: [
+      'አነስተኛ ገቢ: 10 ብር',
+      'ከ 50 ብር በላይ ሲያስገቡ ቦነስ ያገኛሉ',
+      'ቦነስ ገንዘቡ ከገባ በኋላ በራስ-ሰር ይጨመራል',
+      'የግብይት መለያ ቁጥር በ5 ደቂቃ ውስጥ ማስገባት አለብዎት',
+      'ገቢዎች በ24/7 ይሰራሉ'
+    ]
+  },
+  withdrawal: {
+    en: [
+      'Minimum withdrawal amount: 100 ETB',
+      'Maximum withdrawal amount: 10,000 ETB per day',
+      'Withdrawals are processed within 24/7 hours',
+      'Account holder name must match the registered name on the account',
+      'Withdrawals are verified before processing'
+    ],
+    am: [
+      'አነስተኛ ወጪ: 100 ብር',
+      'ከፍተኛ ወጪ: በቀን 10,000 ብር',
+      'ወጪዎች በ24/7 ሰአት ውስጥ ይሰራሉ',
+      'የሂሳብ ባለቤት ስም ከተመዘገበው የባንካ ወይም የቴሌብርአካውንት ስም ጋር መዛመድ አለበት',
+      'ወጪዎች ከመሰራታቸው በፊት ይረጋገጣሉ'
+    ]
+  }
+};
+
 export default function HowToPlayModal({ open, onClose, language = 'am' }: HowToPlayModalProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -282,6 +334,18 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
   };
 
   const currentSteps = getCurrentSteps();
+
+  // Get the important notes based on active tab and language
+  const getImportantNotes = (): string[] => {
+    switch(activeTab) {
+      case 0: return language === 'am' ? ImportantNotes.howToPlay.am : ImportantNotes.howToPlay.en;
+      case 1: return language === 'am' ? ImportantNotes.deposit.am : ImportantNotes.deposit.en;
+      case 2: return language === 'am' ? ImportantNotes.withdrawal.am : ImportantNotes.withdrawal.en;
+      default: return language === 'am' ? ImportantNotes.howToPlay.am : ImportantNotes.howToPlay.en;
+    }
+  };
+
+  const currentNotes = getImportantNotes();
 
   // Reset active step when modal opens or tab changes
   useEffect(() => {
@@ -506,43 +570,23 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             </Paper>
           )}
 
-          {/* Important Notes */}
+          {/* Dynamic Important Notes based on active tab */}
           <Box sx={{ 
             mt: 3,
             p: 2,
             bgcolor: '#fff8e1',
             borderRadius: 2,
-            borderLeft: '4px solid #f9a825'
+            borderLeft: `4px solid ${getTabColor(activeTab)}`
           }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#f57f17' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getTabColor(activeTab) }}>
               {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
             </Typography>
             <ul style={{ margin: '8px 0', paddingLeft: '20px', color: '#424242' }}>
-              <li>
-                {language === 'am' 
-                  ? 'አነስተኛ ገቢ: 10 ብር'
-                  : 'Minimum Deposit: 10 ETB'}
-              </li>
-              <li>
-                {language === 'am' 
-                  ? 'ከ 50 ብር በላይ ሲያስገቡ 10% ቦነስ ያገኛሉ'
-                  : '10% bonus on deposits above 50 ETB'}
-              </li>
-              <li>
-                {language === 'am' 
-                  ? 'አነስተኛ ወጪ: 100 ብር'
-                  : 'Minimum Withdrawal: 100 ETB'}
-              </li>
-              <li>
-                {language === 'am' 
-                  ? 'ሁሉም ግብይቶች ከተረጋገጡ በኋላ ይሰራሉ'
-                  : 'All transactions are processed after verification'}
-              </li>
-              <li>
-                {language === 'am' 
-                  ? 'ለማንኛውም ችግር የደንበኞች አገልግሎትን ያግኙ'
-                  : 'Contact customer support for any issues'}
-              </li>
+              {currentNotes.map((note, index) => (
+                <li key={index} style={{ marginBottom: '4px' }}>
+                  {note}
+                </li>
+              ))}
             </ul>
           </Box>
         </Box>
