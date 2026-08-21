@@ -570,25 +570,28 @@ export default function HowToPlayModal({ open, onClose, language = 'am' }: HowTo
             </Paper>
           )}
 
-          {/* Dynamic Important Notes based on active tab */}
-          <Box sx={{ 
-            mt: 3,
-            p: 2,
-            bgcolor: '#fff8e1',
-            borderRadius: 2,
-            borderLeft: `4px solid ${getTabColor(activeTab)}`
-          }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getTabColor(activeTab) }}>
-              {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
-            </Typography>
-            <ul style={{ margin: '8px 0', paddingLeft: '20px', color: '#424242' }}>
-              {currentNotes.map((note, index) => (
-                <li key={index} style={{ marginBottom: '4px' }}>
-                  {note}
-                </li>
-              ))}
-            </ul>
-          </Box>
+         {/* Dynamic Important Notes based on active tab */}
+<Box sx={{ 
+  mt: 3,
+  p: 2,
+  bgcolor: '#fff8e1',
+  borderRadius: 2,
+  borderLeft: `4px solid ${getTabColor(activeTab)}`
+}}>
+  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: getTabColor(activeTab), mb: 1 }}>
+    {language === 'am' ? '⭐ አስፈላጊ ማስታወሻዎች' : '⭐ Important Notes'}
+  </Typography>
+  <Box sx={{ pl: 2 }}>
+    {currentNotes.map((note, index) => (
+      <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 0.5 }}>
+        <Typography component="span" sx={{ mr: 1, color: getTabColor(activeTab) }}>•</Typography>
+        <Typography variant="body2" sx={{ color: '#424242' }}>
+          {note}
+        </Typography>
+      </Box>
+    ))}
+  </Box>
+</Box>
         </Box>
       </Box>
     </Modal>
