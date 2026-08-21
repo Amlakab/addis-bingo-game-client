@@ -59,7 +59,7 @@ export default function LobbyPage() {
     }
   };
 
-  // Show loading with background color
+  // If loading, show loading spinner with background color
   if (isLoading) {
     return (
       <div 
@@ -70,10 +70,7 @@ export default function LobbyPage() {
         }}
       >
         <div className="text-center">
-          <div 
-            className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
-            style={{ borderColor: getTextColor() + '80' }}
-          ></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4" style={{ color: getTextColor() }}>Loading...</p>
         </div>
       </div>
