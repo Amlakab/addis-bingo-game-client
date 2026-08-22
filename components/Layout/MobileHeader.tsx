@@ -12,16 +12,14 @@ interface MobileHeaderProps {
   title: string;
   showWallet?: boolean;
   onMenuClick?: () => void;
-  backgroundColor?: string; // NEW: Accept backgroundColor prop
-  setBackgroundColor?: (color: string) => void; // NEW: Allow color change from header
+  // REMOVED: backgroundColor and setBackgroundColor props
+  // We'll use localStorage and events only
 }
 
 export default function MobileHeader({
   title,
   showWallet = true,
   onMenuClick,
-  backgroundColor: propBackgroundColor,
-  setBackgroundColor: propSetBackgroundColor,
 }: MobileHeaderProps) {
   const { logout } = useAuth();
   const router = useRouter();
@@ -29,17 +27,14 @@ export default function MobileHeader({
   const [loading, setLoading] = useState<boolean>(true);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  // Use prop if provided, otherwise use localStorage
-  const [localBgColor, setLocalBgColor] = useState(() => {
+  // ALWAYS use localStorage, NOT props
+  const [backgroundColor, setBackgroundColor] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedColor = localStorage.getItem('bingoBgColor');
       return savedColor || 'white';
     }
     return 'white';
   });
-
-  // Use prop or local state - prop takes priority
-  const backgroundColor = propBackgroundColor || localBgColor;
 
   // Color helper functions
   const getTextColor = () => {
@@ -62,41 +57,41 @@ export default function MobileHeader({
     }
   };
 
-  // Handle background color change
+  // Handle background color change - EXACTLY like BetSelectionPage
   const handleBackgroundColorChange = (color: string) => {
-    // Update using prop setter if available
-    if (propSetBackgroundColor) {
-      propSetBackgroundColor(color);
-    }
-    // Update local state
-    setLocalBgColor(color);
-    // Save to localStorage
+    // 1. Update local state
+    setBackgroundColor(color);
+    
+    // 2. Save to localStorage
     localStorage.setItem('bingoBgColor', color);
-    // Dispatch custom event for other components
+    
+    // 3. Dispatch custom event for all components
     const event = new CustomEvent('bgColorChange', { 
       detail: { color } 
     });
     window.dispatchEvent(event);
+    
+    // 4. Close the picker
     setShowColorPicker(false);
   };
 
-  // Listen for background color changes from localStorage
+  // Listen for background color changes from other components
   useEffect(() => {
     const handleStorageChange = () => {
       const savedColor = localStorage.getItem('bingoBgColor');
       if (savedColor) {
-        setLocalBgColor(savedColor);
+        setBackgroundColor(savedColor);
+      }
+    };
+
+    // Listen for custom event from BetSelectionPage or other components
+    const handleColorChange = (e: CustomEvent) => {
+      if (e.detail?.color) {
+        setBackgroundColor(e.detail.color);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom event from color picker
-    const handleColorChange = (e: CustomEvent) => {
-      if (e.detail?.color) {
-        setLocalBgColor(e.detail.color);
-      }
-    };
     window.addEventListener('bgColorChange' as any, handleColorChange as any);
 
     return () => {
@@ -105,7 +100,7 @@ export default function MobileHeader({
     };
   }, []);
 
-  // 🔹 Fetch wallet balance from DB using userId in localStorage
+  // Fetch wallet balance
   useEffect(() => {
     const fetchWallet = async () => {
       try {

@@ -37,25 +37,20 @@ const navigationItems = [
 ];
 
 interface MobileNavigationProps {
-  backgroundColor?: string; // NEW: Accept backgroundColor prop
+  // REMOVED: backgroundColor prop
 }
 
-export default function MobileNavigation({ 
-  backgroundColor: propBackgroundColor // NEW
-}: MobileNavigationProps) {
+export default function MobileNavigation() {
   const pathname = usePathname();
 
-  // Use prop if provided, otherwise use localStorage
-  const [localBgColor, setLocalBgColor] = useState(() => {
+  // ALWAYS use localStorage
+  const [backgroundColor, setBackgroundColor] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedColor = localStorage.getItem('bingoBgColor');
       return savedColor || 'white';
     }
     return 'white';
   });
-
-  // Use prop or local state - prop takes priority
-  const backgroundColor = propBackgroundColor || localBgColor;
 
   // Color helper functions
   const getTextColor = () => {
@@ -78,23 +73,22 @@ export default function MobileNavigation({
     }
   };
 
-  // Listen for background color changes from localStorage
+  // Listen for background color changes
   useEffect(() => {
     const handleStorageChange = () => {
       const savedColor = localStorage.getItem('bingoBgColor');
       if (savedColor) {
-        setLocalBgColor(savedColor);
+        setBackgroundColor(savedColor);
+      }
+    };
+
+    const handleColorChange = (e: CustomEvent) => {
+      if (e.detail?.color) {
+        setBackgroundColor(e.detail.color);
       }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom event from color picker
-    const handleColorChange = (e: CustomEvent) => {
-      if (e.detail?.color) {
-        setLocalBgColor(e.detail.color);
-      }
-    };
     window.addEventListener('bgColorChange' as any, handleColorChange as any);
 
     return () => {

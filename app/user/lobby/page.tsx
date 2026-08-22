@@ -170,7 +170,6 @@ export default function LobbyPage() {
       <MobileHeader 
         title="Game Lobby" 
         showWallet={true}
-        backgroundColor={backgroundColor}
       />
       
       <main className="p-4 px-0 pb-24 pt-16">
@@ -198,7 +197,7 @@ export default function LobbyPage() {
       </main>
 
       {currentPage === 'bet-selection' && (
-        <MobileNavigation backgroundColor={backgroundColor} />
+        <MobileNavigation />
       )}
     </div>
   );
