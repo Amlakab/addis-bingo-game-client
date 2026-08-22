@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { formatCurrency } from '@/lib/utils';
-import { Bell, Menu, LogOut } from 'lucide-react';
+import { Bell, Menu, LogOut, Palette } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import api from '@/app/utils/api';
 
@@ -13,18 +13,21 @@ interface MobileHeaderProps {
   showWallet?: boolean;
   onMenuClick?: () => void;
   backgroundColor?: string; // NEW: Accept backgroundColor prop
+  setBackgroundColor?: (color: string) => void; // NEW: Allow color change from header
 }
 
 export default function MobileHeader({
   title,
   showWallet = true,
   onMenuClick,
-  backgroundColor: propBackgroundColor, // NEW
+  backgroundColor: propBackgroundColor,
+  setBackgroundColor: propSetBackgroundColor,
 }: MobileHeaderProps) {
   const { logout } = useAuth();
   const router = useRouter();
   const [wallet, setWallet] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Use prop if provided, otherwise use localStorage
   const [localBgColor, setLocalBgColor] = useState(() => {
@@ -57,6 +60,24 @@ export default function MobileHeader({
       case 'yellow': return 'rgba(240, 230, 140, 0.95)';
       default: return 'rgba(255, 255, 255, 0.95)';
     }
+  };
+
+  // Handle background color change
+  const handleBackgroundColorChange = (color: string) => {
+    // Update using prop setter if available
+    if (propSetBackgroundColor) {
+      propSetBackgroundColor(color);
+    }
+    // Update local state
+    setLocalBgColor(color);
+    // Save to localStorage
+    localStorage.setItem('bingoBgColor', color);
+    // Dispatch custom event for other components
+    const event = new CustomEvent('bgColorChange', { 
+      detail: { color } 
+    });
+    window.dispatchEvent(event);
+    setShowColorPicker(false);
   };
 
   // Listen for background color changes from localStorage
@@ -115,6 +136,15 @@ export default function MobileHeader({
     router.push('/');
   };
 
+  // Color options
+  const colorOptions = [
+    { color: 'white', label: 'White' },
+    { color: 'black', label: 'Black' },
+    { color: 'green', label: 'Green' },
+    { color: 'blue', label: 'Blue' },
+    { color: 'yellow', label: 'Yellow' },
+  ];
+
   return (
     <header 
       className="fixed top-0 left-0 right-0 border-b px-4 py-3 flex items-center justify-between z-50"
@@ -139,7 +169,7 @@ export default function MobileHeader({
       </div>
 
       {/* Right side */}
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 relative">
         {showWallet && !loading && (
           <div 
             className="px-3 py-1 rounded-full text-sm font-medium"
@@ -149,6 +179,47 @@ export default function MobileHeader({
             }}
           >
             {formatCurrency(wallet)}
+          </div>
+        )}
+
+        {/* Color Picker Button */}
+        <button 
+          className="p-1 rounded-md hover:opacity-70 relative"
+          style={{ color: getTextColor() }}
+          onClick={() => setShowColorPicker(!showColorPicker)}
+          title="Change Background Color"
+        >
+          <Palette className="h-5 w-5" />
+        </button>
+
+        {/* Color Picker Dropdown */}
+        {showColorPicker && (
+          <div 
+            className="absolute top-full right-0 mt-2 p-2 rounded-lg shadow-lg border z-50"
+            style={{ 
+              backgroundColor: getCardBackground(),
+              borderColor: getTextColor() + '20',
+              minWidth: '160px'
+            }}
+          >
+            <div className="grid grid-cols-5 gap-1">
+              {colorOptions.map(({ color, label }) => (
+                <button
+                  key={color}
+                  onClick={() => handleBackgroundColorChange(color)}
+                  className="w-8 h-8 rounded-full border-2 transition-all duration-200 hover:scale-110 focus:outline-none"
+                  style={{
+                    backgroundColor: color,
+                    borderColor: backgroundColor === color ? '#2563eb' : getTextColor() + '30',
+                    boxShadow: backgroundColor === color ? '0 0 0 2px #2563eb' : 'none'
+                  }}
+                  title={label}
+                />
+              ))}
+            </div>
+            <div className="mt-1 text-center text-xs" style={{ color: getTextColor(), opacity: 0.7 }}>
+              {colorOptions.find(c => c.color === backgroundColor)?.label || 'Select Color'}
+            </div>
           </div>
         )}
 
