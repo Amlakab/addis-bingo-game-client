@@ -2224,8 +2224,8 @@ const GameInterface = ({
             fontStyle: 'italic'
           }}>
             {language === 'am' 
-              ? 'ይህ ካርድ ታግዷል. ወደ ሎቢ ይመለሳሉ።'
-              : 'This card is blocked. You will return to the lobby.'}
+              ? 'ይህ ካርድ ታግዷል።'
+              : 'This card is blocked.'}
           </Typography>
           
           <Button 
@@ -2233,7 +2233,7 @@ const GameInterface = ({
             color="primary"
             onClick={() => {
               setShowLoserModal(false);
-              onGameEnd();
+              // onGameEnd();
             }}
             sx={{ 
               mt: 1,
