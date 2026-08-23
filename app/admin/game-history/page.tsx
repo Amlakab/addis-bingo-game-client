@@ -135,7 +135,7 @@ export default function GameHistoryPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // ============================================
-  // FETCH DATA
+  // FETCH DATA - FIXED FOR BACKEND RESPONSE
   // ============================================
   useEffect(() => {
     fetchGameHistory();
@@ -145,9 +145,30 @@ export default function GameHistoryPage() {
     try {
       setLoading(true);
       const response = await api.get('/game/history');
-      setGameHistory(response.data.data || []);
+      
+      console.log('API Response:', response.data); // Debug log
+      
+      // ✅ Handle backend response format (returns array directly)
+      let historyData: GameHistory[] = [];
+      
+      if (response.data && Array.isArray(response.data)) {
+        // Backend returns array directly: [...]
+        historyData = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        // Backend returns { data: [...] }
+        historyData = response.data.data;
+      } else if (response.data && response.data.history && Array.isArray(response.data.history)) {
+        // Backend returns { history: [...] }
+        historyData = response.data.history;
+      }
+      
+      console.log('Extracted history data:', historyData);
+      console.log('Number of entries:', historyData.length);
+      
+      setGameHistory(historyData);
       setError('');
     } catch (error: any) {
+      console.error('Error fetching game history:', error);
       setError(error.response?.data?.error || 'Failed to fetch game history');
     } finally {
       setLoading(false);
@@ -486,7 +507,7 @@ export default function GameHistoryPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      {stats && (
+      {stats && stats.totalGames > 0 ? (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)', lg: 'repeat(6, 1fr)' }, gap: 2, mb: 3 }}>
             {[
@@ -511,6 +532,13 @@ export default function GameHistoryPage() {
             ))}
           </Box>
         </motion.div>
+      ) : (
+        // Show empty stats when no games
+        <Box sx={{ textAlign: 'center', py: 2, mb: 3 }}>
+          <Typography variant="body1" color="text.secondary">
+            No game data available yet
+          </Typography>
+        </Box>
       )}
 
       {/* Search & Filters */}
@@ -600,179 +628,195 @@ export default function GameHistoryPage() {
         </Box>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}>
-          {/* Mobile View */}
-          {isMobile && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {filteredGames.map((game) => {
-                const isExpanded = expandedGame === game.gameId;
-                return (
-                  <Card key={game.gameId} sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-                    <CardContent sx={{ p: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                          {formatDate(game.createdAt)}
-                        </Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <IconButton size="small" onClick={() => handleDeleteSingle(game.gameId)} sx={{ color: 'error.main' }}>
-                            <Delete fontSize="small" />
-                          </IconButton>
-                          <IconButton size="small" onClick={() => toggleExpandGame(game.gameId)}>
-                            {isExpanded ? <ExpandLess /> : <ExpandMore />}
-                          </IconButton>
-                        </Box>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2">Bet:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{formatCurrency(game.betAmount)}</Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2">Players:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{game.numberOfPlayers}</Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2">Winners:</Typography>
-                        <Chip label={game.totalWinners} size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />
-                      </Box>
-
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2">Earnings:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold', color: game.systemEarnings >= 0 ? 'success.main' : 'error.main' }}>
-                          {formatCurrency(game.systemEarnings)}
-                        </Typography>
-                      </Box>
-
-                      {isExpanded && (
-                        <>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography variant="body2">Collected:</Typography>
-                            <Typography variant="body2">{formatCurrency(game.totalCollected)}</Typography>
-                          </Box>
-
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography variant="body2">Prize Pool:</Typography>
-                            <Typography variant="body2">{formatCurrency(game.totalPrizePool)}</Typography>
-                          </Box>
-
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography variant="body2">Per Winner:</Typography>
-                            <Typography variant="body2">{formatCurrency(game.prizePerWinner)}</Typography>
-                          </Box>
-
-                          <Typography variant="caption" sx={{ display: 'block', mt: 1, fontWeight: 'bold' }}>
-                            Winners:
-                          </Typography>
-                          {game.winners.map((w, i) => (
-                            <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', pl: 1, py: 0.25 }}>
-                              <Typography variant="caption">{w.phone}</Typography>
-                              <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                Card {w.cardNumber} (+{formatCurrency(w.prizeAmount)})
-                              </Typography>
+          {filteredGames.length > 0 ? (
+            <>
+              {/* Mobile View */}
+              {isMobile && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {filteredGames.map((game) => {
+                    const isExpanded = expandedGame === game.gameId;
+                    return (
+                      <Card key={game.gameId} sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                        <CardContent sx={{ p: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                              {formatDate(game.createdAt)}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                              <IconButton size="small" onClick={() => handleDeleteSingle(game.gameId)} sx={{ color: 'error.main' }}>
+                                <Delete fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => toggleExpandGame(game.gameId)}>
+                                {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                              </IconButton>
                             </Box>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2">Bet:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{formatCurrency(game.betAmount)}</Typography>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2">Players:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{game.numberOfPlayers}</Typography>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2">Winners:</Typography>
+                            <Chip label={game.totalWinners} size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />
+                          </Box>
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="body2">Earnings:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 'bold', color: game.systemEarnings >= 0 ? 'success.main' : 'error.main' }}>
+                              {formatCurrency(game.systemEarnings)}
+                            </Typography>
+                          </Box>
+
+                          {isExpanded && (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="body2">Collected:</Typography>
+                                <Typography variant="body2">{formatCurrency(game.totalCollected)}</Typography>
+                              </Box>
+
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="body2">Prize Pool:</Typography>
+                                <Typography variant="body2">{formatCurrency(game.totalPrizePool)}</Typography>
+                              </Box>
+
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography variant="body2">Per Winner:</Typography>
+                                <Typography variant="body2">{formatCurrency(game.prizePerWinner)}</Typography>
+                              </Box>
+
+                              <Typography variant="caption" sx={{ display: 'block', mt: 1, fontWeight: 'bold' }}>
+                                Winners:
+                              </Typography>
+                              {game.winners.map((w, i) => (
+                                <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', pl: 1, py: 0.25 }}>
+                                  <Typography variant="caption">{w.phone}</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                    Card {w.cardNumber} (+{formatCurrency(w.prizeAmount)})
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              )}
+
+              {/* Desktop View */}
+              {!isMobile && (
+                <Card sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
+                  <CardContent sx={{ p: 0 }}>
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ background: 'linear-gradient(145deg, #2c3e50, #34495e)' }}>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Bet</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Players</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Winners</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Collected</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Prize Pool</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Earnings</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Per Winner</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {filteredGames.map((game) => (
+                            <TableRow key={game.gameId} hover>
+                              <TableCell>{formatDate(game.createdAt)}</TableCell>
+                              <TableCell>
+                                <Chip label={`${game.betAmount} ETB`} size="small" />
+                              </TableCell>
+                              <TableCell>{game.numberOfPlayers}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={game.totalWinners}
+                                  color={game.totalWinners > 1 ? 'success' : 'primary'}
+                                  size="small"
+                                />
+                              </TableCell>
+                              <TableCell>{formatCurrency(game.totalCollected)}</TableCell>
+                              <TableCell>{formatCurrency(game.totalPrizePool)}</TableCell>
+                              <TableCell>
+                                <Typography
+                                  sx={{
+                                    fontWeight: 'bold',
+                                    color: game.systemEarnings >= 0 ? 'success.main' : 'error.main'
+                                  }}
+                                >
+                                  {formatCurrency(game.systemEarnings)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>{formatCurrency(game.prizePerWinner)}</TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                  <Tooltip title="Delete by bet amount">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDeleteByBet(game.betAmount)}
+                                      sx={{ color: 'warning.main' }}
+                                    >
+                                      <DeleteSweep fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete this game">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDeleteSingle(game.gameId)}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <Delete fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            // Show when no games found
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                No games found
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {searchTerm || Object.values(filters).some(f => f) 
+                  ? 'Try changing your filters or search terms.' 
+                  : 'No games have been played yet.'}
+              </Typography>
+              {gameHistory.length === 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Total game history entries in database: 0
+                </Typography>
+              )}
             </Box>
           )}
 
-          {/* Desktop View */}
-          {!isMobile && (
-            <Card sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
-              <CardContent sx={{ p: 0 }}>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ background: 'linear-gradient(145deg, #2c3e50, #34495e)' }}>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Bet</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Players</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Winners</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Collected</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Prize Pool</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Earnings</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Per Winner</TableCell>
-                        <TableCell sx={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredGames.map((game) => (
-                        <TableRow key={game.gameId} hover>
-                          <TableCell>{formatDate(game.createdAt)}</TableCell>
-                          <TableCell>
-                            <Chip label={`${game.betAmount} ETB`} size="small" />
-                          </TableCell>
-                          <TableCell>{game.numberOfPlayers}</TableCell>
-                          <TableCell>
-                            <Chip
-                              label={game.totalWinners}
-                              color={game.totalWinners > 1 ? 'success' : 'primary'}
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell>{formatCurrency(game.totalCollected)}</TableCell>
-                          <TableCell>{formatCurrency(game.totalPrizePool)}</TableCell>
-                          <TableCell>
-                            <Typography
-                              sx={{
-                                fontWeight: 'bold',
-                                color: game.systemEarnings >= 0 ? 'success.main' : 'error.main'
-                              }}
-                            >
-                              {formatCurrency(game.systemEarnings)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{formatCurrency(game.prizePerWinner)}</TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
-                              <Tooltip title="Delete by bet amount">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteByBet(game.betAmount)}
-                                  sx={{ color: 'warning.main' }}
-                                >
-                                  <DeleteSweep fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete this game">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteSingle(game.gameId)}
-                                  sx={{ color: 'error.main' }}
-                                >
-                                  <Delete fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-
-                {filteredGames.length === 0 && !loading && (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h6" color="text.secondary">
-                      No games found. {searchTerm || Object.values(filters).some(f => f) ? 'Try changing your filters.' : 'No games have been played yet.'}
-                    </Typography>
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* Footer */}
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Showing {filteredGames.length} of {groupedGames.length} games
-            </Typography>
-          </Box>
+          {filteredGames.length > 0 && (
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Showing {filteredGames.length} of {groupedGames.length} games
+                {gameHistory.length > 0 && ` (${gameHistory.length} total entries)`}
+              </Typography>
+            </Box>
+          )}
         </motion.div>
       )}
 

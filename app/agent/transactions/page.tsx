@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Search, 
@@ -15,11 +15,12 @@ import {
   ExternalLink,
   X as XIcon,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  Bell
 } from 'lucide-react';
 import api from '@/app/utils/api';
 import Swal from 'sweetalert2';
-import { method } from 'lodash';
 
 type TransactionType = {
   _id: string;
@@ -70,17 +71,14 @@ const sortTransactions = (transactions: TransactionType[]) => {
     const aIsPending = a.status === 'pending';
     const bIsPending = b.status === 'pending';
     
-    // If both are pending: sort by oldest first (ascending)
     if (aIsPending && bIsPending) {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     }
     
-    // If both are NOT pending (completed/failed): sort by newest first (descending)
     if (!aIsPending && !bIsPending) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
     
-    // If one is pending and the other is not: pending comes first
     if (aIsPending && !bIsPending) return -1;
     if (!aIsPending && bIsPending) return 1;
     
@@ -88,20 +86,15 @@ const sortTransactions = (transactions: TransactionType[]) => {
   });
 };
 
-// Add this helper function to detect and render URLs
+// Helper function to detect and render URLs
 const renderWithLinks = (text: string): React.ReactNode => {
   if (!text) return text;
   
-  // Regex to match URLs
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  
-  // Split the text by URLs
   const parts: string[] = text.split(urlRegex);
   const matches: string[] = text.match(urlRegex) || [];
   
-  // Build the result with links
   return parts.map((part: string, index: number) => {
-    // If this part matches a URL, render it as a link
     if (matches.includes(part)) {
       return (
         <a
@@ -129,11 +122,21 @@ export default function AdminTransactionsPage() {
     totalRecords: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<TransactionType | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [action, setAction] = useState<'approve' | 'reject' | 'complete' | null>(null);
   const [reason, setReason] = useState('');
   const [transactionId, setTransactionId] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [newTransactionsCount, setNewTransactionsCount] = useState(0);
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
+  
+  // ✅ Auto-refresh state
+  const [isPolling, setIsPolling] = useState(true);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const previousCountRef = useRef<number>(0);
+
   const [filters, setFilters] = useState({
     type: '',
     status: '',
@@ -144,11 +147,9 @@ export default function AdminTransactionsPage() {
     page: 1
   });
 
-  useEffect(() => {
-    fetchTransactions();
-    fetchStats();
-  }, [filters]);
-
+  // ============================================
+  // TOAST NOTIFICATIONS
+  // ============================================
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     const Toast = Swal.mixin({
       toast: true,
@@ -180,7 +181,10 @@ export default function AdminTransactionsPage() {
     });
   };
 
-  const fetchTransactions = async () => {
+  // ============================================
+  // FETCH FUNCTIONS
+  // ============================================
+  const fetchTransactions = async (showNotification: boolean = false) => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -195,14 +199,36 @@ export default function AdminTransactionsPage() {
       
       const res = await api.get(`/transactions?${params.toString()}`);
       const data = res.data.data;
-      // Apply sorting: Pending first (oldest first), then others (newest first)
+      const newCount = data.length;
+      
+      // ✅ Check for new transactions
+      if (showNotification && previousCountRef.current > 0 && newCount > previousCountRef.current) {
+        const newItems = data.filter((newT: TransactionType) => 
+          !transactions.some(oldT => oldT._id === newT._id)
+        );
+        if (newItems.length > 0) {
+          setNewTransactionsCount(newItems.length);
+          setNotificationMessage(`${newItems.length} new transaction(s) added!`);
+          showToast(`${newItems.length} new transaction(s) added!`, 'success');
+          
+          // Auto hide notification after 5 seconds
+          setTimeout(() => {
+            setNewTransactionsCount(0);
+            setNotificationMessage(null);
+          }, 5000);
+        }
+      }
+      
       setTransactions(sortTransactions(data));
       setPagination(res.data.pagination);
+      previousCountRef.current = newCount;
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
       showToast('Failed to fetch transactions', 'error');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -212,8 +238,47 @@ export default function AdminTransactionsPage() {
       setStats(res.data.data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      showToast('Failed to fetch statistics', 'error');
     }
+  };
+
+  // ============================================
+  // POLLING - EVERY 1 MINUTE
+  // ============================================
+  useEffect(() => {
+    // Initial fetch
+    fetchTransactions();
+    fetchStats();
+
+    // Start polling every 60 seconds
+    pollingRef.current = setInterval(() => {
+      if (isPolling) {
+        console.log('🔍 Polling for new transactions...');
+        fetchTransactions(true);
+        fetchStats();
+      }
+    }, 60000); // 60 seconds = 1 minute
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [filters]); // Re-run when filters change
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchTransactions(true);
+    await fetchStats();
+    showToast('Data refreshed successfully', 'success');
+  };
+
+  const togglePolling = () => {
+    setIsPolling(!isPolling);
+    showToast(isPolling ? 'Auto-refresh disabled' : 'Auto-refresh enabled (every 1 minute)', 'warning');
   };
 
   const handleViewTransaction = (transaction: TransactionType) => {
@@ -228,10 +293,68 @@ export default function AdminTransactionsPage() {
     setAction(actionType);
   };
 
+  // ============================================
+  // OPTIMISTIC UPDATE FOR ADMIN ACTIONS
+  // ============================================
   const submitAction = async () => {
     if (!selectedTransaction) return;
 
+    // ✅ Create optimistic update
+    const optimisticTransaction = { ...selectedTransaction };
+    let originalStatus = selectedTransaction.status;
+
     try {
+      // ✅ Update UI immediately (optimistic)
+      if (selectedTransaction.type === 'deposit' || selectedTransaction.type === 'game_purchase' || selectedTransaction.type === 'winning') {
+        if (action === 'approve') {
+          optimisticTransaction.status = 'completed';
+        } else if (action === 'reject') {
+          optimisticTransaction.status = 'failed';
+          optimisticTransaction.reason = reason;
+        }
+      } else if (selectedTransaction.type === 'withdrawal') {
+        if (action === 'complete') {
+          if (!transactionId.trim()) {
+            showToast('Please provide a transaction ID', 'warning');
+            return;
+          }
+          optimisticTransaction.status = 'completed';
+          optimisticTransaction.transactionId = transactionId;
+        }
+      }
+
+      // ✅ Update local state immediately
+      setTransactions(prev => 
+        sortTransactions(prev.map(t => t._id === optimisticTransaction._id ? optimisticTransaction : t))
+      );
+      setShowModal(false);
+      
+      // ✅ Update stats optimistically
+      if (stats) {
+        const updatedStats = { ...stats };
+        if (optimisticTransaction.status === 'completed') {
+          if (optimisticTransaction.type === 'deposit') {
+            updatedStats.totalDeposits += optimisticTransaction.amount;
+            updatedStats.pendingDeposits -= 1;
+          } else if (optimisticTransaction.type === 'withdrawal') {
+            updatedStats.totalWithdrawals += optimisticTransaction.amount;
+            updatedStats.pendingWithdrawals -= 1;
+          } else if (optimisticTransaction.type === 'winning') {
+            updatedStats.totalWinnings += optimisticTransaction.amount;
+          } else if (optimisticTransaction.type === 'game_purchase') {
+            updatedStats.totalGamePurchases += optimisticTransaction.amount;
+          }
+        } else if (optimisticTransaction.status === 'failed') {
+          if (optimisticTransaction.type === 'deposit') {
+            updatedStats.pendingDeposits -= 1;
+          } else if (optimisticTransaction.type === 'withdrawal') {
+            updatedStats.pendingWithdrawals -= 1;
+          }
+        }
+        setStats(updatedStats);
+      }
+
+      // ✅ Make API call
       if (selectedTransaction.type === 'deposit' || selectedTransaction.type === 'game_purchase' || selectedTransaction.type === 'winning') {
         if (action === 'approve') {
           const result = await showConfirmation(
@@ -245,10 +368,18 @@ export default function AdminTransactionsPage() {
               status: 'completed'
             });
             showToast('Deposit approved successfully', 'success');
+          } else {
+            // ✅ Revert on cancel
+            await fetchTransactions();
+            await fetchStats();
+            return;
           }
         } else if (action === 'reject') {
           if (!reason.trim()) {
             showToast('Please provide a reason for rejection', 'warning');
+            // ✅ Revert
+            await fetchTransactions();
+            await fetchStats();
             return;
           }
           
@@ -264,12 +395,20 @@ export default function AdminTransactionsPage() {
               reason
             });
             showToast('Deposit rejected successfully', 'success');
+          } else {
+            // ✅ Revert on cancel
+            await fetchTransactions();
+            await fetchStats();
+            return;
           }
         }
       } else if (selectedTransaction.type === 'withdrawal') {
         if (action === 'complete') {
           if (!transactionId.trim()) {
             showToast('Please provide a transaction ID', 'warning');
+            // ✅ Revert
+            await fetchTransactions();
+            await fetchStats();
             return;
           }
           
@@ -285,19 +424,31 @@ export default function AdminTransactionsPage() {
               transactionId
             });
             showToast('Withdrawal marked as completed', 'success');
+          } else {
+            // ✅ Revert on cancel
+            await fetchTransactions();
+            await fetchStats();
+            return;
           }
         }
       }
 
-      setShowModal(false);
-      fetchTransactions();
-      fetchStats();
+      // ✅ Refresh data from server to ensure consistency
+      await fetchTransactions();
+      await fetchStats();
+
     } catch (error: any) {
       console.error('Failed to update transaction:', error);
+      // ✅ Revert on error
+      await fetchTransactions();
+      await fetchStats();
       showToast(error.response?.data?.message || 'Failed to update transaction', 'error');
     }
   };
 
+  // ============================================
+  // UI COMPONENTS
+  // ============================================
   const StatusBadge = ({ status }: { status: string }) => {
     const getStatusColor = () => {
       switch (status) {
@@ -333,26 +484,66 @@ export default function AdminTransactionsPage() {
     );
   };
 
-  const getTransactionLink = (transaction: TransactionType) => {
-    if (!transaction.transactionId) return null;
-    
-    // Check if transactionId is already a URL
-    if (transaction.transactionId.startsWith('http')) {
-      return transaction.transactionId;
-    }
-    
-    // Fallback to previous logic if transactionId is not a URL
-    if (transaction.reference === 'cbe') {
-      return `https://apps.cbe.com.et:100/?id=${transaction.transactionId}`;
-    } else if (transaction.reference === 'telebirr') {
-      return `https://telebirr.ethiotelecom.et/txn/${transaction.transactionId}`;
-    }
-    return null;
-  };
-
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans">
-      <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Transaction Management</h1>
+      {/* Header with Controls */}
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <h1 className="text-xl md:text-2xl font-bold">Transaction Management</h1>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Auto-refresh toggle */}
+          <button
+            onClick={togglePolling}
+            className={`px-3 py-1.5 text-xs md:text-sm rounded-md font-sans transition-colors flex items-center gap-1 ${
+              isPolling ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-700'
+            }`}
+          >
+            <Bell className="h-3 w-3" />
+            {isPolling ? 'Auto ON' : 'Auto OFF'}
+          </button>
+          
+          {/* Last updated time */}
+          <span className="text-xs text-gray-500 font-sans hidden sm:inline">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </span>
+          
+          {/* Manual refresh */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="px-3 py-1.5 text-xs md:text-sm bg-blue-600 text-white rounded-md font-sans hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+          >
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {/* New Transaction Notification */}
+      {notificationMessage && (
+        <div className="bg-green-100 border-l-4 border-green-500 p-3 md:p-4 mb-4 rounded shadow-md animate-pulse">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="font-bold text-green-800">📦 {notificationMessage}</p>
+              <p className="text-xs text-green-700">
+                Click Refresh to see new transactions
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                setNotificationMessage(null);
+                setNewTransactionsCount(0);
+              }}
+              className="text-green-800 hover:text-green-600 px-2"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (
@@ -505,7 +696,7 @@ export default function AdminTransactionsPage() {
             Clear Filters
           </button>
           <button 
-            onClick={fetchTransactions}
+            onClick={() => fetchTransactions()}
             className="px-3 py-2 text-xs md:text-sm bg-blue-600 text-white rounded-md flex items-center justify-center font-sans"
           >
             <Filter className="h-3 w-3 md:h-4 md:w-4 mr-1" />
