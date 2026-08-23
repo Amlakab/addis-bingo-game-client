@@ -26,7 +26,16 @@ import {
   FormControl,
   InputLabel,
   IconButton,
-  Collapse
+  Collapse,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Tooltip,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -38,7 +47,12 @@ import {
   Search,
   FilterList,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Delete,
+  DeleteSweep,
+  ClearAll,
+  CheckBox,
+  CheckBoxOutlineBlank
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 
@@ -90,6 +104,20 @@ export default function TransactionsPage() {
   });
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  // Dialog states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState<'single' | 'bulk' | 'all'>('single');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [bulkDeleteFilters, setBulkDeleteFilters] = useState({
+    type: '',
+    status: '',
+    startDate: '',
+    endDate: ''
+  });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [filters, setFilters] = useState({
     type: '',
@@ -117,6 +145,9 @@ export default function TransactionsPage() {
       setTransactions(response.data.data);
       setPagination(response.data.pagination);
       setError('');
+      // Reset selection when data changes
+      setSelectedTransactions([]);
+      setSelectAll(false);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to fetch transactions');
     } finally {
@@ -147,6 +178,96 @@ export default function TransactionsPage() {
 
   const toggleExpandTransaction = (transactionId: string) => {
     setExpandedTransaction(expandedTransaction === transactionId ? null : transactionId);
+  };
+
+  // Delete Handlers
+  const handleDeleteSingle = (transactionId: string) => {
+    setDeleteType('single');
+    setDeleteTarget(transactionId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteBulk = () => {
+    if (selectedTransactions.length === 0) {
+      setError('Please select at least one transaction to delete');
+      return;
+    }
+    setDeleteType('bulk');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteAll = () => {
+    setDeleteType('all');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      type: '',
+      status: '',
+      search: '',
+      startDate: '',
+      endDate: '',
+      page: 1,
+      limit: 10
+    });
+    setSelectedTransactions([]);
+    setSelectAll(false);
+  };
+
+  const confirmDeleteAction = async () => {
+    try {
+      setLoading(true);
+      let response;
+
+      if (deleteType === 'single' && deleteTarget) {
+        response = await api.delete(`/transactions/${deleteTarget}`);
+        setSuccess('Transaction deleted successfully');
+      } else if (deleteType === 'bulk') {
+        // Delete selected transactions
+        const deletePromises = selectedTransactions.map(id => 
+          api.delete(`/transactions/${id}`)
+        );
+        await Promise.all(deletePromises);
+        setSuccess(`Successfully deleted ${selectedTransactions.length} transactions`);
+        setSelectedTransactions([]);
+        setSelectAll(false);
+      } else if (deleteType === 'all') {
+        // Delete all transactions with confirmation
+        response = await api.delete('/transactions/all?confirm=true');
+        setSuccess(response.data.message || 'All transactions deleted successfully');
+      }
+
+      setDeleteDialogOpen(false);
+      // Refresh data
+      await fetchTransactions();
+      await fetchStats();
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to delete transaction(s)');
+    } finally {
+      setLoading(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  // Selection handlers
+  const handleSelectTransaction = (transactionId: string) => {
+    setSelectedTransactions(prev => {
+      if (prev.includes(transactionId)) {
+        return prev.filter(id => id !== transactionId);
+      } else {
+        return [...prev, transactionId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedTransactions([]);
+    } else {
+      setSelectedTransactions(transactions.map(t => t._id));
+    }
+    setSelectAll(!selectAll);
   };
 
   const formatCurrency = (amount: number) => {
@@ -214,19 +335,85 @@ export default function TransactionsPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
-      {/* Header */}
+      {/* Header with Action Buttons */}
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Box sx={{ mb: 3 }}>
-          <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
-            Transaction History
-          </Typography>
-          <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
-            Track all your financial activities and game transactions
-          </Typography>
+        <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+          <Box>
+            <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 1 }}>
+              Transaction History
+            </Typography>
+            <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
+              Track all your financial activities and game transactions
+            </Typography>
+          </Box>
+          
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Tooltip title="Clear all filters">
+              <Button
+                variant="outlined"
+                color="primary"
+                size={isMobile ? 'small' : 'medium'}
+                startIcon={<ClearAll />}
+                onClick={handleClearFilters}
+                sx={{ 
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 'bold'
+                }}
+              >
+                {!isMobile && 'Clear Filters'}
+              </Button>
+            </Tooltip>
+
+            {selectedTransactions.length > 0 && (
+              <Tooltip title={`Delete ${selectedTransactions.length} selected transactions`}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  size={isMobile ? 'small' : 'medium'}
+                  startIcon={<DeleteSweep />}
+                  onClick={handleDeleteBulk}
+                  sx={{ 
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(145deg, #f44336, #d32f2f)',
+                    '&:hover': {
+                      background: 'linear-gradient(145deg, #d32f2f, #c62828)'
+                    }
+                  }}
+                >
+                  {!isMobile ? `Delete Selected (${selectedTransactions.length})` : `${selectedTransactions.length}`}
+                </Button>
+              </Tooltip>
+            )}
+
+            <Tooltip title="Delete all transactions (use with caution)">
+              <Button
+                variant="contained"
+                color="error"
+                size={isMobile ? 'small' : 'medium'}
+                startIcon={<DeleteSweep />}
+                onClick={handleDeleteAll}
+                sx={{ 
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(145deg, #ff1744, #d50000)',
+                  '&:hover': {
+                    background: 'linear-gradient(145deg, #d50000, #b71c1c)'
+                  }
+                }}
+              >
+                {!isMobile ? 'Delete All' : 'All'}
+              </Button>
+            </Tooltip>
+          </Box>
         </Box>
       </motion.div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - same as before */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
           {/* Net Balance Card */}
@@ -290,7 +477,7 @@ export default function TransactionsPage() {
         </Box>
       </motion.div>
 
-      {/* Filter Section */}
+      {/* Filter Section - same as before with minor changes */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
         <Card sx={{ mb: 3, borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
           <CardContent sx={{ p: 2 }}>
@@ -298,9 +485,14 @@ export default function TransactionsPage() {
               <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
                 <FilterList sx={{ mr: 1, fontSize: 20 }} /> Filters
               </Typography>
-              <IconButton size="small" onClick={() => setShowFilters(!showFilters)} sx={{ display: { sm: 'none' } }}>
-                {showFilters ? <ExpandLess /> : <ExpandMore />}
-              </IconButton>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button size="small" onClick={handleClearFilters} startIcon={<ClearAll />}>
+                  Clear
+                </Button>
+                <IconButton size="small" onClick={() => setShowFilters(!showFilters)} sx={{ display: { sm: 'none' } }}>
+                  {showFilters ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
+              </Box>
             </Box>
 
             <Collapse in={showFilters || !isMobile}>
@@ -351,31 +543,43 @@ export default function TransactionsPage() {
         </Card>
       </motion.div>
 
-      {/* Transactions */}
+      {/* Transactions Table with Selection */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress size={isMobile ? 40 : 60} sx={{ color: '#3498db' }} />
         </Box>
       ) : (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.3 }}>
-          {/* Mobile Cards */}
+          {/* Mobile Cards with Delete */}
           {isMobile && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {transactions.map(t => {
                 const isExpanded = expandedTransaction === t._id;
+                const isSelected = selectedTransactions.includes(t._id);
                 return (
                   <Card key={t._id} sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
                     <CardContent sx={{ p: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Checkbox
+                            size="small"
+                            checked={isSelected}
+                            onChange={() => handleSelectTransaction(t._id)}
+                            sx={{ p: 0, mr: 1 }}
+                          />
                           {getTypeIcon(t.type)}
                           <Typography variant="body2" sx={{ ml: 1, fontWeight: 'bold', textTransform: 'capitalize' }}>
                             {t.type.replace('_', ' ')}
                           </Typography>
                         </Box>
-                        <IconButton size="small" onClick={() => toggleExpandTransaction(t._id)} sx={{ p: 0 }}>
-                          {isExpanded ? <ExpandLess /> : <ExpandMore />}
-                        </IconButton>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <IconButton size="small" onClick={() => handleDeleteSingle(t._id)} sx={{ color: 'error.main' }}>
+                            <Delete fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => toggleExpandTransaction(t._id)} sx={{ p: 0 }}>
+                            {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                          </IconButton>
+                        </Box>
                       </Box>
 
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -427,7 +631,7 @@ export default function TransactionsPage() {
             </Box>
           )}
 
-          {/* Desktop/Table View */}
+          {/* Desktop/Table View with Selection */}
           {!isMobile && (
             <Card sx={{ borderRadius: 2, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
               <CardContent sx={{ p: 0 }}>
@@ -435,17 +639,32 @@ export default function TransactionsPage() {
                   <Table>
                     <TableHead>
                       <TableRow sx={{ background: 'linear-gradient(145deg, #3498db, #2980b9)' }}>
+                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem', width: '40px' }}>
+                          <Checkbox
+                            checked={selectAll}
+                            indeterminate={selectedTransactions.length > 0 && selectedTransactions.length < transactions.length}
+                            onChange={handleSelectAll}
+                            sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
+                          />
+                        </TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Type</TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Amount</TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Status</TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Reference</TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Description</TableCell>
                         <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>Date</TableCell>
+                        <TableCell sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center' }}>Action</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {transactions.map(t => (
                         <TableRow key={t._id} hover>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedTransactions.includes(t._id)}
+                              onChange={() => handleSelectTransaction(t._id)}
+                            />
+                          </TableCell>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                               {getTypeIcon(t.type)}
@@ -483,6 +702,17 @@ export default function TransactionsPage() {
                               {formatDate(t.createdAt)}
                             </Typography>
                           </TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <Tooltip title="Delete this transaction">
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleDeleteSingle(t._id)}
+                                sx={{ color: 'error.main' }}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -510,10 +740,63 @@ export default function TransactionsPage() {
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Showing {transactions.length} of {pagination.totalRecords} transactions
+              {selectedTransactions.length > 0 && ` | ${selectedTransactions.length} selected`}
             </Typography>
           </Box>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+          <Delete /> 
+          {deleteType === 'single' && 'Delete Transaction'}
+          {deleteType === 'bulk' && `Delete ${selectedTransactions.length} Transactions`}
+          {deleteType === 'all' && 'Delete All Transactions'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deleteType === 'single' && 'Are you sure you want to delete this transaction? This action cannot be undone.'}
+            {deleteType === 'bulk' && `Are you sure you want to delete ${selectedTransactions.length} selected transactions? This action cannot be undone.`}
+            {deleteType === 'all' && (
+              <>
+                <Box sx={{ mt: 2 }}>
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      ⚠️ This will permanently delete ALL transactions from the database!
+                    </Typography>
+                  </Alert>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={confirmDelete}
+                        onChange={(e) => setConfirmDelete(e.target.checked)}
+                      />
+                    }
+                    label="I understand that this action is irreversible and I want to delete all transactions"
+                  />
+                </Box>
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setDeleteDialogOpen(false);
+            setConfirmDelete(false);
+          }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDeleteAction}
+            color="error"
+            variant="contained"
+            disabled={deleteType === 'all' && !confirmDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Notifications */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError('')}>
