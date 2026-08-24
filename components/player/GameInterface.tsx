@@ -919,7 +919,7 @@ const GameInterface = ({
     
     for (let i = 0; i < 5; i++) {
       const number = transposedCard[i][4 - i];
-      const letter = "BINGO"[i];
+      const letter = "BINGO"[4 - i];
       const isFreeSpace = (i === 2);
       
       // Check if this cell contains the last called number
