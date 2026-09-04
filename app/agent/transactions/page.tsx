@@ -148,6 +148,15 @@ export default function AdminTransactionsPage() {
   });
 
   // ============================================
+  // ✅ NEW: Wallet related states
+  // ============================================
+  const [userWallet, setUserWallet] = useState<number | null>(null);
+  const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+  const [adjustedAmount, setAdjustedAmount] = useState<number | null>(null);
+  const [originalAmount, setOriginalAmount] = useState<number | null>(null);
+  const [isAdjusted, setIsAdjusted] = useState(false);
+
+  // ============================================
   // TOAST NOTIFICATIONS
   // ============================================
   const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -182,7 +191,7 @@ export default function AdminTransactionsPage() {
   };
 
   // ============================================
-  // FETCH FUNCTIONS
+  // ✅ UPDATED: FETCH FUNCTIONS (unchanged)
   // ============================================
   const fetchTransactions = async (showNotification: boolean = false) => {
     try {
@@ -201,7 +210,6 @@ export default function AdminTransactionsPage() {
       const data = res.data.data;
       const newCount = data.length;
       
-      // ✅ Check for new transactions
       if (showNotification && previousCountRef.current > 0 && newCount > previousCountRef.current) {
         const newItems = data.filter((newT: TransactionType) => 
           !transactions.some(oldT => oldT._id === newT._id)
@@ -211,7 +219,6 @@ export default function AdminTransactionsPage() {
           setNotificationMessage(`${newItems.length} new transaction(s) added!`);
           showToast(`${newItems.length} new transaction(s) added!`, 'success');
           
-          // Auto hide notification after 5 seconds
           setTimeout(() => {
             setNewTransactionsCount(0);
             setNotificationMessage(null);
@@ -245,26 +252,23 @@ export default function AdminTransactionsPage() {
   // POLLING - EVERY 1 MINUTE
   // ============================================
   useEffect(() => {
-    // Initial fetch
     fetchTransactions();
     fetchStats();
 
-    // Start polling every 60 seconds
     pollingRef.current = setInterval(() => {
       if (isPolling) {
         console.log('🔍 Polling for new transactions...');
         fetchTransactions(true);
         fetchStats();
       }
-    }, 60000); // 60 seconds = 1 minute
+    }, 60000);
 
-    // Cleanup on unmount
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
     };
-  }, [filters]); // Re-run when filters change
+  }, [filters]);
 
   // ============================================
   // HANDLERS
@@ -281,12 +285,73 @@ export default function AdminTransactionsPage() {
     showToast(isPolling ? 'Auto-refresh disabled' : 'Auto-refresh enabled (every 1 minute)', 'warning');
   };
 
-  const handleViewTransaction = (transaction: TransactionType) => {
+  // ============================================
+  // ✅ UPDATED: HANDLE VIEW TRANSACTION WITH WALLET & ADJUSTMENT
+  // ============================================
+  const handleViewTransaction = async (transaction: TransactionType) => {
+    // 1. Set the transaction
     setSelectedTransaction(transaction);
-    setShowModal(true);
+    
+    // 2. Reset states
+    setUserWallet(null);
+    setAdjustedAmount(null);
+    setOriginalAmount(null);
+    setIsAdjusted(false);
+    setTransactionId('');
     setAction(null);
     setReason('');
-    setTransactionId('');
+    
+    // 3. Open modal immediately
+    setShowModal(true);
+    
+    // 4. Fetch user wallet
+    setIsLoadingWallet(true);
+    try {
+      const walletResponse = await api.get(`/users/${transaction.userId._id}/wallet`);
+      const wallet = walletResponse.data.data.wallet;
+      setUserWallet(wallet);
+      
+      // 5. ✅ CHECK: If pending withdrawal needs adjustment
+      if (transaction.type === 'withdrawal' && transaction.status === 'pending') {
+        if (wallet < transaction.amount) {
+          // 🔄 RESET: Call API to adjust amount to wallet balance
+          const adjustResponse = await api.put(`/transactions/withdrawal/${transaction._id}/adjust`);
+          
+          if (adjustResponse.data.success) {
+            const adjustedData = adjustResponse.data.data;
+            
+            // Update the transaction with adjusted amount
+            setSelectedTransaction({
+              ...transaction,
+              amount: adjustedData.transaction.amount
+            });
+            
+            setAdjustedAmount(adjustedData.transaction.amount);
+            setOriginalAmount(adjustedData.transaction.originalAmount);
+            setIsAdjusted(adjustedData.transaction.wasAdjusted);
+            
+            // Show notification
+            if (adjustedData.transaction.wasAdjusted) {
+              showToast(
+                `💰 Amount adjusted from ${adjustedData.transaction.originalAmount} to ${adjustedData.transaction.amount} ETB`,
+                'warning'
+              );
+            }
+          }
+        } else {
+          // No adjustment needed
+          setAdjustedAmount(transaction.amount);
+          setOriginalAmount(transaction.amount);
+          setIsAdjusted(false);
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Failed to fetch wallet:', error);
+      showToast('Failed to fetch user wallet', 'error');
+    } finally {
+      setIsLoadingWallet(false);
+    }
   };
 
   const handleAction = (actionType: 'approve' | 'reject' | 'complete') => {
@@ -294,9 +359,9 @@ export default function AdminTransactionsPage() {
   };
 
   // ============================================
-  // OPTIMISTIC UPDATE FOR ADMIN ACTIONS
+  // ✅ UPDATED: SUBMIT DEPOSIT ACTION (optimistic update preserved)
   // ============================================
-  const submitAction = async () => {
+  const submitDepositAction = async () => {
     if (!selectedTransaction) return;
 
     // ✅ Create optimistic update
@@ -311,15 +376,6 @@ export default function AdminTransactionsPage() {
         } else if (action === 'reject') {
           optimisticTransaction.status = 'failed';
           optimisticTransaction.reason = reason;
-        }
-      } else if (selectedTransaction.type === 'withdrawal') {
-        if (action === 'complete') {
-          if (!transactionId.trim()) {
-            showToast('Please provide a transaction ID', 'warning');
-            return;
-          }
-          optimisticTransaction.status = 'completed';
-          optimisticTransaction.transactionId = transactionId;
         }
       }
 
@@ -336,9 +392,6 @@ export default function AdminTransactionsPage() {
           if (optimisticTransaction.type === 'deposit') {
             updatedStats.totalDeposits += optimisticTransaction.amount;
             updatedStats.pendingDeposits -= 1;
-          } else if (optimisticTransaction.type === 'withdrawal') {
-            updatedStats.totalWithdrawals += optimisticTransaction.amount;
-            updatedStats.pendingWithdrawals -= 1;
           } else if (optimisticTransaction.type === 'winning') {
             updatedStats.totalWinnings += optimisticTransaction.amount;
           } else if (optimisticTransaction.type === 'game_purchase') {
@@ -347,8 +400,6 @@ export default function AdminTransactionsPage() {
         } else if (optimisticTransaction.status === 'failed') {
           if (optimisticTransaction.type === 'deposit') {
             updatedStats.pendingDeposits -= 1;
-          } else if (optimisticTransaction.type === 'withdrawal') {
-            updatedStats.pendingWithdrawals -= 1;
           }
         }
         setStats(updatedStats);
@@ -377,7 +428,6 @@ export default function AdminTransactionsPage() {
         } else if (action === 'reject') {
           if (!reason.trim()) {
             showToast('Please provide a reason for rejection', 'warning');
-            // ✅ Revert
             await fetchTransactions();
             await fetchStats();
             return;
@@ -396,36 +446,6 @@ export default function AdminTransactionsPage() {
             });
             showToast('Deposit rejected successfully', 'success');
           } else {
-            // ✅ Revert on cancel
-            await fetchTransactions();
-            await fetchStats();
-            return;
-          }
-        }
-      } else if (selectedTransaction.type === 'withdrawal') {
-        if (action === 'complete') {
-          if (!transactionId.trim()) {
-            showToast('Please provide a transaction ID', 'warning');
-            // ✅ Revert
-            await fetchTransactions();
-            await fetchStats();
-            return;
-          }
-          
-          const result = await showConfirmation(
-            'Complete Withdrawal',
-            'Are you sure you want to mark this withdrawal as completed?',
-            'Yes, complete it!'
-          );
-          
-          if (result.isConfirmed) {
-            await api.put(`/transactions/withdrawal/${selectedTransaction._id}`, {
-              status: 'completed',
-              transactionId
-            });
-            showToast('Withdrawal marked as completed', 'success');
-          } else {
-            // ✅ Revert on cancel
             await fetchTransactions();
             await fetchStats();
             return;
@@ -439,7 +459,63 @@ export default function AdminTransactionsPage() {
 
     } catch (error: any) {
       console.error('Failed to update transaction:', error);
-      // ✅ Revert on error
+      await fetchTransactions();
+      await fetchStats();
+      showToast(error.response?.data?.message || 'Failed to update transaction', 'error');
+    }
+  };
+
+  // ============================================
+  // ✅ UPDATED: SUBMIT WITHDRAWAL COMPLETION
+  // ============================================
+  const submitWithdrawalAction = async () => {
+    if (!selectedTransaction) return;
+
+    // ✅ Create optimistic update
+    const optimisticTransaction = { ...selectedTransaction };
+
+    try {
+      if (selectedTransaction.type === 'withdrawal') {
+        if (action === 'complete') {
+          if (!transactionId.trim()) {
+            showToast('Please provide a transaction ID', 'warning');
+            return;
+          }
+          
+          const result = await showConfirmation(
+            'Complete Withdrawal',
+            `Are you sure you want to mark this withdrawal as completed?${
+              isAdjusted ? `\n⚠️ Amount adjusted from ${originalAmount?.toLocaleString()} to ${selectedTransaction.amount.toLocaleString()} ETB` : ''
+            }`,
+            'Yes, complete it!'
+          );
+          
+          if (result.isConfirmed) {
+            // ✅ Send only status and transactionId (amount already adjusted in DB)
+            await api.put(`/transactions/withdrawal/${selectedTransaction._id}`, {
+              status: 'completed',
+              transactionId
+            });
+            
+            showToast(
+              `Withdrawal completed successfully${
+                isAdjusted ? ` (adjusted from ${originalAmount?.toLocaleString()} to ${selectedTransaction.amount.toLocaleString()} ETB)` : ''
+              }`,
+              'success'
+            );
+          } else {
+            return;
+          }
+        }
+      }
+
+      // ✅ Refresh data
+      await fetchTransactions();
+      await fetchStats();
+      setShowModal(false);
+
+    } catch (error: any) {
+      console.error('Failed to update transaction:', error);
       await fetchTransactions();
       await fetchStats();
       showToast(error.response?.data?.message || 'Failed to update transaction', 'error');
@@ -494,7 +570,6 @@ export default function AdminTransactionsPage() {
         <h1 className="text-xl md:text-2xl font-bold">Transaction Management</h1>
         
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Auto-refresh toggle */}
           <button
             onClick={togglePolling}
             className={`px-3 py-1.5 text-xs md:text-sm rounded-md font-sans transition-colors flex items-center gap-1 ${
@@ -505,12 +580,10 @@ export default function AdminTransactionsPage() {
             {isPolling ? 'Auto ON' : 'Auto OFF'}
           </button>
           
-          {/* Last updated time */}
           <span className="text-xs text-gray-500 font-sans hidden sm:inline">
             Last updated: {lastUpdated.toLocaleTimeString()}
           </span>
           
-          {/* Manual refresh */}
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
@@ -868,7 +941,9 @@ export default function AdminTransactionsPage() {
         </div>
       </div>
 
-      {/* Transaction Modal */}
+      {/* ============================================ */}
+      {/* ✅ UPDATED MODAL WITH WALLET DISPLAY & ADJUSTMENT */}
+      {/* ============================================ */}
       {showModal && selectedTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-screen overflow-y-auto">
@@ -881,6 +956,31 @@ export default function AdminTransactionsPage() {
                 >
                   <XIcon className="h-5 w-5 md:h-6 md:w-6" />
                 </button>
+              </div>
+              
+              {/* ============================================ */}
+              {/* ✅ NEW: USER WALLET DISPLAY - ALWAYS SHOWN */}
+              {/* ============================================ */}
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg mb-4 border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold text-gray-700">💰 Current Wallet Balance:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isLoadingWallet ? (
+                      <span className="text-sm text-gray-500">Loading...</span>
+                    ) : (
+                      <span className="font-bold text-xl text-blue-700">
+                        {userWallet !== null ? `${userWallet.toLocaleString()} ETB` : 'Not available'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="mt-1 text-sm text-gray-600">
+                  User: {selectedTransaction.userId.name || 'Unknown'} ({selectedTransaction.userId.phone})
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-6">
@@ -903,18 +1003,64 @@ export default function AdminTransactionsPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 font-sans">Amount</p>
-                      <p className={`font-semibold text-sm md:text-base font-sans ${selectedTransaction.type === 'deposit' ||  selectedTransaction.type === 'game_purchase' ||  selectedTransaction.type === 'winning' ? 'text-green-600' : 'text-red-600'}`}>
-                        {selectedTransaction.amount.toLocaleString()} ETB
-                      </p>
-                    </div>
-                    <div>
                       <p className="text-xs text-gray-500 font-sans">Reference</p>
                       <p className="text-sm font-medium capitalize font-sans">{selectedTransaction.reference}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 font-sans">Method</p>
                       <p className="text-sm font-medium capitalize font-sans">{selectedTransaction.method || selectedTransaction.reference}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount Card - WITH ADJUSTMENT DISPLAY */}
+                <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
+                  <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Amount Details</h4>
+                  <div className="space-y-2 md:space-y-3">
+                    {isAdjusted ? (
+                      <>
+                        <div>
+                          <p className="text-xs text-gray-500 font-sans">Original Request</p>
+                          <p className="text-sm font-medium text-gray-400 line-through font-sans">
+                            {originalAmount?.toLocaleString()} ETB
+                          </p>
+                        </div>
+                        <div className="bg-yellow-50 p-2 rounded border border-yellow-200">
+                          <p className="text-xs text-yellow-700 font-sans">🔄 Adjusted Amount</p>
+                          <p className="text-base font-bold text-yellow-700 font-sans">
+                            {selectedTransaction.amount.toLocaleString()} ETB
+                          </p>
+                        </div>
+                        <div className="bg-red-50 p-2 rounded border border-red-200">
+                          <p className="text-xs text-red-700 font-sans">
+                            ⚠️ Insufficient balance. Amount reset to wallet balance.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-gray-500 font-sans">Amount</p>
+                        <p className={`text-base font-bold font-sans ${
+                          selectedTransaction.type === 'deposit' || selectedTransaction.type === 'winning' 
+                            ? 'text-green-600' 
+                            : selectedTransaction.type === 'withdrawal' 
+                            ? 'text-red-600' 
+                            : 'text-orange-600'
+                        }`}>
+                          {selectedTransaction.amount.toLocaleString()} ETB
+                        </p>
+                        {selectedTransaction.type === 'withdrawal' && userWallet !== null && userWallet >= selectedTransaction.amount && (
+                          <p className="text-xs text-green-600 font-sans mt-1">✅ Sufficient balance</p>
+                        )}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-gray-500 font-sans">Created</p>
+                      <p className="text-xs md:text-sm font-sans">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 font-sans">Updated</p>
+                      <p className="text-xs md:text-sm font-sans">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -934,21 +1080,6 @@ export default function AdminTransactionsPage() {
                     <div>
                       <p className="text-xs text-gray-500 font-sans">User ID</p>
                       <p className="text-xs md:text-sm font-mono break-all">{selectedTransaction.userId._id}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Timeline Card */}
-                <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
-                  <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Timeline</h4>
-                  <div className="space-y-2 md:space-y-3">
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Created</p>
-                      <p className="text-xs md:text-sm font-sans">{new Date(selectedTransaction.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 font-sans">Updated</p>
-                      <p className="text-xs md:text-sm font-sans">{new Date(selectedTransaction.updatedAt).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -1038,7 +1169,7 @@ export default function AdminTransactionsPage() {
                             placeholder="Enter reason for rejection"
                           />
                           <button 
-                            onClick={submitAction}
+                            onClick={submitDepositAction}
                             className="mt-2 px-3 py-2 text-xs md:text-sm bg-red-600 text-white rounded-md flex items-center justify-center font-sans"
                           >
                             <Send className="h-3 w-3 md:h-4 md:w-4 mr-1" />
@@ -1051,7 +1182,7 @@ export default function AdminTransactionsPage() {
                         <div className="mt-3 md:mt-4">
                           <p className="text-xs md:text-sm text-gray-600 mb-2 font-sans">Are you sure you want to approve this deposit?</p>
                           <button 
-                            onClick={submitAction}
+                            onClick={submitDepositAction}
                             className="px-3 py-2 text-xs md:text-sm bg-green-600 text-white rounded-md flex items-center justify-center font-sans"
                           >
                             <Check className="h-3 w-3 md:h-4 md:w-4 mr-1" />
@@ -1063,6 +1194,14 @@ export default function AdminTransactionsPage() {
                   ) : selectedTransaction.type === 'withdrawal' ? (
                     <>
                       <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Withdrawal Actions</h4>
+                      
+                      {/* ✅ Show adjustment notice if applicable */}
+                      {isAdjusted && (
+                        <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+                          ℹ️ Amount adjusted from {originalAmount?.toLocaleString()} to {selectedTransaction.amount.toLocaleString()} ETB
+                        </div>
+                      )}
+                      
                       <div className="flex space-x-2">
                         <button 
                           onClick={() => handleAction('complete')}
@@ -1084,7 +1223,7 @@ export default function AdminTransactionsPage() {
                             placeholder="Enter transaction ID"
                           />
                           <button 
-                            onClick={submitAction}
+                            onClick={submitWithdrawalAction}
                             className="mt-2 px-3 py-2 text-xs md:text-sm bg-green-600 text-white rounded-md flex items-center justify-center font-sans"
                           >
                             <Send className="h-3 w-3 md:h-4 md:w-4 mr-1" />
