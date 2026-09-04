@@ -307,7 +307,7 @@ export default function AdminTransactionsPage() {
     // 4. Fetch user wallet
     setIsLoadingWallet(true);
     try {
-      const walletResponse = await api.get(`/transactions/user/${transaction.userId._id}/wallet`);
+      const walletResponse = await api.get(`/transactions/${transaction.userId._id}/wallet`);
       const wallet = walletResponse.data.data.wallet;
       setUserWallet(wallet);
       
