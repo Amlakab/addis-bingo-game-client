@@ -1429,81 +1429,111 @@ const GameInterface = ({
         </Box>
       )}
 
-      {/* Game Info Header */}
-<Box sx={{
+      <Box sx={{
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  gap: 1,
-  p: 0.5,
+  gap: { xs: 0.5, sm: 1 },
+  p: { xs: 0.3, sm: 0.5 },
   mb: 1,
-  flexWrap: 'wrap',
-  color: getTextColor()
+  flexWrap: 'nowrap',
+  overflow: 'auto',
+  color: getTextColor(),
+  width: '100%'
 }}>
   {!gameStarted ? (
     <Card sx={{
-      flex: 1,
-      minWidth: 80,
+      flex: { xs: '0 0 auto', sm: 1 },
+      minWidth: { xs: 60, sm: 80 },
+      maxWidth: { xs: '25%', sm: '100%' },
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      p: 1,
+      p: { xs: 0.5, sm: 1 },
       background: getCardBackground(),
       boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
       borderRadius: 2,
-      minHeight: '6vh',
+      minHeight: { xs: '4vh', sm: '6vh' },
       color: getTextColor()
     }}>
-      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+      <Typography variant="body2" sx={{ 
+        fontWeight: 'bold', 
+        fontSize: { xs: '0.5rem', sm: '0.7rem', md: '0.8rem' }, 
+        color: getTextColor(),
+        whiteSpace: 'nowrap'
+      }}>
         {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
       </Typography>
-      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
+      <Typography variant="h6" sx={{ 
+        fontWeight: 'bold', 
+        color: 'primary.main', 
+        fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' } 
+      }}>
         {countdown !== 0 ? `${countdown}s` : 'Ready'}
       </Typography>
     </Card>
   ) : (
     <>
       <Card sx={{
-        flex: 1,
-        minWidth: 80,
+        flex: { xs: '0 0 auto', sm: 1 },
+        minWidth: { xs: 60, sm: 80 },
+        maxWidth: { xs: '25%', sm: '100%' },
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        p: 1,
+        p: { xs: 0.5, sm: 1 },
         background: getCardBackground(),
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         borderRadius: 2,
-        minHeight: '6vh',
+        minHeight: { xs: '4vh', sm: '6vh' },
         color: getTextColor()
       }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+        <Typography variant="body2" sx={{ 
+          fontWeight: 'bold', 
+          fontSize: { xs: '0.5rem', sm: '0.7rem', md: '0.8rem' }, 
+          color: getTextColor(),
+          whiteSpace: 'nowrap'
+        }}>
           {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
         </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
+        <Typography variant="h6" sx={{ 
+          fontWeight: 'bold', 
+          color: 'primary.main', 
+          fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' } 
+        }}>
           {currentNumber || "-"}
         </Typography>
       </Card>
       
       <Card sx={{
-        flex: 1,
-        minWidth: 80,
+        flex: { xs: '0 0 auto', sm: 1 },
+        minWidth: { xs: 60, sm: 80 },
+        maxWidth: { xs: '25%', sm: '100%' },
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        p: 1,
+        p: { xs: 0.5, sm: 1 },
         background: getCardBackground(),
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         borderRadius: 2,
-        minHeight: '6vh',
+        minHeight: { xs: '4vh', sm: '6vh' },
         color: getTextColor()
       }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+        <Typography variant="body2" sx={{ 
+          fontWeight: 'bold', 
+          fontSize: { xs: '0.5rem', sm: '0.7rem', md: '0.8rem' }, 
+          color: getTextColor(),
+          whiteSpace: 'nowrap'
+        }}>
           {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
         </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+        <Typography variant="h6" sx={{ 
+          fontWeight: 'bold', 
+          fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' } 
+        }}>
           {calledNumbers.length}
         </Typography>
       </Card>
@@ -1511,473 +1541,469 @@ const GameInterface = ({
   )}
   
   <Card sx={{
-    flex: 1,
-    minWidth: 80,
+    flex: { xs: '0 0 auto', sm: 1 },
+    minWidth: { xs: 60, sm: 80 },
+    maxWidth: { xs: '25%', sm: '100%' },
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    p: 1,
+    p: { xs: 0.5, sm: 1 },
     background: getCardBackground(),
     boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     borderRadius: 2,
-    minHeight: '6vh',
+    minHeight: { xs: '4vh', sm: '6vh' },
     color: getTextColor()
   }}>
-    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+    <Typography variant="body2" sx={{ 
+      fontWeight: 'bold', 
+      fontSize: { xs: '0.5rem', sm: '0.7rem', md: '0.8rem' }, 
+      color: getTextColor(),
+      whiteSpace: 'nowrap'
+    }}>
       {language === 'am' ? 'ተጫዋቾች' : 'Players'}
     </Typography>
-    <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+    <Typography variant="h6" sx={{ 
+      fontWeight: 'bold', 
+      fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' } 
+    }}>
       {numberOfPlayers}
     </Typography>
   </Card>
   
   <Card sx={{
-    flex: 1,
-    minWidth: 80,
+    flex: { xs: '0 0 auto', sm: 1 },
+    minWidth: { xs: 60, sm: 80 },
+    maxWidth: { xs: '25%', sm: '100%' },
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    p: 1,
+    p: { xs: 0.5, sm: 1 },
     background: getCardBackground(),
     boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     borderRadius: 2,
-    minHeight: '6vh',
+    minHeight: { xs: '4vh', sm: '6vh' },
     color: getTextColor()
   }}>
-    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+    <Typography variant="body2" sx={{ 
+      fontWeight: 'bold', 
+      fontSize: { xs: '0.5rem', sm: '0.7rem', md: '0.8rem' }, 
+      color: getTextColor(),
+      whiteSpace: 'nowrap'
+    }}>
       {language === 'am' ? 'ደራሽ' : 'Prize Pool'}
     </Typography>
-    <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1rem' }}>
+    <Typography variant="h6" sx={{ 
+      fontWeight: 'bold', 
+      color: 'success.main', 
+      fontSize: { xs: '0.7rem', sm: '0.85rem', md: '1rem' } 
+    }}>
       {prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
     </Typography>
   </Card>
 </Box>
 
       {/* Main Content - Two Columns Layout */}
-<Box sx={{ 
-  display: 'flex',
-  flexDirection: { xs: 'column', md: 'row' },
-  flex: 1,
-  gap: { xs: 1, md: 0.5 },
-  minHeight: '24vh',
-  overflow: 'hidden'
-}}>
-  {/* Left Side - Number Grid - 1/3 width */}
-  <Box sx={{ 
-    flex: { xs: '1 1 100%', md: '0 0 33.33%' },
-    maxWidth: { xs: '100%', md: '33.33%' },
-    display: 'flex',
-    flexDirection: 'column',
-    p: { xs: 0.5, md: 0.5 },
-    background: getCardBackground(),
-    borderRadius: 2,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    overflow: 'auto',
-    minHeight: { xs: '20vh', md: '25vh' },
-    maxHeight: { xs: '40vh', md: '60vh' },
-    minWidth: 0,
-    color: getTextColor()
-  }}>
-    {/* BINGO Header */}
-    <Box sx={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(5, 1fr)', 
-      gap: 0.3, 
-      mb: 0.5 
-    }}>
-      {['B', 'I', 'N', 'G', 'O'].map(letter => (
-        <Box key={letter} sx={{
-          p: { xs: 0.3, md: 0.4 },
-          backgroundColor: 'primary.main',
-          color: 'white',
-          fontWeight: 'bold',
-          textAlign: 'center',
-          borderRadius: 1,
-          fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.7rem' }
-        }}>
-          {letter}
-        </Box>
-      ))}
-    </Box>
-
-    {/* Number Grid */}
-    <Box
-      sx={{
+      <Box sx={{ 
+        display: 'flex',
+        flexDirection: { xs: 'row' },
         flex: 1,
-        display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
-        gridAutoRows: "minmax(20px, auto)",
-        gap: 0.1,
-        overflow: "auto",
-        p: 0.1,
-      }}
-    >
-      {["B", "I", "N", "G", "O"].map((letter, colIndex) => {
-        const ranges = [
-          { min: 1, max: 15 },
-          { min: 16, max: 30 },
-          { min: 31, max: 45 },
-          { min: 46, max: 60 },
-          { min: 61, max: 75 },
-        ];
+        gap: 0.5,
+        minHeight: '24vh',
+        overflow: 'hidden'
+      }}>
+        {/* Left Side - Number Grid */}
+        <Box sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          p: 0.5,
+          background: getCardBackground(),
+          borderRadius: 2,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          overflow: 'auto',
+          minHeight: '25vh',
+          minWidth: 0,
+          color: getTextColor()
+        }}>
+          {/* BINGO Header */}
+          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(5, 1fr)', 
+            gap: 0.5, 
+            mb: 1 
+          }}>
+            {['B', 'I', 'N', 'G', 'O'].map(letter => (
+              <Box key={letter} sx={{
+                p: 0.5,
+                backgroundColor: 'primary.main',
+                color: 'white',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                borderRadius: 1,
+                fontSize: '0.9rem'
+              }}>
+                {letter}
+              </Box>
+            ))}
+          </Box>
 
-        return (
+          {/* Number Grid */}
           <Box
-            key={letter}
             sx={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 0.1,
+              flex: 1,
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gridAutoRows: "minmax(30px, auto)",
+              gap: 0.15,
+              overflow: "auto",
+              p: 0.15,
             }}
           >
-            {Array.from({ length: 15 }, (_, i) => {
-              const num = ranges[colIndex].min + i;
-              const fullNumber = `${letter}-${num}`;
-              const isCalled = calledNumbers.includes(fullNumber);
+            {["B", "I", "N", "G", "O"].map((letter, colIndex) => {
+              const ranges = [
+                { min: 1, max: 15 },
+                { min: 16, max: 30 },
+                { min: 31, max: 45 },
+                { min: 46, max: 60 },
+                { min: 61, max: 75 },
+              ];
 
               return (
-                <motion.div key={num} whileHover={{ scale: 1.05 }}>
-                  <Box
+                <Box
+                  key={letter}
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.2,
+                  }}
+                >
+                  {Array.from({ length: 15 }, (_, i) => {
+                    const num = ranges[colIndex].min + i;
+                    const fullNumber = `${letter}-${num}`;
+                    const isCalled = calledNumbers.includes(fullNumber);
+
+                    return (
+                      <motion.div key={num} whileHover={{ scale: 1.05 }}>
+                        <Box
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            minHeight: 30,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "4px",
+                            background: isCalled
+                              ? "linear-gradient(135deg, #43A047, #7CB342)"
+                              : backgroundColor === 'white'
+                                ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
+                                : "rgba(255,255,255,0.15)",
+                            color: isCalled ? "white" : getTextColor(),
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            transition: "all 0.15s ease-in-out",
+                            border: isCalled
+                              ? "2px solid #2e7d32"
+                              : backgroundColor === 'white'
+                                ? "2px solid #cfcfcf"
+                                : "2px solid rgba(255,255,255,0.2)",
+                            boxShadow: isCalled
+                              ? "0 2px 5px rgba(0,0,0,0.20)"
+                              : "0 1px 3px rgba(0,0,0,0.10)",
+                          }}
+                        >
+                          {num}
+                        </Box>
+                      </motion.div>
+                    );
+                  })}
+                </Box>
+              );
+            })}
+          </Box>
+
+          {!isReady && (
+            <Button 
+              variant={getButtonVariant()}
+              color="error"
+              onClick={handleBackToLobbyWithRefund}
+              fullWidth
+              size="small"
+              sx={{ 
+                fontSize: '0.95rem', 
+                mt: 1, 
+                p: 0.5,
+                ...getButtonStyle()
+              }}
+            >
+              {language === 'am' ? 'ካርዶችን አጥፋ' : 'Clear Cards'}
+            </Button>
+          )}
+          
+          {/* Recent Numbers */}
+          {gameStarted && (
+            <Box sx={{ 
+              p: 1,
+              background: getCardBackground(),
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              mt: 1,
+              minHeight: '3vh',
+              color: getTextColor()
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
+                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap'
+              }}>
+                {recentNumbers.map((num, index) => (
+                  <Box 
+                    key={index}
                     sx={{
-                      width: "100%",
-                      height: "100%",
-                      minHeight: { xs: 18, md: 22 },
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "3px",
-                      background: isCalled
-                        ? "linear-gradient(135deg, #43A047, #7CB342)"
-                        : backgroundColor === 'white'
-                          ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
-                          : "rgba(255,255,255,0.15)",
-                      color: isCalled ? "white" : getTextColor(),
-                      fontWeight: "bold",
-                      fontSize: { xs: '0.55rem', sm: '0.65rem', md: '0.6rem' },
-                      transition: "all 0.15s ease-in-out",
-                      border: isCalled
-                        ? "1.5px solid #2e7d32"
-                        : backgroundColor === 'white'
-                          ? "1.5px solid #cfcfcf"
-                          : "1.5px solid rgba(255,255,255,0.2)",
-                      boxShadow: isCalled
-                        ? "0 2px 5px rgba(0,0,0,0.20)"
-                        : "0 1px 3px rgba(0,0,0,0.10)",
+                      px: 1,
+                      py: 1,
+                      backgroundColor: 'orange',
+                      color: 'white',
+                      borderRadius: 2,
+                      fontWeight: 'bold',
+                      fontSize: '0.7rem',
+                      minWidth: 15,
+                      minHeight: 2,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                   >
                     {num}
                   </Box>
-                </motion.div>
-              );
-            })}
-          </Box>
-        );
-      })}
-    </Box>
-
-    {!isReady && (
-      <Button 
-        variant={getButtonVariant()}
-        color="error"
-        onClick={handleBackToLobbyWithRefund}
-        fullWidth
-        size="small"
-        sx={{ 
-          fontSize: { xs: '0.7rem', md: '0.8rem' }, 
-          mt: 0.5, 
-          p: { xs: 0.3, md: 0.4 },
-          ...getButtonStyle()
-        }}
-      >
-        {language === 'am' ? 'ካርዶችን አጥፋ' : 'Clear Cards'}
-      </Button>
-    )}
-    
-    {/* Recent Numbers */}
-    {gameStarted && (
-      <Box sx={{ 
-        p: { xs: 0.5, md: 0.75 },
-        background: getCardBackground(),
-        borderRadius: 2,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        mt: 0.5,
-        minHeight: { xs: '2vh', md: '3vh' },
-        color: getTextColor()
-      }}>
-        <Typography variant="body2" sx={{ 
-          fontWeight: 'bold', 
-          fontSize: { xs: '0.6rem', md: '0.7rem' }, 
-          mb: 0.5 
-        }}>
-          {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
-        </Typography>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center',
-          gap: { xs: 0.5, md: 0.75 },
-          flexWrap: 'wrap'
-        }}>
-          {recentNumbers.map((num, index) => (
-            <Box 
-              key={index}
-              sx={{
-                px: { xs: 0.5, md: 0.75 },
-                py: { xs: 0.3, md: 0.5 },
-                backgroundColor: 'orange',
-                color: 'white',
-                borderRadius: 2,
-                fontWeight: 'bold',
-                fontSize: { xs: '0.5rem', md: '0.6rem' },
-                minWidth: { xs: 10, md: 12 },
-                minHeight: { xs: 1.5, md: 2 },
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}
-            >
-              {num}
+                ))}
+              </Box>
             </Box>
-          ))}
+          )}
         </Box>
-      </Box>
-    )}
-  </Box>
 
-  {/* Right Side - Controls and Cards - 2/3 width */}
-  <Box sx={{ 
-    flex: { xs: '1 1 100%', md: '0 0 66.67%' },
-    maxWidth: { xs: '100%', md: '66.67%' },
-    display: 'flex',
-    flexDirection: 'column',
-    gap: { xs: 0.5, md: 0.75 },
-    minHeight: { xs: '20vh', md: '25vh' },
-    maxHeight: { xs: '60vh', md: '60vh' },
-  }}>
-    {/* Controls */}
-    <Box sx={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: { xs: 0.5, md: 1 },
-      flexWrap: 'wrap'
-    }}>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={soundOn}
-            onChange={() => setSoundOn(!soundOn)}
-            color="primary"
-            size="small"
-          />
-        }
-        label={
-          <Typography variant="body2" sx={{ 
-            fontSize: { xs: '0.65rem', md: '0.8rem' }, 
-            color: getTextColor() 
-          }}>
-            {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound Off')}
-          </Typography>
-        }
-      />
-      <Select
-        value={language}
-        onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
-        size="small"
-        sx={{ 
-          minWidth: 35, 
-          fontSize: { xs: '0.6rem', md: '0.7rem' },
-          backgroundColor: getSelectBackground(),
-          color: getSelectTextColor(),
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: getSelectTextColor()
-          },
-          '& .MuiSvgIcon-root': {
-            color: getSelectTextColor(),
-            fontSize: { xs: '1rem', md: '1.2rem' }
-          }
-        }}
-      >
-        <MenuItem value="en" sx={{ fontSize: { xs: '0.6rem', md: '0.7rem' } }}>EN</MenuItem>
-        <MenuItem value="am" sx={{ fontSize: { xs: '0.6rem', md: '0.7rem' } }}>AM</MenuItem>
-      </Select>
-    </Box>
-
-    {/* User Cards */}
-    <Box sx={{ 
-      flex: 1,
-      overflow: 'auto',
-      p: { xs: 0.3, md: 0.5 },
-      background: getCardBackground(),
-      borderRadius: 2,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: { xs: 0.5, md: 0.75 },
-      minHeight: { xs: '15vh', md: '20vh' },
-      maxHeight: { xs: '50vh', md: '55vh' },
-      color: getTextColor()
-    }}>
-      {userCards.length === 0 ? (
-        <Typography variant="body2" sx={{ 
-          textAlign: 'center', 
-          py: 0.5, 
-          fontSize: { xs: '0.65rem', md: '0.8rem' } 
+        {/* Right Side - Controls and Cards */}
+        <Box sx={{ 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+          minHeight: '25vh',
         }}>
-          {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
-        </Typography>
-      ) : (
-        userCards.map(player => {
-          const card = getCardById(player.id);
-          const isBlocked = blockedPlayers.includes(player.id);
-          const hasSubmittedBingo = submittedBingoCards.includes(player.id);
-          
-          return (
-            <Card 
-              key={player.id} 
+          {/* Controls */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={soundOn}
+                  onChange={() => setSoundOn(!soundOn)}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: '0.95rem', color: getTextColor() }}>
+                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound Off')}
+                </Typography>
+              }
+            />
+            <Select
+              value={language}
+              onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
+              size="small"
               sx={{ 
-                p: { xs: 0.3, md: 0.4 },
-                background: isBlocked 
-                  ? "rgba(244,67,54,0.10)" 
-                  : getCardBackground(),
-                border: isBlocked 
-                  ? "2px solid #f44336" 
-                  : "1.5px solid rgba(255,255,255,0.2)",
-                borderRadius: "4px",
-                boxShadow: isBlocked
-                  ? "0 2px 6px rgba(244,67,54,0.25)"
-                  : "0 2px 5px rgba(0,0,0,0.10)",
-                transition: "all 0.2s ease",
-                color: getTextColor()
+                minWidth: 40, 
+                fontSize: '0.7rem',
+                backgroundColor: getSelectBackground(),
+                color: getSelectTextColor(),
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: getSelectTextColor()
+                },
+                '& .MuiSvgIcon-root': {
+                  color: getSelectTextColor()
+                }
               }}
             >
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  fontWeight: "bold",
-                  mb: 0.5,
-                  fontSize: { xs: '0.7rem', md: '0.85rem' },
-                  color: isBlocked ? "#d32f2f" : getTextColor()
-                }}
-              >
-                {language === "am" ? "ካርድ" : "Card"} #{player.id}
-                {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
-                {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
-              </Typography>
+              <MenuItem value="en">EN</MenuItem>
+              <MenuItem value="am">AM</MenuItem>
+            </Select>
+          </Box>
 
-              {/* BINGO Card Container */}
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(5, 1fr)",
-                  gap: 0.1,
-                  mb: 0.4
-                }}
-              >
-                {/* BINGO Header */}
-                {["B", "I", "N", "G", "O"].map((letter) => (
-                  <Box
-                    key={letter}
-                    sx={{
-                      p: { xs: 0.2, md: 0.3 },
-                      background: "linear-gradient(135deg, #1976d2, #2196f3)",
-                      color: "white",
-                      fontWeight: "bold",
-                      fontSize: { xs: '0.55rem', md: '0.7rem' },
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "4px 4px 0 0",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+          {/* User Cards */}
+          <Box sx={{ 
+            flex: 1,
+            overflow: 'auto',
+            p: 0.5,
+            background: getCardBackground(),
+            borderRadius: 2,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            minHeight: '25vh',
+            color: getTextColor()
+          }}>
+            {userCards.length === 0 ? (
+              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
+                {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
+              </Typography>
+            ) : (
+              userCards.map(player => {
+                const card = getCardById(player.id);
+                const isBlocked = blockedPlayers.includes(player.id);
+                const hasSubmittedBingo = submittedBingoCards.includes(player.id);
+                
+                return (
+                  <Card 
+                    key={player.id} 
+                    sx={{ 
+                      p: 0.4,
+                      background: isBlocked 
+                        ? "rgba(244,67,54,0.10)" 
+                        : getCardBackground(),
+                      border: isBlocked 
+                        ? "2px solid #f44336" 
+                        : "1.5px solid rgba(255,255,255,0.2)",
+                      borderRadius: "4px",
+                      boxShadow: isBlocked
+                        ? "0 2px 6px rgba(244,67,54,0.25)"
+                        : "0 2px 5px rgba(0,0,0,0.10)",
+                      transition: "all 0.2s ease",
+                      color: getTextColor()
                     }}
                   >
-                    {letter}
-                  </Box>
-                ))}
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        fontWeight: "bold",
+                        mb: 1,
+                        fontSize: "1rem",
+                        color: isBlocked ? "#d32f2f" : getTextColor()
+                      }}
+                    >
+                      {language === "am" ? "ካርድ" : "Card"} #{player.id}
+                      {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
+                      {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
+                    </Typography>
 
-                {/* Card Numbers */}
-                {transposeCard(card).map((row, rowIdx) =>
-                  row.map((num, colIdx) => {
-                    const letter = "BINGO"[colIdx];
-                    const fullNumber = `${letter}-${num}`;
-                    const isUserMarked = userMarkedNumbers[fullNumber];
+                    {/* BINGO Card Container */}
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                        gap: 0.15,
+                        mb: 0.6
+                      }}
+                    >
+                      {/* BINGO Header */}
+                      {["B", "I", "N", "G", "O"].map((letter) => (
+                        <Box
+                          key={letter}
+                          sx={{
+                            p: 0.4,
+                            background: "linear-gradient(135deg, #1976d2, #2196f3)",
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "0.85rem",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: "6px 6px 0 0",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                          }}
+                        >
+                          {letter}
+                        </Box>
+                      ))}
 
-                    return (
-                      <Box
-                        key={`${rowIdx}-${colIdx}`}
-                        onClick={() => toggleUserMark(fullNumber)}
-                        sx={{
-                          p: { xs: 0.2, md: 0.3 },
-                          border: "1px solid rgba(255,255,255,0.2)",
-                          background:
-                            rowIdx === 2 && colIdx === 2
-                              ? "rgba(255,235,59,0.35)"
-                              : isUserMarked
-                              ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
-                              : backgroundColor === 'white'
-                                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
-                                : "rgba(255,255,255,0.1)",
-                          color: isUserMarked ? "white" : getTextColor(),
-                          fontWeight: isUserMarked ? "bold" : "normal",
-                          fontSize: { xs: '0.55rem', md: '0.7rem' },
-                          minHeight: { xs: 18, md: 22 },
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: "3px",
-                          cursor: "pointer",
-                          transition: "all 0.2s ease",
-                          boxShadow: isUserMarked
-                            ? "0 2px 5px rgba(0,0,0,0.20)"
-                            : "0 1px 3px rgba(0,0,0,0.10)",
-                          "&:hover": {
-                            background: isUserMarked
-                              ? "rgba(255,152,0,0.75)"
-                              : "rgba(0,0,0,0.08)"
-                          }
-                        }}
-                      >
-                        {num === 0 ? "*" : num}
-                      </Box>
-                    );
-                  })
-                )}
-              </Box>
+                      {/* Card Numbers */}
+                      {transposeCard(card).map((row, rowIdx) =>
+                        row.map((num, colIdx) => {
+                          const letter = "BINGO"[colIdx];
+                          const fullNumber = `${letter}-${num}`;
+                          const isUserMarked = userMarkedNumbers[fullNumber];
 
-              {/* Bingo Button */}
-              <Button
-                variant={getButtonVariant()}
-                color="success"
-                onClick={() => handleBingo(player.id)}
-                disabled={
-                  isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-                }
-                fullWidth
-                size="small"
-                sx={{
-                  fontSize: { xs: '0.6rem', md: '0.75rem' },
-                  borderRadius: "4px",
-                  p: { xs: 0.3, md: 0.4 },
-                  opacity:
-                    isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-                      ? 0.6
-                      : 1,
-                  boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
-                  ...getButtonStyle()
-                }}
-              >
-                {submittedBingoCards.includes(player.id)
-                  ? language === "am"
-                    ? "ቀርቧል"
-                    : "SUBMITTED"
-                  : "BINGO"}
-              </Button>
-            </Card>
-          );
-        })
-      )}
-    </Box>
-  </Box>
-</Box>
+                          return (
+                            <Box
+                              key={`${rowIdx}-${colIdx}`}
+                              onClick={() => toggleUserMark(fullNumber)}
+                              sx={{
+                                p: 0.35,
+                                border: "1.2px solid rgba(255,255,255,0.2)",
+                                background:
+                                  rowIdx === 2 && colIdx === 2
+                                    ? "rgba(255,235,59,0.35)"
+                                    : isUserMarked
+                                    ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
+                                    : backgroundColor === 'white'
+                                      ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
+                                      : "rgba(255,255,255,0.1)",
+                                color: isUserMarked ? "white" : getTextColor(),
+                                fontWeight: isUserMarked ? "bold" : "normal",
+                                fontSize: "0.85rem",
+                                minHeight: 26,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                transition: "all 0.2s ease",
+                                boxShadow: isUserMarked
+                                  ? "0 2px 5px rgba(0,0,0,0.20)"
+                                  : "0 2px 5px rgba(0,0,0,0.10)",
+                                "&:hover": {
+                                  background: isUserMarked
+                                    ? "rgba(255,152,0,0.75)"
+                                    : "rgba(0,0,0,0.08)"
+                                }
+                              }}
+                            >
+                              {num === 0 ? "*" : num}
+                            </Box>
+                          );
+                        })
+                      )}
+                    </Box>
+
+                    {/* Bingo Button */}
+                    <Button
+                      variant={getButtonVariant()}
+                      color="success"
+                      onClick={() => handleBingo(player.id)}
+                      disabled={
+                        isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+                      }
+                      fullWidth
+                      size="small"
+                      sx={{
+                        fontSize: "0.8rem",
+                        borderRadius: "6px",
+                        opacity:
+                          isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
+                            ? 0.6
+                            : 1,
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+                        ...getButtonStyle()
+                      }}
+                    >
+                      {submittedBingoCards.includes(player.id)
+                        ? language === "am"
+                          ? "ቀርቧል"
+                          : "SUBMITTED"
+                        : "BINGO"}
+                    </Button>
+                  </Card>
+                );
+              })
+            )}
+          </Box>
+        </Box>
+      </Box>
 
       {/* Toast Message */}
       <Snackbar
