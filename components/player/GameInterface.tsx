@@ -1430,67 +1430,130 @@ const GameInterface = ({
       )}
 
       {/* Game Info Header */}
-      <Box sx={{
+<Box sx={{
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 1,
+  p: 0.5,
+  mb: 1,
+  flexWrap: 'wrap',
+  color: getTextColor()
+}}>
+  {!gameStarted ? (
+    <Card sx={{
+      flex: 1,
+      minWidth: 80,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      p: 1,
+      background: getCardBackground(),
+      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+      borderRadius: 2,
+      minHeight: '6vh',
+      color: getTextColor()
+    }}>
+      <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+        {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
+      </Typography>
+      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
+        {countdown !== 0 ? `${countdown}s` : 'Ready'}
+      </Typography>
+    </Card>
+  ) : (
+    <>
+      <Card sx={{
+        flex: 1,
+        minWidth: 80,
         display: 'flex',
-        justifyContent: 'space-between',
+        flexDirection: 'column',
         alignItems: 'center',
-        p: 0.5,
-        minHeight: "8vh",
+        justifyContent: 'center',
+        p: 1,
         background: getCardBackground(),
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-        mb: 1,
-        flexWrap: 'wrap',
+        borderRadius: 2,
+        minHeight: '6vh',
         color: getTextColor()
       }}>
-        {!gameStarted ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-              {language === 'am' ? 'የቀረ ጊዜ' : 'Time Left'}
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
-              {countdown !== 0 ? `${countdown}s` : 'Ready'}
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.2rem' }}>
-                {currentNumber || "-"}
-              </Typography>
-            </Box>
-            
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-                {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
-              </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
-                {calledNumbers.length}
-              </Typography>
-            </Box>
-          </>
-        )}
-        
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-            {language === 'am' ? 'ተጫዋቾች' : 'Players'}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
-            {numberOfPlayers}
-          </Typography>
-        </Box>
-        
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-          <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
-            {language === 'am' ? 'ደራሽ' : 'Prize Pool'}
-          </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.2rem' }}>
-            {prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-          </Typography>
-        </Box>
-      </Box>
+        <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+          {language === 'am' ? 'አሁን የተጠራ' : 'Current'}
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1rem' }}>
+          {currentNumber || "-"}
+        </Typography>
+      </Card>
+      
+      <Card sx={{
+        flex: 1,
+        minWidth: 80,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 1,
+        background: getCardBackground(),
+        boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+        borderRadius: 2,
+        minHeight: '6vh',
+        color: getTextColor()
+      }}>
+        <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+          {language === 'am' ? 'የተጠሩ ቁጥሮች' : 'Called'}
+        </Typography>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+          {calledNumbers.length}
+        </Typography>
+      </Card>
+    </>
+  )}
+  
+  <Card sx={{
+    flex: 1,
+    minWidth: 80,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    p: 1,
+    background: getCardBackground(),
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    borderRadius: 2,
+    minHeight: '6vh',
+    color: getTextColor()
+  }}>
+    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+      {language === 'am' ? 'ተጫዋቾች' : 'Players'}
+    </Typography>
+    <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+      {numberOfPlayers}
+    </Typography>
+  </Card>
+  
+  <Card sx={{
+    flex: 1,
+    minWidth: 80,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    p: 1,
+    background: getCardBackground(),
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    borderRadius: 2,
+    minHeight: '6vh',
+    color: getTextColor()
+  }}>
+    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', color: getTextColor() }}>
+      {language === 'am' ? 'ደራሽ' : 'Prize Pool'}
+    </Typography>
+    <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1rem' }}>
+      {prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+    </Typography>
+  </Card>
+</Box>
 
       {/* Main Content - Two Columns Layout */}
       <Box sx={{ 
