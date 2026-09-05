@@ -1084,30 +1084,67 @@ export default function AdminTransactionsPage() {
                   </div>
                 </div>
 
-                {/* Parties Card */}
-                <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
-                  <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Parties Involved</h4>
-                  <div className="space-y-2 md:space-y-3">
-                    {selectedTransaction.senderPhone && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Sender Phone</p>
-                        <p className="text-xs md:text-sm font-sans">{selectedTransaction.senderPhone}</p>
-                        {selectedTransaction.senderName && (
-                          <p className="text-xs text-gray-500 font-sans">({selectedTransaction.senderName})</p>
-                        )}
-                      </div>
-                    )}
-                    {selectedTransaction.receiverPhone && (
-                      <div>
-                        <p className="text-xs text-gray-500 font-sans">Receiver Phone</p>
-                        <p className="text-xs md:text-sm font-sans">{selectedTransaction.receiverPhone}</p>
-                        {selectedTransaction.receiverName && (
-                          <p className="text-xs text-gray-500 font-sans">({selectedTransaction.receiverName})</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Parties Card - WITH BOLD & COLOR HIGHLIGHTING */}
+<div className="bg-gray-50 p-3 md:p-4 rounded-lg">
+  <h4 className="text-xs md:text-sm font-medium text-gray-500 mb-2 font-sans">Parties Involved</h4>
+  <div className="space-y-2 md:space-y-3">
+    
+    {/* SENDER */}
+    {selectedTransaction.senderPhone && (
+      <div>
+        <p className="text-xs text-gray-500 font-sans">📤 Sender</p>
+        <div className={`p-2 rounded border ${
+          selectedTransaction.type === 'deposit' 
+            ? 'bg-green-50 border-green-300' 
+            : selectedTransaction.type === 'withdrawal'
+            ? 'bg-red-50 border-red-300'
+            : 'bg-gray-50 border-gray-300'
+        }`}>
+          <p className={`font-bold font-mono text-base ${
+            selectedTransaction.type === 'deposit' 
+              ? 'text-green-700' 
+              : selectedTransaction.type === 'withdrawal'
+              ? 'text-red-700'
+              : 'text-gray-700'
+          }`}>
+            {selectedTransaction.senderPhone}
+          </p>
+          {selectedTransaction.senderName && (
+            <p className="text-xs text-gray-600 font-sans mt-0.5">👤 {selectedTransaction.senderName}</p>
+          )}
+        </div>
+      </div>
+    )}
+    
+    {/* RECEIVER */}
+    {selectedTransaction.receiverPhone && (
+      <div>
+        <p className="text-xs text-gray-500 font-sans">📥 Receiver</p>
+        <div className={`p-2 rounded border ${
+          selectedTransaction.type === 'deposit' 
+            ? 'bg-red-50 border-red-300' 
+            : selectedTransaction.type === 'withdrawal'
+            ? 'bg-green-50 border-green-300'
+            : 'bg-gray-50 border-gray-300'
+        }`}>
+          <p className={`font-bold font-mono text-base ${
+            selectedTransaction.type === 'deposit' 
+              ? 'text-red-700' 
+              : selectedTransaction.type === 'withdrawal'
+              ? 'text-green-700'
+              : 'text-gray-700'
+          }`}>
+            {selectedTransaction.receiverPhone}
+          </p>
+          {selectedTransaction.receiverName && (
+            <p className="text-xs text-gray-600 font-sans mt-0.5">👤 {selectedTransaction.receiverName}</p>
+          )}
+        </div>
+      </div>
+    )}
+    
+  </div>
+</div>
 
                 {/* Additional Info Card */}
                 <div className="bg-gray-50 p-3 md:p-4 rounded-lg md:col-span-2">
