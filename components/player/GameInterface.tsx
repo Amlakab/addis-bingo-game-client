@@ -1586,119 +1586,119 @@ const GameInterface = ({
       )}
 
       <Box sx={{
-  display: 'flex',
-  gap: 0.75,
-  p: 0.5,
-  mb: 1,
-  flexWrap: 'nowrap',
-  overflow: 'auto',
-  color: getTextColor(),
-  width: '100%'
-}}>
-  {!gameStarted ? (
-    <Card sx={{
-      flex: '0 0 25%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      p: 0.75,
-      background: getCardBackground(),
-      borderRadius: 1.5,
-      minHeight: '7vh',
-      color: getTextColor()
-    }}>
-      <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-        {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
-      </Typography>
-      <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
-        {countdown !== 0 ? `${countdown}s` : 'Ready'}
-      </Typography>
-    </Card>
-  ) : (
-    <>
-      <Card sx={{
-        flex: '0 0 25%',
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 0.75,
-        background: getCardBackground(),
-        borderRadius: 1.5,
-        minHeight: '7vh',
-        color: getTextColor()
+        gap: 0.75,
+        p: 0.5,
+        mb: 1,
+        flexWrap: 'nowrap',
+        overflow: 'auto',
+        color: getTextColor(),
+        width: '100%'
       }}>
-        <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-          {language === 'am' ? 'አሁን' : 'Curr'}
-        </Typography>
-        <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
-          {currentNumber || "-"}
-        </Typography>
-      </Card>
-      
-      <Card sx={{
-        flex: '0 0 25%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 0.75,
-        background: getCardBackground(),
-        borderRadius: 1.5,
-        minHeight: '7vh',
-        color: getTextColor()
-      }}>
-        <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-          {language === 'am' ? 'የተጠሩ' : 'Called'}
-        </Typography>
-        <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-          {calledNumbers.length}
-        </Typography>
-      </Card>
-    </>
-  )}
-  
-  <Card sx={{
-    flex: '0 0 25%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    p: 0.75,
-    background: getCardBackground(),
-    borderRadius: 1.5,
-    minHeight: '7vh',
-    color: getTextColor()
-  }}>
-    <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-      {language === 'am' ? 'ተጫዋቾች' : 'Players'}
-    </Typography>
-    <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-      {numberOfPlayers}
-    </Typography>
-  </Card>
-  
-  <Card sx={{
-    flex: '0 0 25%',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    p: 0.75,
-    background: getCardBackground(),
-    borderRadius: 1.5,
-    minHeight: '7vh',
-    color: getTextColor()
-  }}>
-    <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-      {language === 'am' ? 'ደራሽ' : 'Prize'}
-    </Typography>
-    <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
-      {prizePool.toFixed(0)}
-    </Typography>
-  </Card>
-</Box>
+        {!gameStarted ? (
+          <Card sx={{
+            flex: '0 0 25%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0.75,
+            background: getCardBackground(),
+            borderRadius: 1.5,
+            minHeight: '7vh',
+            color: getTextColor()
+          }}>
+            <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+              {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
+            </Typography>
+            <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+              {countdown !== 0 ? `${countdown}s` : 'Ready'}
+            </Typography>
+          </Card>
+        ) : (
+          <>
+            <Card sx={{
+              flex: '0 0 25%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0.75,
+              background: getCardBackground(),
+              borderRadius: 1.5,
+              minHeight: '7vh',
+              color: getTextColor()
+            }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+                {language === 'am' ? 'አሁን' : 'Curr'}
+              </Typography>
+              <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+                {currentNumber || "-"}
+              </Typography>
+            </Card>
+            
+            <Card sx={{
+              flex: '0 0 25%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0.75,
+              background: getCardBackground(),
+              borderRadius: 1.5,
+              minHeight: '7vh',
+              color: getTextColor()
+            }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+                {language === 'am' ? 'የተጠሩ' : 'Called'}
+              </Typography>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                {calledNumbers.length}
+              </Typography>
+            </Card>
+          </>
+        )}
+        
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ተጫዋቾች' : 'Players'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+            {numberOfPlayers}
+          </Typography>
+        </Card>
+        
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ደራሽ' : 'Prize'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
+            {prizePool.toFixed(0)}
+          </Typography>
+        </Card>
+      </Box>
 
       {/* Main Content - Two Columns Layout */}
       <Box sx={{ 
@@ -2146,7 +2146,7 @@ const GameInterface = ({
                                 border: "1.3px solid rgba(255,255,255,0.2)",
                                 background:
                                   rowIdx === 2 && colIdx === 2
-                                    ? "rgba(255,235,59,0.35)"
+                                    ? "rgba(255,23,68,0.8)"
                                     : isUserMarked
                                     ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
                                     : backgroundColor === 'white'
@@ -2175,7 +2175,7 @@ const GameInterface = ({
                               {num === 0  ? (
                               <Box sx={{ 
                                 color: '#4CAF50', 
-                                fontSize: '1rem',
+                                fontSize: '1.15rem',
                                 fontWeight: 'bold',
                                 textShadow: '0 0 12px rgba(76,175,80,0.5)',
                                 lineHeight: 1,
