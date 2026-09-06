@@ -1462,7 +1462,7 @@ const GameInterface = ({
     }}>
       
       {/* Grace Period Indicator */}
-      {gracePeriodActive && (
+      {/* {gracePeriodActive && (
         <Box sx={{
           background: 'linear-gradient(45deg, #FFD700, #FFA500)',
           color: 'black',
@@ -1476,7 +1476,7 @@ const GameInterface = ({
             ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ...` 
             : `Grace period: ${gracePeriodCountdown}s...`}
         </Box>
-      )}
+      )} */}
 
       {/* Game Stopped Indicator */}
       {gameStopped && !gracePeriodActive && (
@@ -1493,7 +1493,7 @@ const GameInterface = ({
       )}
 
       {/* Auto-play Indicator */}
-      {autoPlayOn && gameStarted && !gameStopped && (
+      {/* {autoPlayOn && gameStarted && !gameStopped && (
         <Box sx={{
           background: 'linear-gradient(45deg, #4CAF50, #45a049)',
           color: 'white',
@@ -1506,7 +1506,7 @@ const GameInterface = ({
         }}>
           🤖 {language === 'am' ? 'አውቶማቲክ ሁነታ እየሰራ ነው...' : 'Auto-play mode active...'}
         </Box>
-      )}
+      )} */}
 
       {/* Announced Winners Summary */}
       {announcedWinners.length > 0 && (
@@ -1831,114 +1831,157 @@ const GameInterface = ({
           gap: 1,
           minHeight: '25vh',
         }}>
-          {/* Controls - ALL IN ONE ROW with proper sizing */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 0.5,
-            flexWrap: 'nowrap',
-            justifyContent: 'center',
-            width: '100%'
-          }}>
-            {/* Sound Toggle */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={soundOn}
-                  onChange={() => setSoundOn(!soundOn)}
-                  color="primary"
-                  size="small"
-                  sx={{ 
-                    '& .MuiSwitch-track': { width: 28 },
-                    '& .MuiSwitch-thumb': { width: 14, height: 14 },
-                    '& .MuiSwitch-switchBase': { padding: '4px' }
-                  }}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ 
-                  fontSize: '0.7rem', 
-                  color: getTextColor(),
-                  whiteSpace: 'nowrap'
-                }}>
-                  {soundOn ? '🔊' : '🔇'}
-                </Typography>
-              }
-              sx={{ margin: 0, mr: 0.5 }}
-            />
-            
-            {/* Auto-play Toggle - DEFAULT ON */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={autoPlayOn}
-                  onChange={() => setAutoPlayOn(!autoPlayOn)}
-                  color="success"
-                  size="small"
-                  sx={{ 
-                    '& .MuiSwitch-track': { width: 28 },
-                    '& .MuiSwitch-thumb': { width: 14, height: 14 },
-                    '& .MuiSwitch-switchBase': { padding: '4px' }
-                  }}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ 
-                  fontSize: '0.7rem', 
-                  color: autoPlayOn ? '#4CAF50' : getTextColor(),
-                  fontWeight: autoPlayOn ? 'bold' : 'normal',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {autoPlayOn ? '🤖' : '🤖'}
-                </Typography>
-              }
-              sx={{ margin: 0, mr: 0.5 }}
-            />
-            
-            {/* Language Select */}
-            <Select
-              value={language}
-              onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
-              size="small"
-              sx={{ 
-                minWidth: 35,
-                width: 35,
-                height: 28,
-                fontSize: '0.6rem',
-                backgroundColor: getSelectBackground(),
-                color: getSelectTextColor(),
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: getSelectTextColor(),
-                  borderWidth: '1px'
-                },
-                '& .MuiSelect-select': {
-                  padding: '2px 6px',
-                  paddingRight: '18px !important'
-                },
-                '& .MuiSvgIcon-root': {
-                  color: getSelectTextColor(),
-                  fontSize: '1rem',
-                  right: 2
-                }
-              }}
-            >
-              <MenuItem value="en" sx={{ fontSize: '0.6rem', minHeight: 24 }}>EN</MenuItem>
-              <MenuItem value="am" sx={{ fontSize: '0.6rem', minHeight: 24 }}>AM</MenuItem>
-            </Select>
+          {/* Controls - Styled like Player/Prize cards with text on top, toggle below */}
+<Box sx={{ 
+  display: 'flex', 
+  alignItems: 'center', 
+  gap: 0.75,
+  flexWrap: 'nowrap',
+  justifyContent: 'center',
+  width: '100%',
+  mb: 0.5
+}}>
+  {/* Sound Toggle - Card style with text on top, toggle below */}
+  <Card sx={{
+    flex: '0 0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    p: 0.5,
+    px: 1,
+    background: getCardBackground(),
+    borderRadius: 1.5,
+    minHeight: '5vh',
+    color: getTextColor(),
+    border: '1px solid rgba(255,255,255,0.1)'
+  }}>
+    <Typography sx={{ 
+      fontWeight: 'bold', 
+      fontSize: '0.6rem', 
+      color: getTextColor(), 
+      whiteSpace: 'nowrap',
+      mb: 0.25
+    }}>
+      {soundOn ? '🔊' : '🔇'} {language === 'am' ? 'ድምፅ' : 'Sound'}
+    </Typography>
+    <Switch
+      checked={soundOn}
+      onChange={() => setSoundOn(!soundOn)}
+      color="primary"
+      size="small"
+      sx={{ 
+        '& .MuiSwitch-track': { width: 28 },
+        '& .MuiSwitch-thumb': { width: 14, height: 14 },
+        '& .MuiSwitch-switchBase': { padding: '4px' }
+      }}
+    />
+  </Card>
+  
+  {/* Auto-play Toggle - Card style with text on top, toggle below */}
+  <Card sx={{
+    flex: '0 0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    p: 0.5,
+    px: 1,
+    background: getCardBackground(),
+    borderRadius: 1.5,
+    minHeight: '5vh',
+    color: getTextColor(),
+    border: autoPlayOn ? '1px solid #4CAF50' : '1px solid rgba(255,255,255,0.1)'
+  }}>
+    <Typography sx={{ 
+      fontWeight: 'bold', 
+      fontSize: '0.6rem', 
+      color: autoPlayOn ? '#4CAF50' : getTextColor(),
+      whiteSpace: 'nowrap',
+      mb: 0.25
+    }}>
+      🤖 {language === 'am' ? 'አውቶ' : 'Auto'}
+    </Typography>
+    <Switch
+      checked={autoPlayOn}
+      onChange={() => setAutoPlayOn(!autoPlayOn)}
+      color="success"
+      size="small"
+      sx={{ 
+        '& .MuiSwitch-track': { width: 28 },
+        '& .MuiSwitch-thumb': { width: 14, height: 14 },
+        '& .MuiSwitch-switchBase': { padding: '4px' }
+      }}
+    />
+  </Card>
+  
+  {/* Language Select - Card style */}
+  <Card sx={{
+    flex: '0 0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    p: 0.5,
+    px: 1,
+    background: getCardBackground(),
+    borderRadius: 1.5,
+    minHeight: '5vh',
+    color: getTextColor(),
+    border: '1px solid rgba(255,255,255,0.1)'
+  }}>
+    <Typography sx={{ 
+      fontWeight: 'bold', 
+      fontSize: '0.6rem', 
+      color: getTextColor(), 
+      whiteSpace: 'nowrap',
+      mb: 0.25
+    }}>
+      🌐 {language === 'am' ? 'ቋንቋ' : 'Lang'}
+    </Typography>
+    <Select
+      value={language}
+      onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
+      size="small"
+      sx={{ 
+        minWidth: 30,
+        width: 30,
+        height: 24,
+        fontSize: '0.6rem',
+        backgroundColor: getSelectBackground(),
+        color: getSelectTextColor(),
+        '& .MuiOutlinedInput-notchedOutline': {
+          borderColor: getSelectTextColor(),
+          borderWidth: '1px'
+        },
+        '& .MuiSelect-select': {
+          padding: '1px 4px',
+          paddingRight: '16px !important'
+        },
+        '& .MuiSvgIcon-root': {
+          color: getSelectTextColor(),
+          fontSize: '0.8rem',
+          right: 1
+        }
+      }}
+    >
+      <MenuItem value="en" sx={{ fontSize: '0.6rem', minHeight: 24 }}>EN</MenuItem>
+      <MenuItem value="am" sx={{ fontSize: '0.6rem', minHeight: 24 }}>AM</MenuItem>
+    </Select>
+  </Card>
 
-            {/* Auto Status Text - small indicator */}
-            {autoPlayOn && gameStarted && !gameStopped && (
-              <Typography variant="caption" sx={{ 
-                fontSize: '0.5rem', 
-                color: '#4CAF50',
-                whiteSpace: 'nowrap',
-                fontWeight: 'bold',
-                ml: 0.5
-              }}>
-                ⚡
-              </Typography>
-            )}
-          </Box>
+  {/* Auto Status indicator - small dot */}
+  {autoPlayOn && gameStarted && !gameStopped && (
+    <Box sx={{
+      width: 6,
+      height: 6,
+      borderRadius: '50%',
+      backgroundColor: '#4CAF50',
+      animation: 'pulse 1s infinite',
+      ml: 0.5
+    }} />
+  )}
+</Box>
 
           {/* User Cards */}
           <Box sx={{ 
