@@ -1898,7 +1898,7 @@ const GameInterface = ({
   flexWrap: 'nowrap',
   justifyContent: 'center',
   width: '100%',
-  mb: 0
+  mb: 0.5
 }}>
   {/* Sound Toggle - Card style with text on top, toggle below */}
   <Card sx={{
@@ -1907,20 +1907,20 @@ const GameInterface = ({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    p: 0.3,          // ← DECREASED from 0.5
-    px: 0.75,         // ← DECREASED from 1
+    p: 0.5,
+    px: 1,
     background: getCardBackground(),
     borderRadius: 1.5,
-    minHeight: '4vh', // ← DECREASED from 5vh
+    minHeight: '5vh',
     color: getTextColor(),
     border: '1px solid rgba(255,255,255,0.1)'
   }}>
     <Typography sx={{ 
       fontWeight: 'bold', 
-      fontSize: '0.5rem', // ← DECREASED from 0.6rem
+      fontSize: '0.6rem', 
       color: getTextColor(), 
       whiteSpace: 'nowrap',
-      mb: 0.15          // ← DECREASED from 0.25
+      mb: 0.25
     }}>
       {soundOn ? '🔊' : '🔇'} {language === 'am' ? 'ድምፅ' : 'Sound'}
     </Typography>
@@ -1930,9 +1930,9 @@ const GameInterface = ({
       color="primary"
       size="small"
       sx={{ 
-        '& .MuiSwitch-track': { width: 24, height: 14 },  // ← DECREASED from 28
-        '& .MuiSwitch-thumb': { width: 12, height: 12 },   // ← DECREASED from 14
-        '& .MuiSwitch-switchBase': { padding: '3px' }      // ← DECREASED from 4px
+        '& .MuiSwitch-track': { width: 28 },
+        '& .MuiSwitch-thumb': { width: 14, height: 14 },
+        '& .MuiSwitch-switchBase': { padding: '4px' }
       }}
     />
   </Card>
@@ -1944,20 +1944,20 @@ const GameInterface = ({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    p: 0.3,          // ← DECREASED from 0.5
-    px: 0.75,         // ← DECREASED from 1
+    p: 0.5,
+    px: 1,
     background: getCardBackground(),
     borderRadius: 1.5,
-    minHeight: '4vh', // ← DECREASED from 5vh
+    minHeight: '5vh',
     color: getTextColor(),
     border: autoPlayOn ? '1px solid #4CAF50' : '1px solid rgba(255,255,255,0.1)'
   }}>
     <Typography sx={{ 
       fontWeight: 'bold', 
-      fontSize: '0.5rem', // ← DECREASED from 0.6rem
+      fontSize: '0.6rem', 
       color: autoPlayOn ? '#4CAF50' : getTextColor(),
       whiteSpace: 'nowrap',
-      mb: 0.15          // ← DECREASED from 0.25
+      mb: 0.25
     }}>
       🤖 {language === 'am' ? 'አውቶ' : 'Auto'}
     </Typography>
@@ -1967,9 +1967,9 @@ const GameInterface = ({
       color="success"
       size="small"
       sx={{ 
-        '& .MuiSwitch-track': { width: 24, height: 14 },  // ← DECREASED from 28
-        '& .MuiSwitch-thumb': { width: 12, height: 12 },   // ← DECREASED from 14
-        '& .MuiSwitch-switchBase': { padding: '3px' }      // ← DECREASED from 4px
+        '& .MuiSwitch-track': { width: 28 },
+        '& .MuiSwitch-thumb': { width: 14, height: 14 },
+        '& .MuiSwitch-switchBase': { padding: '4px' }
       }}
     />
   </Card>
@@ -1981,20 +1981,20 @@ const GameInterface = ({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    p: 0.3,          // ← DECREASED from 0.5
-    px: 0.75,         // ← DECREASED from 1
+    p: 0.5,
+    px: 1,
     background: getCardBackground(),
     borderRadius: 1.5,
-    minHeight: '4vh', // ← DECREASED from 5vh
+    minHeight: '5vh',
     color: getTextColor(),
     border: '1px solid rgba(255,255,255,0.1)'
   }}>
     <Typography sx={{ 
       fontWeight: 'bold', 
-      fontSize: '0.5rem', // ← DECREASED from 0.6rem
+      fontSize: '0.6rem', 
       color: getTextColor(), 
       whiteSpace: 'nowrap',
-      mb: 0.15          // ← DECREASED from 0.25
+      mb: 0.25
     }}>
       🌐 {language === 'am' ? 'ቋንቋ' : 'Lang'}
     </Typography>
@@ -2003,10 +2003,10 @@ const GameInterface = ({
       onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
       size="small"
       sx={{ 
-        minWidth: 26,
-        width: 26,
-        height: 20,        // ← DECREASED from 24
-        fontSize: '0.5rem', // ← DECREASED from 0.6rem
+        minWidth: 30,
+        width: 30,
+        height: 24,
+        fontSize: '0.6rem',
         backgroundColor: getSelectBackground(),
         color: getSelectTextColor(),
         '& .MuiOutlinedInput-notchedOutline': {
@@ -2014,26 +2014,26 @@ const GameInterface = ({
           borderWidth: '1px'
         },
         '& .MuiSelect-select': {
-          padding: '0px 4px',
-          paddingRight: '14px !important'
+          padding: '1px 4px',
+          paddingRight: '16px !important'
         },
         '& .MuiSvgIcon-root': {
           color: getSelectTextColor(),
-          fontSize: '0.7rem',
+          fontSize: '0.8rem',
           right: 1
         }
       }}
     >
-      <MenuItem value="en" sx={{ fontSize: '0.5rem', minHeight: 20 }}>EN</MenuItem>
-      <MenuItem value="am" sx={{ fontSize: '0.5rem', minHeight: 20 }}>AM</MenuItem>
+      <MenuItem value="en" sx={{ fontSize: '0.6rem', minHeight: 24 }}>EN</MenuItem>
+      <MenuItem value="am" sx={{ fontSize: '0.6rem', minHeight: 24 }}>AM</MenuItem>
     </Select>
   </Card>
 
   {/* Auto Status indicator - small dot */}
   {autoPlayOn && gameStarted && !gameStopped && (
     <Box sx={{
-      width: 5,
-      height: 5,
+      width: 6,
+      height: 6,
       borderRadius: '50%',
       backgroundColor: '#4CAF50',
       animation: 'pulse 1s infinite',
