@@ -496,7 +496,7 @@ const GameInterface = ({
 
   useEffect(() => {
     if (showWinnerModal || showGameOverModal) {
-      setAutoCloseCountdown(7);
+      setAutoCloseCountdown(8);
       
       if (autoCloseTimerRef.current) {
         clearInterval(autoCloseTimerRef.current);
@@ -509,10 +509,10 @@ const GameInterface = ({
             // Auto-close the modal
             if (showWinnerModal) {
               setShowWinnerModal(false);
-              onGameEnd();
+              onBackToPlayerLobby();
             } else if (showGameOverModal) {
               setShowGameOverModal(false);
-              onGameEnd();
+              onBackToPlayerLobby();
             }
             return 0;
           }
