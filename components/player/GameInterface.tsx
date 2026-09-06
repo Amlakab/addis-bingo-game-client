@@ -2143,7 +2143,7 @@ const GameInterface = ({
                                 color: isUserMarked ? "white" : getTextColor(),
                                 fontWeight: isUserMarked ? "bold" : "normal",
                                 fontSize: "1rem",
-                                minHeight: 28,
+                                minHeight: 26,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
