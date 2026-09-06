@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Button, Box, Typography, Card, CardContent, 
   useTheme, useMediaQuery, Alert, Snackbar, TextField,
-  IconButton, CircularProgress, Modal, Switch,
+  IconButton, Modal, Switch,
   FormControlLabel, Select, MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
@@ -88,6 +88,7 @@ const GameInterface = ({
   
   const [isCalling, setIsCalling] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [autoPlayOn, setAutoPlayOn] = useState(true); // NEW: Auto-play state - DEFAULT ON
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
@@ -135,6 +136,7 @@ const GameInterface = ({
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null); // NEW: Auto-play timer ref
 
   // NEW: Color helper functions (matching offline code)
   const getTextColor = () => {
@@ -405,6 +407,89 @@ const GameInterface = ({
       console.log(`Server timer for bet ${bet}: ${timerState.timer}s, status: ${timerState.status}`);
     }
   }, [bet]);
+
+  // NEW: Auto-play logic
+  const checkAndAutoMarkNumbers = useCallback(() => {
+    if (!autoPlayOn || !gameStarted || gameStopped) return;
+
+    const userCards = getUserCards();
+    
+    userCards.forEach(player => {
+      if (blockedPlayers.includes(player.id)) return;
+      if (submittedBingoCards.includes(player.id)) return;
+      
+      const card = getCardById(player.id);
+      
+      // Auto-mark all called numbers on the card
+      const transposedCard = transposeCard(card);
+      let anyNewMark = false;
+      
+      for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 5; col++) {
+          const num = transposedCard[row][col];
+          const letter = "BINGO"[col];
+          const fullNumber = `${letter}-${num}`;
+          const isFreeSpace = (col === 2 && row === 2);
+          
+          if (!isFreeSpace && num !== 0) {
+            // Check if this number has been called on the server
+            if (serverCalledNumbers.includes(fullNumber)) {
+              // Auto-mark it
+              setUserMarkedNumbers(prev => ({
+                ...prev,
+                [fullNumber]: true
+              }));
+              anyNewMark = true;
+            }
+          }
+        }
+      }
+      
+      // After marking, check for win
+      if (anyNewMark) {
+        // Small delay to allow state to update
+        setTimeout(() => {
+          checkForAutoWin(player);
+        }, 200);
+      }
+    });
+  }, [autoPlayOn, gameStarted, gameStopped, blockedPlayers, submittedBingoCards, serverCalledNumbers]);
+
+  // NEW: Auto-check for win
+  const checkForAutoWin = useCallback((player: PlayerSelection) => {
+    if (!autoPlayOn || !gameStarted || gameStopped) return;
+    if (blockedPlayers.includes(player.id)) return;
+    if (submittedBingoCards.includes(player.id)) return;
+
+    const result = checkForWinner(player.id);
+    
+    if (result.isWinner) {
+      console.log(`🤖 Auto-play: Card ${player.id} has BINGO! Auto-submitting...`);
+      
+      // Auto-submit BINGO
+      handleBingo(player.id);
+    }
+  }, [autoPlayOn, gameStarted, gameStopped, blockedPlayers, submittedBingoCards]);
+
+  // NEW: Effect to trigger auto-mark when new numbers are called
+  useEffect(() => {
+    if (autoPlayOn && gameStarted && !gameStopped && serverCalledNumbers.length > 0) {
+      // Debounce the auto-mark to avoid excessive updates
+      if (autoPlayTimerRef.current) {
+        clearTimeout(autoPlayTimerRef.current);
+      }
+      
+      autoPlayTimerRef.current = setTimeout(() => {
+        checkAndAutoMarkNumbers();
+      }, 300); // 300ms delay after number is called
+    }
+    
+    return () => {
+      if (autoPlayTimerRef.current) {
+        clearTimeout(autoPlayTimerRef.current);
+      }
+    };
+  }, [autoPlayOn, gameStarted, gameStopped, serverCalledNumbers, serverCurrentNumber, checkAndAutoMarkNumbers]);
 
   // Setup WebSocket listeners for game control events
   useEffect(() => {
@@ -1412,6 +1497,22 @@ const GameInterface = ({
         </Box>
       )}
 
+      {/* Auto-play Indicator */}
+      {autoPlayOn && gameStarted && !gameStopped && (
+        <Box sx={{
+          background: 'linear-gradient(45deg, #4CAF50, #45a049)',
+          color: 'white',
+          p: 0.5,
+          mb: 1,
+          borderRadius: 1,
+          fontWeight: 'bold',
+          fontSize: '0.75rem',
+          animation: 'pulse 2s infinite'
+        }}>
+          🤖 {language === 'am' ? 'አውቶማቲክ ሁነታ እየሰራ ነው...' : 'Auto-play mode active...'}
+        </Box>
+      )}
+
       {/* Announced Winners Summary */}
       {announcedWinners.length > 0 && (
         <Box sx={{
@@ -1736,7 +1837,13 @@ const GameInterface = ({
           minHeight: '25vh',
         }}>
           {/* Controls */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
             <FormControlLabel
               control={
                 <Switch
@@ -1747,11 +1854,33 @@ const GameInterface = ({
                 />
               }
               label={
-                <Typography variant="body2" sx={{ fontSize: '0.95rem', color: getTextColor() }}>
-                  {soundOn ? (language === 'am' ? 'ድምፅ በርቷል' : 'Sound on') : (language === 'am' ? 'ድምፅ' : 'Sound Off')}
+                <Typography variant="body2" sx={{ fontSize: '0.85rem', color: getTextColor() }}>
+                  {soundOn ? (language === 'am' ? '🔊 ድምፅ' : '🔊 Sound') : (language === 'am' ? '🔇 ድምፅ' : '🔇 Sound Off')}
                 </Typography>
               }
             />
+            
+            {/* NEW: Auto-play toggle - DEFAULT ON */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={autoPlayOn}
+                  onChange={() => setAutoPlayOn(!autoPlayOn)}
+                  color="success"
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ 
+                  fontSize: '0.85rem', 
+                  color: autoPlayOn ? '#4CAF50' : getTextColor(),
+                  fontWeight: autoPlayOn ? 'bold' : 'normal'
+                }}>
+                  {autoPlayOn ? (language === 'am' ? '🤖 አውቶ' : '🤖 Auto') : (language === 'am' ? '🤖 አውቶ' : '🤖 Auto Off')}
+                </Typography>
+              }
+            />
+            
             <Select
               value={language}
               onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
