@@ -2133,6 +2133,7 @@ const GameInterface = ({
 
                       {/* Card Numbers */}
                       {/* Card Numbers */}
+{/* Card Numbers */}
 {transposeCard(card).map((row, rowIdx) =>
   row.map((num, colIdx) => {
     const letter = "BINGO"[colIdx];
@@ -2146,16 +2147,16 @@ const GameInterface = ({
         sx={{
           p: 0.35,
           border: isUserMarked || (rowIdx === 2 && colIdx === 2)
-            ? "2px solid #4CAF50"  // ← GREEN border
+            ? "2px solid #2E7D32"  // ← Green border
             : "1.3px solid rgba(255,255,255,0.2)",
           background:
             rowIdx === 2 && colIdx === 2
-              ? "linear-gradient(135deg, rgba(76,175,80,0.25), rgba(76,175,80,0.4))"  // ← GREEN for free space
+              ? "#4CAF50"  // ← SOLID GREEN for free space
               : isUserMarked
-              ? "linear-gradient(135deg, rgba(76,175,80,0.35), rgba(76,175,80,0.5))"  // ← GREEN for marked
+              ? "#4CAF50"  // ← SOLID GREEN for marked
               : backgroundColor === 'white'
-                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
-                : "rgba(255,255,255,0.1)",
+                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"  // ← White for unmarked
+                : "rgba(255,255,255,0.1)",  // ← Semi-transparent for dark backgrounds
           color: isUserMarked ? "white" : getTextColor(),
           fontWeight: isUserMarked ? "bold" : "normal",
           fontSize: "1rem",
@@ -2171,14 +2172,14 @@ const GameInterface = ({
             : "0 2px 5px rgba(0,0,0,0.10)",
           "&:hover": {
             background: isUserMarked
-              ? "rgba(76,175,80,0.6)"
+              ? "#388E3C"  // ← Darker green on hover
               : "rgba(0,0,0,0.08)"
           }
         }}
       >
         {num === 0 ? (
           <Box sx={{ 
-            color: 'white',  // ← White star on green background
+            color: 'white',  // ← White star on green
             fontSize: '1.15rem',
             fontWeight: 'bold',
             textShadow: '0 0 12px rgba(255,255,255,0.3)',
