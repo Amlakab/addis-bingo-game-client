@@ -1452,7 +1452,18 @@ const GameInterface = ({
                         animation: isLastCalled ? 'blink 1s infinite' : 'none'
                       }}
                     >
-                      {isFreeSpace ? (language === 'am' ? 'ነፃ' : 'FREE') : num}
+                      {isFreeSpace ? (
+                              <Box sx={{ 
+                                color: '#4CAF50', 
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 12px rgba(76,175,80,0.5)',
+                                lineHeight: 1,
+                                animation: 'pulse 2s infinite'
+                              }}>
+                                ★
+                              </Box>
+                            ) : num}
                       {isWinningCell && (
                         <Box
                           sx={{
@@ -2163,7 +2174,7 @@ const GameInterface = ({
                               {num === 0  ? (
                               <Box sx={{ 
                                 color: '#4CAF50', 
-                                fontSize: '1.5rem',
+                                fontSize: '1rem',
                                 fontWeight: 'bold',
                                 textShadow: '0 0 12px rgba(76,175,80,0.5)',
                                 lineHeight: 1,
@@ -2448,7 +2459,7 @@ const GameInterface = ({
                     clearInterval(autoCloseTimerRef.current);
                   }
                   setShowWinnerModal(false);
-                  onGameEnd();
+                  onBackToPlayerLobby();
                 }}
                 sx={{ 
                   mt: 2,
@@ -2573,7 +2584,18 @@ const GameInterface = ({
                         borderRadius: '2px',
                       }}
                     >
-                      {isFreeSpace ? (language === 'am' ? 'ነፃ' : 'FREE') : num}
+                      {isFreeSpace ? (
+                              <Box sx={{ 
+                                color: '#4CAF50', 
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 12px rgba(76,175,80,0.5)',
+                                lineHeight: 1,
+                                animation: 'pulse 2s infinite'
+                              }}>
+                                ★
+                              </Box>
+                            ) : num}
                     </Box>
                   );
                 })
@@ -2846,7 +2868,18 @@ const GameInterface = ({
                                     animation: isLastCalled ? 'blink 1s infinite' : 'none'
                                   }}
                                 >
-                                  {isFreeSpace ? (language === 'am' ? 'ነፃ' : 'FREE') : num}
+                                  {isFreeSpace ? (
+                              <Box sx={{ 
+                                color: '#4CAF50', 
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 12px rgba(76,175,80,0.5)',
+                                lineHeight: 1,
+                                animation: 'pulse 2s infinite'
+                              }}>
+                                ★
+                              </Box>
+                            ) : num}
                                   {isWinningCell && (
                                     <Box
                                       sx={{
@@ -2886,7 +2919,7 @@ const GameInterface = ({
                     clearInterval(autoCloseTimerRef.current);
                   }
                   setShowGameOverModal(false);
-                  onGameEnd();
+                  onBackToPlayerLobby();
                 }}
                 sx={{ 
                   mt: 1,
