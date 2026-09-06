@@ -1508,17 +1508,18 @@ const GameInterface = ({
   }
 
   return (
-    <Box sx={{ 
-      p: 1, 
-      textAlign: 'center',
-      background: backgroundColor === 'white' 
-        ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-        : backgroundColor,
-      minHeight: '40vh',
-      display: 'flex',
-      flexDirection: 'column',
-      color: getTextColor()
-    }}>
+  <Box sx={{ 
+    p: 0.5,           // ← DECREASED from 1
+    pt: 0.25,          // ← ADD THIS - reduces top padding specifically
+    textAlign: 'center',
+    background: backgroundColor === 'white' 
+      ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+      : backgroundColor,
+    minHeight: '40vh',
+    display: 'flex',
+    flexDirection: 'column',
+    color: getTextColor()
+  }}>
       
       {/* Grace Period Indicator */}
       {/* {gracePeriodActive && (
