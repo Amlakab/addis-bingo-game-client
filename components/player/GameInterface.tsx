@@ -2680,7 +2680,7 @@ const GameInterface = ({
               <CloseIcon fontSize="small" />
             </IconButton>
             
-            <motion.div
+            {/* <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.3 }}
@@ -2694,7 +2694,7 @@ const GameInterface = ({
               }}>
                 {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
               </Typography>
-            </motion.div>
+            </motion.div> */}
 
             {/* Auto-close countdown timer */}
             <Box sx={{
