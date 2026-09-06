@@ -5,7 +5,8 @@ import {
   Button, Box, Typography, Card, CardContent, 
   useTheme, useMediaQuery, Alert, Snackbar, TextField,
   IconButton, Modal, Switch,
-  FormControlLabel, Select, MenuItem
+  FormControlLabel, Select, MenuItem,
+  CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { checkWin } from '@/app/utils/gameLogic';
