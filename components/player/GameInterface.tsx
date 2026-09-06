@@ -2130,7 +2130,7 @@ const GameInterface = ({
                               key={`${rowIdx}-${colIdx}`}
                               onClick={() => toggleUserMark(fullNumber)}
                               sx={{
-                                p: 0.6,
+                                p: 0.35,
                                 border: "2.5px solid rgba(255,255,255,0.3)",
                                 background:
                                   rowIdx === 2 && colIdx === 2
