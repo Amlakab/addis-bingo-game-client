@@ -1792,16 +1792,17 @@ const GameInterface = ({
                             justifyContent: "center",
                             borderRadius: "4px",
                             background: isCalled
-                              ? "linear-gradient(135deg, #43A047, #7CB342)"
-                              : backgroundColor === 'white'
-                                ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
-                                : "rgba(255,255,255,0.15)",
+                                ? "linear-gradient(135deg, #c62828, #ef5350)"  // ← RED when called
+                                : backgroundColor === 'white'
+                                  ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
+                                  : "rgba(255,255,255,0.15)",
+
                             color: isCalled ? "white" : getTextColor(),
                             fontWeight: "bold",
                             fontSize: "0.85rem",
                             transition: "all 0.15s ease-in-out",
                             border: isCalled
-                              ? "2px solid #2e7d32"
+                              ? "2px solid #b71c1c"  // ← RED border
                               : backgroundColor === 'white'
                                 ? "2px solid #cfcfcf"
                                 : "2px solid rgba(255,255,255,0.2)",
@@ -2131,63 +2132,66 @@ const GameInterface = ({
                       ))}
 
                       {/* Card Numbers */}
-                      {transposeCard(card).map((row, rowIdx) =>
-                        row.map((num, colIdx) => {
-                          const letter = "BINGO"[colIdx];
-                          const fullNumber = `${letter}-${num}`;
-                          const isUserMarked = userMarkedNumbers[fullNumber];
+                      {/* Card Numbers */}
+{transposeCard(card).map((row, rowIdx) =>
+  row.map((num, colIdx) => {
+    const letter = "BINGO"[colIdx];
+    const fullNumber = `${letter}-${num}`;
+    const isUserMarked = userMarkedNumbers[fullNumber];
 
-                          return (
-                            <Box
-                              key={`${rowIdx}-${colIdx}`}
-                              onClick={() => toggleUserMark(fullNumber)}
-                              sx={{
-                                p: 0.35,
-                                border: "1.3px solid rgba(255,255,255,0.2)",
-                                background:
-                                  rowIdx === 2 && colIdx === 2
-                                    ? "rgba(255,23,68,0.8)"
-                                    : isUserMarked
-                                    ? "linear-gradient(135deg, rgba(255,82,82,0.8), rgba(255,23,68,0.8))"
-                                    : backgroundColor === 'white'
-                                      ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
-                                      : "rgba(255,255,255,0.1)",
-                                color: isUserMarked ? "white" : getTextColor(),
-                                fontWeight: isUserMarked ? "bold" : "normal",
-                                fontSize: "1rem",
-                                minHeight: 26,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: "4px",
-                                cursor: "pointer",
-                                transition: "all 0.2s ease",
-                                boxShadow: isUserMarked
-                                  ? "0 2px 5px rgba(0,0,0,0.20)"
-                                  : "0 2px 5px rgba(0,0,0,0.10)",
-                                "&:hover": {
-                                  background: isUserMarked
-                                    ? "rgba(255,152,0,0.75)"
-                                    : "rgba(0,0,0,0.08)"
-                                }
-                              }}
-                            >
-                              {num === 0  ? (
-                              <Box sx={{ 
-                                color: '#4CAF50', 
-                                fontSize: '1.15rem',
-                                fontWeight: 'bold',
-                                textShadow: '0 0 12px rgba(76,175,80,0.5)',
-                                lineHeight: 1,
-                                animation: 'pulse 2s infinite'
-                              }}>
-                                ★
-                              </Box>
-                            ) : num}
-                            </Box>
-                          );
-                        })
-                      )}
+    return (
+      <Box
+        key={`${rowIdx}-${colIdx}`}
+        onClick={() => toggleUserMark(fullNumber)}
+        sx={{
+          p: 0.35,
+          border: isUserMarked || (rowIdx === 2 && colIdx === 2)
+            ? "2px solid #4CAF50"  // ← GREEN border
+            : "1.3px solid rgba(255,255,255,0.2)",
+          background:
+            rowIdx === 2 && colIdx === 2
+              ? "linear-gradient(135deg, rgba(76,175,80,0.25), rgba(76,175,80,0.4))"  // ← GREEN for free space
+              : isUserMarked
+              ? "linear-gradient(135deg, rgba(76,175,80,0.35), rgba(76,175,80,0.5))"  // ← GREEN for marked
+              : backgroundColor === 'white'
+                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
+                : "rgba(255,255,255,0.1)",
+          color: isUserMarked ? "white" : getTextColor(),
+          fontWeight: isUserMarked ? "bold" : "normal",
+          fontSize: "1rem",
+          minHeight: 26,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: "4px",
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+          boxShadow: isUserMarked
+            ? "0 2px 5px rgba(0,0,0,0.20)"
+            : "0 2px 5px rgba(0,0,0,0.10)",
+          "&:hover": {
+            background: isUserMarked
+              ? "rgba(76,175,80,0.6)"
+              : "rgba(0,0,0,0.08)"
+          }
+        }}
+      >
+        {num === 0 ? (
+          <Box sx={{ 
+            color: 'white',  // ← White star on green background
+            fontSize: '1.15rem',
+            fontWeight: 'bold',
+            textShadow: '0 0 12px rgba(255,255,255,0.3)',
+            lineHeight: 1,
+            animation: 'pulse 2s infinite'
+          }}>
+            ★
+          </Box>
+        ) : num}
+      </Box>
+    );
+  })
+)}
                     </Box>
 
                     {/* Bingo Button */}
