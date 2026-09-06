@@ -1539,7 +1539,7 @@ const GameInterface = ({
       )} */}
 
       {/* Game Stopped Indicator */}
-      {gameStopped && !gracePeriodActive && (
+      {/* {gameStopped && !gracePeriodActive && (
         <Box sx={{
           background: 'linear-gradient(45deg, #4CAF50, #45a049)',
           color: 'white',
@@ -1550,7 +1550,7 @@ const GameInterface = ({
         }}>
           ✅ {language === 'am' ? 'ጨዋታው አልቋል' : 'Game ended'}
         </Box>
-      )}
+      )} */}
 
       {/* Auto-play Indicator */}
       {/* {autoPlayOn && gameStarted && !gameStopped && (
