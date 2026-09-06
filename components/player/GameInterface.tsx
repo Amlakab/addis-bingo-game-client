@@ -1509,8 +1509,8 @@ const GameInterface = ({
 
   return (
   <Box sx={{ 
-    p: 0.5,           // ← DECREASED from 1
-    pt: 0.25,          // ← ADD THIS - reduces top padding specifically
+    p: 0,           // ← DECREASED from 1
+    pt: 0,          // ← ADD THIS - reduces top padding specifically
     textAlign: 'center',
     background: backgroundColor === 'white' 
       ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
