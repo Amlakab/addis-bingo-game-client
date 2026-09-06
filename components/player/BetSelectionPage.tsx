@@ -60,7 +60,7 @@ interface Game {
 const BetSelectionPage = ({ 
   onPlay,
   language = 'am',
-  backgroundColor = 'white',
+  backgroundColor = 'black',
   setBackgroundColor
 }: BetSelectionPageProps) => {
   const [betOptions, setBetOptions] = useState<number[]>([]);
