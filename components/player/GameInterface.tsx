@@ -2093,7 +2093,7 @@ const GameInterface = ({
                       sx={{
                         display: "grid",
                         gridTemplateColumns: "repeat(5, 1fr)",
-                        gap: 0.3,
+                        gap: 0.15,
                         mb: 0.6
                       }}
                     >
