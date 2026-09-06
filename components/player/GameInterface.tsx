@@ -1711,7 +1711,7 @@ const GameInterface = ({
       }}>
         {/* Left Side - Number Grid */}
         <Box sx={{ 
-          flex: 1,
+          flex: '0 0 40%',
           display: 'flex',
           flexDirection: 'column',
           p: 0.5,
@@ -1886,7 +1886,7 @@ const GameInterface = ({
 
         {/* Right Side - Controls and Cards */}
         <Box sx={{ 
-          flex: 1,
+          flex: '0 0 60%',
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
