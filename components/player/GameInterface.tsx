@@ -2093,7 +2093,7 @@ const GameInterface = ({
                       sx={{
                         display: "grid",
                         gridTemplateColumns: "repeat(5, 1fr)",
-                        gap: 0.15,
+                        gap: 0.3,
                         mb: 0.6
                       }}
                     >
@@ -2130,8 +2130,8 @@ const GameInterface = ({
                               key={`${rowIdx}-${colIdx}`}
                               onClick={() => toggleUserMark(fullNumber)}
                               sx={{
-                                p: 0.35,
-                                border: "1.2px solid rgba(255,255,255,0.2)",
+                                p: 0.6,
+                                border: "2.5px solid rgba(255,255,255,0.3)",
                                 background:
                                   rowIdx === 2 && colIdx === 2
                                     ? "rgba(255,235,59,0.35)"
@@ -2142,8 +2142,8 @@ const GameInterface = ({
                                       : "rgba(255,255,255,0.1)",
                                 color: isUserMarked ? "white" : getTextColor(),
                                 fontWeight: isUserMarked ? "bold" : "normal",
-                                fontSize: "0.85rem",
-                                minHeight: 26,
+                                fontSize: "1rem",
+                                minHeight: 36,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
