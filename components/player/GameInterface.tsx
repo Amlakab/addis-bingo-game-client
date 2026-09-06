@@ -2147,16 +2147,19 @@ const GameInterface = ({
         sx={{
           p: 0.35,
           border: isUserMarked || (rowIdx === 2 && colIdx === 2)
-            ? "2px solid #2E7D32"  // ← Green border
-            : "1.3px solid rgba(255,255,255,0.2)",
+            ? "2px solid #2E7D32"  // Green border for marked/free
+            : backgroundColor === 'white'
+              ? "2px solid #cfcfcf"  // ← Same gray border as left grid
+              : "2px solid rgba(255,255,255,0.2)",  // ← Same as left grid
+          borderRadius: "4px",  // ← Same as left grid
           background:
             rowIdx === 2 && colIdx === 2
-              ? "#4CAF50"  // ← SOLID GREEN for free space
+              ? "#4CAF50"
               : isUserMarked
-              ? "#4CAF50"  // ← SOLID GREEN for marked
+              ? "#4CAF50"
               : backgroundColor === 'white'
-                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"  // ← White for unmarked
-                : "rgba(255,255,255,0.1)",  // ← Semi-transparent for dark backgrounds
+                ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
+                : "rgba(255,255,255,0.1)",
           color: isUserMarked ? "white" : getTextColor(),
           fontWeight: isUserMarked ? "bold" : "normal",
           fontSize: "1rem",
@@ -2164,22 +2167,21 @@ const GameInterface = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: "4px",
           cursor: "pointer",
           transition: "all 0.2s ease",
           boxShadow: isUserMarked
             ? "0 2px 5px rgba(0,0,0,0.20)"
-            : "0 2px 5px rgba(0,0,0,0.10)",
+            : "0 1px 3px rgba(0,0,0,0.10)",  // ← Same as left grid
           "&:hover": {
             background: isUserMarked
-              ? "#388E3C"  // ← Darker green on hover
+              ? "#388E3C"
               : "rgba(0,0,0,0.08)"
           }
         }}
       >
         {num === 0 ? (
           <Box sx={{ 
-            color: 'white',  // ← White star on green
+            color: 'white',
             fontSize: '1.15rem',
             fontWeight: 'bold',
             textShadow: '0 0 12px rgba(255,255,255,0.3)',
