@@ -1837,9 +1837,6 @@ const GameInterface = ({
               minHeight: '3vh',
               color: getTextColor()
             }}>
-              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
-                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
-              </Typography>
               <Box sx={{ 
                 display: 'flex', 
                 justifyContent: 'center', 
@@ -1867,6 +1864,9 @@ const GameInterface = ({
                   </Box>
                 ))}
               </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.9rem', mb: 1 }}>
+                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
+              </Typography>
             </Box>
           )}
         </Box>
@@ -2131,7 +2131,7 @@ const GameInterface = ({
                               onClick={() => toggleUserMark(fullNumber)}
                               sx={{
                                 p: 0.35,
-                                border: "2.5px solid rgba(255,255,255,0.3)",
+                                border: "1.3px solid rgba(255,255,255,0.2)",
                                 background:
                                   rowIdx === 2 && colIdx === 2
                                     ? "rgba(255,235,59,0.35)"
