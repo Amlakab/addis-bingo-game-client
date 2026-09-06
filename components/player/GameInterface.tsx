@@ -89,7 +89,7 @@ const GameInterface = ({
   
   const [isCalling, setIsCalling] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
-  const [autoPlayOn, setAutoPlayOn] = useState(true); // NEW: Auto-play state - DEFAULT ON
+  const [autoPlayOn, setAutoPlayOn] = useState(true); // AUTO-PLAY DEFAULT ON
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
@@ -137,7 +137,7 @@ const GameInterface = ({
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null); // NEW: Auto-play timer ref
+  const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // NEW: Color helper functions (matching offline code)
   const getTextColor = () => {
@@ -409,7 +409,11 @@ const GameInterface = ({
     }
   }, [bet]);
 
-  // NEW: Auto-play logic
+  // ============================================================
+  // AUTO-PLAY FUNCTIONS
+  // ============================================================
+
+  // Auto-mark numbers and check for wins
   const checkAndAutoMarkNumbers = useCallback(() => {
     if (!autoPlayOn || !gameStarted || gameStopped) return;
 
@@ -446,43 +450,29 @@ const GameInterface = ({
         }
       }
       
-      // After marking, check for win
+      // After marking, check for win immediately
       if (anyNewMark) {
-        // Small delay to allow state to update
-        setTimeout(() => {
-          checkForAutoWin(player);
-        }, 200);
+        const result = checkForWinner(player.id);
+        
+        if (result.isWinner) {
+          console.log(`🤖 Auto-play: Card ${player.id} has BINGO! Auto-submitting...`);
+          // Call handleBingo directly - this submits the win
+          handleBingo(player.id);
+        }
       }
     });
   }, [autoPlayOn, gameStarted, gameStopped, blockedPlayers, submittedBingoCards, serverCalledNumbers]);
 
-  // NEW: Auto-check for win
-  const checkForAutoWin = useCallback((player: PlayerSelection) => {
-    if (!autoPlayOn || !gameStarted || gameStopped) return;
-    if (blockedPlayers.includes(player.id)) return;
-    if (submittedBingoCards.includes(player.id)) return;
-
-    const result = checkForWinner(player.id);
-    
-    if (result.isWinner) {
-      console.log(`🤖 Auto-play: Card ${player.id} has BINGO! Auto-submitting...`);
-      
-      // Auto-submit BINGO
-      handleBingo(player.id);
-    }
-  }, [autoPlayOn, gameStarted, gameStopped, blockedPlayers, submittedBingoCards]);
-
-  // NEW: Effect to trigger auto-mark when new numbers are called
+  // Auto-mark effect - triggers when new numbers are called
   useEffect(() => {
     if (autoPlayOn && gameStarted && !gameStopped && serverCalledNumbers.length > 0) {
-      // Debounce the auto-mark to avoid excessive updates
       if (autoPlayTimerRef.current) {
         clearTimeout(autoPlayTimerRef.current);
       }
       
       autoPlayTimerRef.current = setTimeout(() => {
         checkAndAutoMarkNumbers();
-      }, 300); // 300ms delay after number is called
+      }, 200);
     }
     
     return () => {
@@ -491,6 +481,10 @@ const GameInterface = ({
       }
     };
   }, [autoPlayOn, gameStarted, gameStopped, serverCalledNumbers, serverCurrentNumber, checkAndAutoMarkNumbers]);
+
+  // ============================================================
+  // END OF AUTO-PLAY FUNCTIONS
+  // ============================================================
 
   // Setup WebSocket listeners for game control events
   useEffect(() => {
@@ -1837,14 +1831,16 @@ const GameInterface = ({
           gap: 1,
           minHeight: '25vh',
         }}>
-          {/* Controls */}
+          {/* Controls - ALL IN ONE ROW with proper sizing */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: 1,
-            flexWrap: 'wrap',
-            justifyContent: 'center'
+            gap: 0.5,
+            flexWrap: 'nowrap',
+            justifyContent: 'center',
+            width: '100%'
           }}>
+            {/* Sound Toggle */}
             <FormControlLabel
               control={
                 <Switch
@@ -1852,16 +1848,26 @@ const GameInterface = ({
                   onChange={() => setSoundOn(!soundOn)}
                   color="primary"
                   size="small"
+                  sx={{ 
+                    '& .MuiSwitch-track': { width: 28 },
+                    '& .MuiSwitch-thumb': { width: 14, height: 14 },
+                    '& .MuiSwitch-switchBase': { padding: '4px' }
+                  }}
                 />
               }
               label={
-                <Typography variant="body2" sx={{ fontSize: '0.85rem', color: getTextColor() }}>
-                  {soundOn ? (language === 'am' ? '🔊 ድምፅ' : '🔊 Sound') : (language === 'am' ? '🔇 ድምፅ' : '🔇 Sound Off')}
+                <Typography variant="body2" sx={{ 
+                  fontSize: '0.7rem', 
+                  color: getTextColor(),
+                  whiteSpace: 'nowrap'
+                }}>
+                  {soundOn ? '🔊' : '🔇'}
                 </Typography>
               }
+              sx={{ margin: 0, mr: 0.5 }}
             />
             
-            {/* NEW: Auto-play toggle - DEFAULT ON */}
+            {/* Auto-play Toggle - DEFAULT ON */}
             <FormControlLabel
               control={
                 <Switch
@@ -1869,39 +1875,69 @@ const GameInterface = ({
                   onChange={() => setAutoPlayOn(!autoPlayOn)}
                   color="success"
                   size="small"
+                  sx={{ 
+                    '& .MuiSwitch-track': { width: 28 },
+                    '& .MuiSwitch-thumb': { width: 14, height: 14 },
+                    '& .MuiSwitch-switchBase': { padding: '4px' }
+                  }}
                 />
               }
               label={
                 <Typography variant="body2" sx={{ 
-                  fontSize: '0.85rem', 
+                  fontSize: '0.7rem', 
                   color: autoPlayOn ? '#4CAF50' : getTextColor(),
-                  fontWeight: autoPlayOn ? 'bold' : 'normal'
+                  fontWeight: autoPlayOn ? 'bold' : 'normal',
+                  whiteSpace: 'nowrap'
                 }}>
-                  {autoPlayOn ? (language === 'am' ? '🤖 አውቶ' : '🤖 Auto') : (language === 'am' ? '🤖 አውቶ' : '🤖 Auto Off')}
+                  {autoPlayOn ? '🤖' : '🤖'}
                 </Typography>
               }
+              sx={{ margin: 0, mr: 0.5 }}
             />
             
+            {/* Language Select */}
             <Select
               value={language}
               onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
               size="small"
               sx={{ 
-                minWidth: 40, 
-                fontSize: '0.7rem',
+                minWidth: 35,
+                width: 35,
+                height: 28,
+                fontSize: '0.6rem',
                 backgroundColor: getSelectBackground(),
                 color: getSelectTextColor(),
                 '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: getSelectTextColor()
+                  borderColor: getSelectTextColor(),
+                  borderWidth: '1px'
+                },
+                '& .MuiSelect-select': {
+                  padding: '2px 6px',
+                  paddingRight: '18px !important'
                 },
                 '& .MuiSvgIcon-root': {
-                  color: getSelectTextColor()
+                  color: getSelectTextColor(),
+                  fontSize: '1rem',
+                  right: 2
                 }
               }}
             >
-              <MenuItem value="en">EN</MenuItem>
-              <MenuItem value="am">AM</MenuItem>
+              <MenuItem value="en" sx={{ fontSize: '0.6rem', minHeight: 24 }}>EN</MenuItem>
+              <MenuItem value="am" sx={{ fontSize: '0.6rem', minHeight: 24 }}>AM</MenuItem>
             </Select>
+
+            {/* Auto Status Text - small indicator */}
+            {autoPlayOn && gameStarted && !gameStopped && (
+              <Typography variant="caption" sx={{ 
+                fontSize: '0.5rem', 
+                color: '#4CAF50',
+                whiteSpace: 'nowrap',
+                fontWeight: 'bold',
+                ml: 0.5
+              }}>
+                ⚡
+              </Typography>
+            )}
           </Box>
 
           {/* User Cards */}
