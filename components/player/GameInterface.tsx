@@ -2160,7 +2160,18 @@ const GameInterface = ({
                                 }
                               }}
                             >
-                              {num === 0 ? "*" : num}
+                              {num === 0  ? (
+                              <Box sx={{ 
+                                color: '#4CAF50', 
+                                fontSize: '1.5rem',
+                                fontWeight: 'bold',
+                                textShadow: '0 0 12px rgba(76,175,80,0.5)',
+                                lineHeight: 1,
+                                animation: 'pulse 2s infinite'
+                              }}>
+                                ★
+                              </Box>
+                            ) : num}
                             </Box>
                           );
                         })
