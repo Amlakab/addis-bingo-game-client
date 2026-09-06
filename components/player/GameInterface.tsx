@@ -132,7 +132,7 @@ const GameInterface = ({
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
   // Auto-close countdown state
-  const [autoCloseCountdown, setAutoCloseCountdown] = useState(7);
+  const [autoCloseCountdown, setAutoCloseCountdown] = useState(8);
   
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -2178,7 +2178,7 @@ const GameInterface = ({
                       fullWidth
                       size="small"
                       sx={{
-                        fontSize: "0.8rem",
+                        fontSize: "0.9rem",
                         borderRadius: "6px",
                         opacity:
                           isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
