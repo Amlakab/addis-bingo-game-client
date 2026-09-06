@@ -131,6 +131,9 @@ const GameInterface = ({
   const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
   
+  // Auto-close countdown state
+  const [autoCloseCountdown, setAutoCloseCountdown] = useState(7);
+  
   // Refs
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const numberCalledRef = useRef<string>('');
@@ -138,6 +141,7 @@ const GameInterface = ({
   const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // NEW: Color helper functions (matching offline code)
   const getTextColor = () => {
@@ -484,6 +488,48 @@ const GameInterface = ({
 
   // ============================================================
   // END OF AUTO-PLAY FUNCTIONS
+  // ============================================================
+
+  // ============================================================
+  // AUTO-CLOSE COUNTDOWN FUNCTION
+  // ============================================================
+
+  useEffect(() => {
+    if (showWinnerModal || showGameOverModal) {
+      setAutoCloseCountdown(7);
+      
+      if (autoCloseTimerRef.current) {
+        clearInterval(autoCloseTimerRef.current);
+      }
+      
+      autoCloseTimerRef.current = setInterval(() => {
+        setAutoCloseCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(autoCloseTimerRef.current!);
+            // Auto-close the modal
+            if (showWinnerModal) {
+              setShowWinnerModal(false);
+              onGameEnd();
+            } else if (showGameOverModal) {
+              setShowGameOverModal(false);
+              onGameEnd();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        if (autoCloseTimerRef.current) {
+          clearInterval(autoCloseTimerRef.current);
+        }
+      };
+    }
+  }, [showWinnerModal, showGameOverModal, onGameEnd]);
+
+  // ============================================================
+  // END OF AUTO-CLOSE COUNTDOWN
   // ============================================================
 
   // Setup WebSocket listeners for game control events
@@ -1462,7 +1508,7 @@ const GameInterface = ({
     }}>
       
       {/* Grace Period Indicator */}
-      {/* {gracePeriodActive && (
+      {gracePeriodActive && (
         <Box sx={{
           background: 'linear-gradient(45deg, #FFD700, #FFA500)',
           color: 'black',
@@ -1476,7 +1522,7 @@ const GameInterface = ({
             ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ...` 
             : `Grace period: ${gracePeriodCountdown}s...`}
         </Box>
-      )} */}
+      )}
 
       {/* Game Stopped Indicator */}
       {gameStopped && !gracePeriodActive && (
@@ -1493,7 +1539,7 @@ const GameInterface = ({
       )}
 
       {/* Auto-play Indicator */}
-      {/* {autoPlayOn && gameStarted && !gameStopped && (
+      {autoPlayOn && gameStarted && !gameStopped && (
         <Box sx={{
           background: 'linear-gradient(45deg, #4CAF50, #45a049)',
           color: 'white',
@@ -1506,7 +1552,7 @@ const GameInterface = ({
         }}>
           🤖 {language === 'am' ? 'አውቶማቲክ ሁነታ እየሰራ ነው...' : 'Auto-play mode active...'}
         </Box>
-      )} */}
+      )}
 
       {/* Announced Winners Summary */}
       {announcedWinners.length > 0 && (
@@ -2166,8 +2212,11 @@ const GameInterface = ({
         </Alert>
       </Snackbar>
 
-      {/* Winner Modal */}
+      {/* Winner Modal with auto-close countdown */}
       <Modal open={showWinnerModal} onClose={() => {
+        if (autoCloseTimerRef.current) {
+          clearInterval(autoCloseTimerRef.current);
+        }
         setShowWinnerModal(false);
         onGameEnd();
       }}>
@@ -2198,6 +2247,9 @@ const GameInterface = ({
             <IconButton
               aria-label="close"
               onClick={() => {
+                if (autoCloseTimerRef.current) {
+                  clearInterval(autoCloseTimerRef.current);
+                }
                 setShowWinnerModal(false);
                 onGameEnd();
               }}
@@ -2225,6 +2277,36 @@ const GameInterface = ({
                 {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
               </Typography>
             </motion.div>
+
+            {/* Auto-close countdown timer */}
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 1,
+              mb: 2
+            }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
+              </Typography>
+              <Box sx={{
+                backgroundColor: 'rgba(255,215,0,0.2)',
+                borderRadius: '50%',
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid gold'
+              }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                  {autoCloseCountdown}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                s
+              </Typography>
+            </Box>
 
             {/* Prize Information */}
             {gameEndData && (
@@ -2345,6 +2427,9 @@ const GameInterface = ({
                 variant="contained" 
                 color="primary"
                 onClick={() => {
+                  if (autoCloseTimerRef.current) {
+                    clearInterval(autoCloseTimerRef.current);
+                  }
                   setShowWinnerModal(false);
                   onGameEnd();
                 }}
@@ -2494,7 +2579,6 @@ const GameInterface = ({
             color="primary"
             onClick={() => {
               setShowLoserModal(false);
-              // onGameEnd();
             }}
             sx={{ 
               mt: 1,
@@ -2506,8 +2590,11 @@ const GameInterface = ({
         </Box>
       </Modal>
 
-      {/* Game Over Modal */}
+      {/* Game Over Modal with auto-close countdown */}
       <Modal open={showGameOverModal} onClose={() => {
+        if (autoCloseTimerRef.current) {
+          clearInterval(autoCloseTimerRef.current);
+        }
         setShowGameOverModal(false);
         onGameEnd();
       }}>
@@ -2532,6 +2619,9 @@ const GameInterface = ({
             <IconButton
               aria-label="close"
               onClick={() => {
+                if (autoCloseTimerRef.current) {
+                  clearInterval(autoCloseTimerRef.current);
+                }
                 setShowGameOverModal(false);
                 onGameEnd();
               }}
@@ -2559,6 +2649,36 @@ const GameInterface = ({
                 {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
               </Typography>
             </motion.div>
+
+            {/* Auto-close countdown timer */}
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 1,
+              mb: 2
+            }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
+              </Typography>
+              <Box sx={{
+                backgroundColor: 'rgba(255,215,0,0.2)',
+                borderRadius: '50%',
+                width: 36,
+                height: 36,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid gold'
+              }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                  {autoCloseCountdown}
+                </Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                s
+              </Typography>
+            </Box>
             
             {/* Prize Information */}
             {gameEndData && (
@@ -2740,6 +2860,9 @@ const GameInterface = ({
                 variant="contained" 
                 color="primary"
                 onClick={() => {
+                  if (autoCloseTimerRef.current) {
+                    clearInterval(autoCloseTimerRef.current);
+                  }
                   setShowGameOverModal(false);
                   onGameEnd();
                 }}
