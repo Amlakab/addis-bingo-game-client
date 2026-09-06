@@ -857,7 +857,7 @@ const GameInterface = ({
   // Update recent numbers when calledNumbers changes
   useEffect(() => {
     if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-3);
+      const recent = calledNumbers.slice(-2);
       setRecentNumbers(recent);
     }
   }, [calledNumbers]);
@@ -1315,7 +1315,7 @@ const GameInterface = ({
 
   const userCards = getUserCards();
 
-  // FIXED: Winner Card Component - shows pattern completed by last called number
+  // FIXED: Winner Card Component - shows pattern completed by last called number with LARGER SIZE
   const WinnerCard = ({ winner, isCurrentUser, language }: { 
     winner: Winner; 
     isCurrentUser: boolean;
@@ -1342,7 +1342,8 @@ const GameInterface = ({
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6" sx={{ 
               color: isCurrentUser ? 'gold' : 'white',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              fontSize: '1.1rem'
             }}>
               {language === 'am' ? 'ካርድ' : 'Card'} #{winner.id}
               {isCurrentUser && ` (${language === 'am' ? 'የእርስዎ' : 'Yours'})`}
@@ -1355,7 +1356,7 @@ const GameInterface = ({
                 px: 2,
                 py: 1
               }}>
-                <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>
                   {winner.prize.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
                 </Typography>
               </Box>
@@ -1365,32 +1366,33 @@ const GameInterface = ({
           <Typography variant="body2" sx={{ 
             color: '#a1c4fd',
             mb: 2,
-            fontStyle: 'italic'
+            fontStyle: 'italic',
+            fontSize: '0.9rem'
           }}>
             {language === 'am' 
               ? `በ${getPatternName(winner.pattern)} ቅደም ተከተል አሸንፈዋል!`
               : `Won with ${winner.pattern} pattern!`}
           </Typography>
           
-          {/* Winner Card Grid */}
+          {/* Winner Card Grid - LARGER SIZE */}
           <Box sx={{ 
             display: 'grid',
             gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: 0.3,
+            gap: 0.5,
             mb: 1,
-            p: 1,
+            p: 1.5,
             background: 'rgba(255,255,255,0.9)',
             borderRadius: 1,
             position: 'relative'
           }}>
-            {/* BINGO Header */}
+            {/* BINGO Header - LARGER */}
             {["B", "I", "N", "G", "O"].map((letter, idx) => (
               <Box key={letter} sx={{
-                p: 0.3,
+                p: 0.5,
                 backgroundColor: 'primary.main',
                 color: 'white',
                 fontWeight: 'bold',
-                fontSize: '0.7rem',
+                fontSize: '0.85rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1400,7 +1402,7 @@ const GameInterface = ({
               </Box>
             ))}
             
-            {/* Card numbers - ONLY border the pattern completed by last called number */}
+            {/* Card numbers - LARGER SIZE */}
             {transposeCard(card).map((row, rowIdx) => (
               row.map((num, colIdx) => {
                 const letter = "BINGO"[colIdx];
@@ -1424,7 +1426,7 @@ const GameInterface = ({
                   >
                     <Box
                       sx={{
-                        p: 0.3,
+                        p: 0.5,
                         border: isWinningCell 
                           ? '3px solid #ff5722' 
                           : '1px solid rgba(0,0,0,0.1)',
@@ -1437,10 +1439,10 @@ const GameInterface = ({
                             : 'rgba(255,255,255,0.7)',
                         color: isWinningCell ? '#ff5722' : 'text.primary',
                         fontWeight: isWinningCell ? 'bold' : 'normal',
-                        fontSize: '0.7rem',
+                        fontSize: '0.9rem',
                         width: '100%',
                         height: '100%',
-                        minHeight: 22,
+                        minHeight: 32,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1457,8 +1459,8 @@ const GameInterface = ({
                             position: 'absolute',
                             top: -3,
                             right: -3,
-                            width: 8,
-                            height: 8,
+                            width: 10,
+                            height: 10,
                             borderRadius: '50%',
                             backgroundColor: '#ff5722',
                             boxShadow: '0 0 4px rgba(255,87,34,0.8)',
@@ -1508,7 +1510,7 @@ const GameInterface = ({
     }}>
       
       {/* Grace Period Indicator */}
-      {gracePeriodActive && (
+      {/* {gracePeriodActive && (
         <Box sx={{
           background: 'linear-gradient(45deg, #FFD700, #FFA500)',
           color: 'black',
@@ -1522,7 +1524,7 @@ const GameInterface = ({
             ? `የወሰን ጊዜ: ${gracePeriodCountdown} ሰከንድ...` 
             : `Grace period: ${gracePeriodCountdown}s...`}
         </Box>
-      )}
+      )} */}
 
       {/* Game Stopped Indicator */}
       {gameStopped && !gracePeriodActive && (
@@ -1539,7 +1541,7 @@ const GameInterface = ({
       )}
 
       {/* Auto-play Indicator */}
-      {autoPlayOn && gameStarted && !gameStopped && (
+      {/* {autoPlayOn && gameStarted && !gameStopped && (
         <Box sx={{
           background: 'linear-gradient(45deg, #4CAF50, #45a049)',
           color: 'white',
@@ -1552,7 +1554,7 @@ const GameInterface = ({
         }}>
           🤖 {language === 'am' ? 'አውቶማቲክ ሁነታ እየሰራ ነው...' : 'Auto-play mode active...'}
         </Box>
-      )}
+      )} */}
 
       {/* Announced Winners Summary */}
       {announcedWinners.length > 0 && (
@@ -2212,7 +2214,7 @@ const GameInterface = ({
         </Alert>
       </Snackbar>
 
-      {/* Winner Modal with auto-close countdown */}
+      {/* Winner Modal with auto-close countdown and LARGER CARDS */}
       <Modal open={showWinnerModal} onClose={() => {
         if (autoCloseTimerRef.current) {
           clearInterval(autoCloseTimerRef.current);
@@ -2232,8 +2234,8 @@ const GameInterface = ({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: 500,
+            width: '95%',
+            maxWidth: 550,
             bgcolor: 'background.paper',
             boxShadow: 24,
             p: 3,
@@ -2270,9 +2272,10 @@ const GameInterface = ({
             >
               <Typography variant="h4" gutterBottom sx={{ 
                 color: 'gold',
-                mb: 3,
+                mb: 2,
                 fontWeight: 'bold',
-                textShadow: '0 0 5px rgba(255,215,0,0.7)'
+                textShadow: '0 0 5px rgba(255,215,0,0.7)',
+                fontSize: '1.8rem'
               }}>
                 {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
               </Typography>
@@ -2286,24 +2289,24 @@ const GameInterface = ({
               gap: 1,
               mb: 2
             }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
                 {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
               </Typography>
               <Box sx={{
                 backgroundColor: 'rgba(255,215,0,0.2)',
                 borderRadius: '50%',
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: '2px solid gold'
               }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1.2rem' }}>
                   {autoCloseCountdown}
                 </Typography>
               </Box>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
                 s
               </Typography>
             </Box>
@@ -2317,34 +2320,34 @@ const GameInterface = ({
                 mb: 3,
                 border: '2px solid gold'
               }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1 }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1, fontSize: '1.1rem' }}>
                   {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
                 </Typography>
                 
                 <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
                   <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
                       {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
                     </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
                       {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
                     </Typography>
                   </Box>
                   
                   <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
                       {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
                     </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
                       {gameEndData.totalWinners}
                     </Typography>
                   </Box>
                   
                   <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
                       {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
                     </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
                       {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
                     </Typography>
                   </Box>
@@ -2352,12 +2355,13 @@ const GameInterface = ({
               </Box>
             )}
 
-            {/* Winners List */}
+            {/* Winners List - LARGER CARDS */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" sx={{ 
                 color: 'white',
                 mb: 2,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                fontSize: '1.2rem'
               }}>
                 {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
               </Typography>
@@ -2370,7 +2374,8 @@ const GameInterface = ({
                       <Typography variant="h6" sx={{ 
                         color: 'gold',
                         mb: 2,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        fontSize: '1.1rem'
                       }}>
                         {language === 'am' ? 'የእርስዎ አሸናፊ ካርዶች' : 'Your Winning Cards'}
                       </Typography>
@@ -2396,7 +2401,8 @@ const GameInterface = ({
                       <Typography variant="h6" sx={{ 
                         color: '#a1c4fd',
                         mb: 2,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        fontSize: '1.1rem'
                       }}>
                         {language === 'am' ? 'ሌሎች አሸናፊዎች' : 'Other Winners'}
                       </Typography>
@@ -2590,7 +2596,7 @@ const GameInterface = ({
         </Box>
       </Modal>
 
-      {/* Game Over Modal with auto-close countdown */}
+      {/* Game Over Modal with auto-close countdown and LARGER CARDS */}
       <Modal open={showGameOverModal} onClose={() => {
         if (autoCloseTimerRef.current) {
           clearInterval(autoCloseTimerRef.current);
@@ -2604,11 +2610,11 @@ const GameInterface = ({
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: '90%',
-            maxWidth: 400,
+            width: '95%',
+            maxWidth: 450,
             bgcolor: 'background.paper',
             boxShadow: 24,
-            p: 2,
+            p: 2.5,
             borderRadius: 3,
             textAlign: 'center',
             border: '3px solid gold',
@@ -2644,7 +2650,8 @@ const GameInterface = ({
                 color: 'gold',
                 mb: 2,
                 fontWeight: 'bold',
-                textShadow: '0 0 5px rgba(255,215,0,0.7)'
+                textShadow: '0 0 5px rgba(255,215,0,0.7)',
+                fontSize: '1.5rem'
               }}>
                 {language === 'am' ? 'ጨዋታው አልቋል! 🎉' : '🎉 GAME OVER! 🎉'}
               </Typography>
@@ -2658,24 +2665,24 @@ const GameInterface = ({
               gap: 1,
               mb: 2
             }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
                 {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
               </Typography>
               <Box sx={{
                 backgroundColor: 'rgba(255,215,0,0.2)',
                 borderRadius: '50%',
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: '2px solid gold'
               }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1.2rem' }}>
                   {autoCloseCountdown}
                 </Typography>
               </Box>
-              <Typography variant="body2" sx={{ color: '#a1c4fd' }}>
+              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
                 s
               </Typography>
             </Box>
@@ -2689,14 +2696,14 @@ const GameInterface = ({
                 mb: 2,
                 border: '1px solid gold'
               }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold' }}>
+                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1rem' }}>
                   {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
                 </Typography>
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
                   {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
                 </Typography>
                 {gameEndData.totalWinners > 1 && (
-                  <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#a1c4fd', mt: 1, fontSize: '0.8rem' }}>
                     {language === 'am' 
                       ? `ከ${gameEndData.totalWinners} አሸናፊዎች ጋር ተካፍሏል`
                       : `Split among ${gameEndData.totalWinners} winners`}
@@ -2705,6 +2712,7 @@ const GameInterface = ({
               </Box>
             )}
             
+            {/* Winners List - LARGER CARDS */}
             {winners.length > 0 && (
               <Box sx={{ 
                 display: 'flex',
@@ -2714,7 +2722,8 @@ const GameInterface = ({
               }}>
                 <Typography variant="h6" sx={{ 
                   color: 'white',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  fontSize: '1.2rem'
                 }}>
                   {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
                 </Typography>
@@ -2733,13 +2742,14 @@ const GameInterface = ({
                       <Box sx={{ 
                         background: 'rgba(255,255,255,0.1)',
                         borderRadius: 2,
-                        p: 1.5,
+                        p: 2,
                         boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
                       }}>
                         <Typography variant="h6" sx={{ 
                           color: 'white',
-                          mb: 1,
-                          fontWeight: 'bold'
+                          mb: 1.5,
+                          fontWeight: 'bold',
+                          fontSize: '1.1rem'
                         }}>
                           {language === 'am' 
                             ? `ተጫዋች ${winner.id}`
@@ -2749,8 +2759,9 @@ const GameInterface = ({
                         {winner.prize && (
                           <Typography variant="body2" sx={{ 
                             color: '#a1c4fd',
-                            mb: 1,
-                            fontStyle: 'italic'
+                            mb: 1.5,
+                            fontStyle: 'italic',
+                            fontSize: '0.9rem'
                           }}>
                             {language === 'am' 
                               ? `የሸለመ: ${winner.prize.toFixed(0)} ብር`
@@ -2758,24 +2769,24 @@ const GameInterface = ({
                           </Typography>
                         )}
                         
-                        {/* Winner Card with proper pattern borders */}
+                        {/* Winner Card Grid - LARGER SIZE */}
                         <Box sx={{ 
                           display: 'grid',
                           gridTemplateColumns: 'repeat(5, 1fr)',
-                          gap: 0.3,
+                          gap: 0.5,
                           mb: 1,
-                          p: 1,
+                          p: 1.5,
                           background: 'rgba(255,255,255,0.9)',
                           borderRadius: 1
                         }}>
                           {/* BINGO Header */}
                           {["B", "I", "N", "G", "O"].map((letter, idx) => (
                             <Box key={letter} sx={{
-                              p: 0.3,
+                              p: 0.5,
                               backgroundColor: 'primary.main',
                               color: 'white',
                               fontWeight: 'bold',
-                              fontSize: '0.6rem',
+                              fontSize: '0.85rem',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -2785,7 +2796,7 @@ const GameInterface = ({
                             </Box>
                           ))}
                           
-                          {/* Card numbers with pattern borders */}
+                          {/* Card numbers with pattern borders - LARGER */}
                           {transposeCard(card).map((row, rowIdx) => (
                             row.map((num, colIdx) => {
                               const letter = "BINGO"[colIdx];
@@ -2798,7 +2809,7 @@ const GameInterface = ({
                                 <Box
                                   key={`${rowIdx}-${colIdx}`}
                                   sx={{
-                                    p: 0.3,
+                                    p: 0.5,
                                     border: isWinningCell 
                                       ? '3px solid #ff5722' 
                                       : '1px solid rgba(0,0,0,0.1)',
@@ -2811,10 +2822,10 @@ const GameInterface = ({
                                         : 'rgba(255,255,255,0.7)',
                                     color: isWinningCell ? '#ff5722' : 'text.primary',
                                     fontWeight: isWinningCell ? 'bold' : 'normal',
-                                    fontSize: '0.6rem',
+                                    fontSize: '0.9rem',
                                     width: '100%',
                                     height: '100%',
-                                    minHeight: 20,
+                                    minHeight: 32,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -2831,8 +2842,8 @@ const GameInterface = ({
                                         position: 'absolute',
                                         top: -2,
                                         right: -2,
-                                        width: 6,
-                                        height: 6,
+                                        width: 8,
+                                        height: 8,
                                         borderRadius: '50%',
                                         backgroundColor: '#ff5722',
                                         boxShadow: '0 0 3px rgba(255,87,34,0.8)',
