@@ -80,7 +80,7 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
-  const [pendingOperations, setPendingOperations] = useState<Set<number>>(new Set());
+  // REMOVED: pendingOperations - no longer needed
   const [isProcessing, setIsProcessing] = useState(false);
   
   const theme = useTheme();
@@ -228,6 +228,7 @@ const PlayerLobby = ({
     
     webSocketService.on('sessions-updated', handleSessionsUpdate);
     webSocketService.on('session-created', handleSessionCreated);
+    webSocketService.on('session-deleted', handleSessionDeleted);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     webSocketService.on('timer-states-update', handleTimerStatesUpdate);
     
@@ -237,6 +238,7 @@ const PlayerLobby = ({
     return () => {
       webSocketService.off('sessions-updated', handleSessionsUpdate);
       webSocketService.off('session-created', handleSessionCreated);
+      webSocketService.off('session-deleted', handleSessionDeleted);
       webSocketService.off('wallet-updated', handleWalletUpdate);
       webSocketService.off('timer-states-update', handleTimerStatesUpdate);
     };
@@ -341,6 +343,26 @@ const PlayerLobby = ({
     }
   };
 
+  // NEW: Handle session deletion from WebSocket
+  const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
+    if (data.betAmount === betAmount) {
+      // Remove from occupied cards
+      setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
+      
+      // Remove from occupiedCardsByUser
+      setOccupiedCardsByUser(prev => {
+        const newMap = { ...prev };
+        delete newMap[data.cardNumber];
+        return newMap;
+      });
+      
+      // Remove from selected players if it belongs to current user
+      if (user && data.userId === user._id) {
+        setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
+      }
+    }
+  };
+
   const handleWalletUpdate = (newWallet: number) => {
     setWallet(newWallet);
   };
@@ -382,7 +404,8 @@ const PlayerLobby = ({
   };
 
   const togglePlayer = async (id: number) => {
-    if (isProcessing || pendingOperations.has(id)) {
+    // Prevent rapid clicking
+    if (isProcessing) {
       return;
     }
 
@@ -403,16 +426,11 @@ const PlayerLobby = ({
       return;
     }
 
-    if (pendingOperations.has(id)) {
-      return;
-    }
-
-    setPendingOperations(prev => new Set(prev).add(id));
     setIsProcessing(true);
 
     try {
       if (isSelectedByUser) {
-        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
+        // Send delete request - UI will update when session-deleted event is received
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
@@ -421,6 +439,7 @@ const PlayerLobby = ({
         if (selectedPlayers.length >= 2) {
           setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
           setWalletError(true);
+          setIsProcessing(false);
           return;
         }
 
@@ -428,17 +447,18 @@ const PlayerLobby = ({
         if (wallet < totalCost) {
           setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
           setWalletError(true);
+          setIsProcessing(false);
           return;
         }
 
         if (occupiedCards.includes(id)) {
           setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
           setWalletError(true);
+          setIsProcessing(false);
           return;
         }
 
-        setSelectedPlayers(prev => [...prev, { id, userId: user._id }]);
-
+        // Send create request - UI will update when session-created event is received
         webSocketService.send('create-session', {
           userId: user._id,
           agentId: user.agent_id || '',
@@ -454,18 +474,11 @@ const PlayerLobby = ({
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
       setWalletError(true);
-      
-      if (!isSelectedByUser) {
-        setSelectedPlayers(prev => prev.filter(p => p.id !== id));
-      }
     } finally {
-      setPendingOperations(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(id);
-        return newSet;
-      });
-      setIsProcessing(false);
-      setIsLoading(false);
+      // Add small delay before allowing next click
+      setTimeout(() => {
+        setIsProcessing(false);
+      }, 300);
     }
   };
 
@@ -768,7 +781,7 @@ const PlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            const isPending = pendingOperations.has(id);
+            // Removed isPending - no more loading spinners
             const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
 
             return (
@@ -829,11 +842,7 @@ const PlayerLobby = ({
                     } : {},
                   }}
                 >
-                  {isPending ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    id
-                  )}
+                  {id}
                 </Box>
               </motion.div>
             );
@@ -847,10 +856,9 @@ const PlayerLobby = ({
           maxWidth: '100%',
           px: 0.5,
           pb: 0.5,
-          mt: 'auto', // This pushes it to the bottom
+          mt: 'auto',
         }}>
           {selectedPlayers.length === 0 ? (
-            // Show buttons when no cards selected
             <Box sx={{ 
               display: 'flex', 
               gap: 1,
@@ -880,7 +888,6 @@ const PlayerLobby = ({
               </Button>
             </Box>
           ) : (
-            // Show selected cards at the BOTTOM
             <Box sx={{ 
               display: 'flex', 
               gap: 1,
@@ -924,7 +931,6 @@ const PlayerLobby = ({
                       </IconButton>
                     </Box>
 
-                    {/* Mini BINGO Card Grid */}
                     <Box
                       sx={{
                         display: 'grid',
@@ -932,7 +938,6 @@ const PlayerLobby = ({
                         gap: 0.15,
                       }}
                     >
-                      {/* BINGO Header */}
                       {["B", "I", "N", "G", "O"].map((letter) => (
                         <Box
                           key={letter}
@@ -952,7 +957,6 @@ const PlayerLobby = ({
                         </Box>
                       ))}
 
-                      {/* Card Numbers */}
                       {transposedCard.map((row, rowIdx) =>
                         row.map((num, colIdx) => {
                           const isFreeSpace = (colIdx === 2 && rowIdx === 2);
