@@ -80,9 +80,6 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
-  // REMOVED: isProcessing - no longer needed for button state
-  // const [isProcessing, setIsProcessing] = useState(false);
-  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -760,7 +757,6 @@ const PlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            // No isProcessing - UI only reflects database state
             const isDisabled = isSelectedByOthers || remainingTime <= 0;
 
             return (
@@ -891,7 +887,11 @@ const PlayerLobby = ({
                     }}
                   >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: getTextColor() }}>
+                      <Typography sx={{ 
+                        fontWeight: 'bold', 
+                        fontSize: '0.85rem', // INCREASED from 0.7rem
+                        color: getTextColor() 
+                      }}>
                         {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                       </Typography>
                       <IconButton
@@ -924,7 +924,7 @@ const PlayerLobby = ({
                             background: 'linear-gradient(135deg, #1976d2, #2196f3)',
                             color: 'white',
                             fontWeight: 'bold',
-                            fontSize: '0.5rem',
+                            fontSize: '0.65rem', // INCREASED from 0.5rem
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -949,8 +949,8 @@ const PlayerLobby = ({
                                   ? 'rgba(76,175,80,0.3)'
                                   : 'rgba(255,255,255,0.05)',
                                 color: getTextColor(),
-                                fontWeight: 'normal',
-                                fontSize: '0.5rem',
+                                fontWeight: 'bold', // Changed from 'normal' to 'bold'
+                                fontSize: '0.65rem', // INCREASED from 0.5rem
                                 minHeight: 20,
                                 display: 'flex',
                                 alignItems: 'center',
