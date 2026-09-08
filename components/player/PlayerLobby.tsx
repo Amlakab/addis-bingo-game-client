@@ -761,7 +761,7 @@ const PlayerLobby = ({
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
-            maxHeight: selectedPlayers.length > 0 ? '420px' : '450px',
+            maxHeight: selectedPlayers.length > 0 ? '410px' : '410px',
           }}
         >
           {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
