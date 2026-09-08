@@ -3,13 +3,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Box, Typography, Card, CardContent, Button,
-  useTheme, useMediaQuery, Chip, Skeleton, Tooltip, IconButton,
-  CircularProgress, Snackbar, Alert
+  useTheme, useMediaQuery, Chip, Skeleton, Tooltip, IconButton
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { 
   SportsEsports, People, EmojiEvents, AccessTime,
-  AccountBalanceWallet, ColorLens, Schedule, ArrowBack
+  AccountBalanceWallet, ColorLens, Schedule
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 import HowToPlayModal from '@/components/player/HowToPlayModal';
@@ -19,14 +18,20 @@ interface FullGame {
   betAmount: number;
   gameType: 'full';
   activeDays: Array<{ day: string; startTime: string }>;
-  nextGameTime: Date | null;
-  timeRemaining: number;
-  isActive: boolean;
+}
+
+interface FullTimerState {
+  status: 'ready' | 'active' | 'in-progress';
+  timer: number;
+  playerCount: number;
+  prizePool: number;
+  gameId: string;
+  betAmount: number;
+  createdAt: Date | null;
 }
 
 interface FullSelectionPageProps {
   onPlay: (gameId: string, betAmount: number, players: number) => void;
-  onBack?: () => void;
   language?: 'en' | 'am';
   backgroundColor?: string;
   setBackgroundColor?: (color: string) => void;
@@ -47,23 +52,21 @@ interface UserData {
 
 const FullSelectionPage = ({ 
   onPlay,
-  onBack,
   language = 'am',
   backgroundColor = 'black',
   setBackgroundColor
 }: FullSelectionPageProps) => {
   const [fullGames, setFullGames] = useState<FullGame[]>([]);
+  const [fullTimers, setFullTimers] = useState<{[key: string]: FullTimerState}>({});
   const [userBalance, setUserBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [isLoadingGames, setIsLoadingGames] = useState<boolean>(true);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
-  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [showToast, setShowToast] = useState(false);
-  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
   // Color helper functions
   const getTextColor = () => {
@@ -151,116 +154,35 @@ const FullSelectionPage = ({
   }, []);
 
   useEffect(() => {
-    if (!isClient) return;
+    if (!isClient || !webSocketService) return;
     
     fetchFullGames();
     fetchUserBalance();
-    
-    // Refresh every 10 seconds to update timer
-    const interval = setInterval(() => {
-      fetchFullGames();
-    }, 10000);
-    
-    return () => {
-      clearInterval(interval);
+
+    const handleFullTimerUpdate = (timerStates: {[key: string]: FullTimerState}) => {
+      console.log('Received full timer states update:', timerStates);
+      setFullTimers(timerStates);
     };
-  }, [isClient]);
+
+    webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
+    webSocketService.send('get-available-full-games');
+
+    return () => {
+      webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
+    };
+  }, [isClient, webSocketService]);
 
   const fetchFullGames = async () => {
     try {
       setIsLoadingGames(true);
       const response = await api.get('/games?gameType=full');
-      const games = response.data.data;
-      
-      const processedGames = games.map((game: any) => {
-        const nextTime = getNextGameTime(game.activeDays);
-        return {
-          ...game,
-          nextGameTime: nextTime,
-          timeRemaining: nextTime ? calculateTimeRemaining(nextTime) : 0,
-          // A game is "active" if it has a scheduled time (just like partial game has timer)
-          // This means "Play" button should show
-          isActive: nextTime !== null && !isGamePassed(game)
-        };
-      });
-      
-      setFullGames(processedGames);
+      const games: FullGame[] = response.data.data;
+      setFullGames(games);
     } catch (error) {
       console.error('Error fetching full games:', error);
     } finally {
       setIsLoadingGames(false);
     }
-  };
-
-  // Calculate next game time based on active days
-  const getNextGameTime = (activeDays: any[]): Date | null => {
-    if (!activeDays || activeDays.length === 0) return null;
-
-    const now = new Date();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    
-    const sortedDays = [...activeDays].sort((a, b) => {
-      const dayA = dayNames.indexOf(a.day);
-      const dayB = dayNames.indexOf(b.day);
-      return dayA - dayB;
-    });
-
-    for (const activeDay of sortedDays) {
-      const targetDayIndex = dayNames.indexOf(activeDay.day);
-      const currentDayIndex = now.getDay();
-      
-      let daysUntil = targetDayIndex - currentDayIndex;
-      if (daysUntil < 0) daysUntil += 7;
-      if (daysUntil === 0) {
-        const [hours, minutes] = activeDay.startTime.split(':').map(Number);
-        const targetTime = new Date(now);
-        targetTime.setHours(hours, minutes, 0, 0);
-        
-        if (targetTime > now) {
-          return targetTime;
-        }
-        daysUntil = 7;
-      }
-      
-      const [hours, minutes] = activeDay.startTime.split(':').map(Number);
-      const targetDate = new Date(now);
-      targetDate.setDate(now.getDate() + daysUntil);
-      targetDate.setHours(hours, minutes, 0, 0);
-      
-      return targetDate;
-    }
-
-    return null;
-  };
-
-  const calculateTimeRemaining = (targetDate: Date): number => {
-    const now = new Date();
-    const diffMs = targetDate.getTime() - now.getTime();
-    return Math.max(0, Math.floor(diffMs / 1000));
-  };
-
-  // Check if game has passed (more than 5 minutes after scheduled time)
-  const isGamePassed = (game: any): boolean => {
-    const now = new Date();
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const currentDay = dayNames[now.getDay()];
-    
-    for (const activeDay of game.activeDays) {
-      if (activeDay.day === currentDay) {
-        const [hours, minutes] = activeDay.startTime.split(':').map(Number);
-        const gameTime = new Date(now);
-        gameTime.setHours(hours, minutes, 0, 0);
-        
-        const diffMs = now.getTime() - gameTime.getTime();
-        const diffMinutes = diffMs / (1000 * 60);
-        
-        // Game is passed if more than 5 minutes after scheduled time
-        if (diffMinutes > 5) {
-          return true;
-        }
-      }
-    }
-    return false;
   };
 
   const fetchUserBalance = async () => {
@@ -289,19 +211,47 @@ const FullSelectionPage = ({
     }
   };
 
-  const handlePlayClick = (game: FullGame) => {
-    // If game has a scheduled time (isActive is true), allow play
-    if (game.isActive) {
-      onPlay(game._id, game.betAmount, 0);
+  const handlePlayClick = (gameId: string, betAmount: number) => {
+    const status = fullTimers[gameId];
+    if (status && status.status === 'active') {
+      onPlay(gameId, betAmount, status.playerCount);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ready': return 'default';
+      case 'active': return 'success';
+      case 'in-progress': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getStatusText = (status: string, timer: number) => {
+    if (language === 'am') {
+      switch (status) {
+        case 'ready': return `ዝግጁ ${Math.ceil(timer)}ሰ`;
+        case 'active': return `ቀሪ ${formatTimeRemaining(timer)}`;
+        case 'in-progress': return 'በጨዋታ ውስጥ';
+        default: return status;
+      }
+    } else {
+      switch (status) {
+        case 'ready': return `Ready ${Math.ceil(timer)}s`;
+        case 'active': return `Active ${formatTimeRemaining(timer)}`;
+        case 'in-progress': return 'In Progress';
+        default: return status;
+      }
     }
   };
 
   const formatTimeRemaining = (seconds: number): string => {
-    if (seconds <= 0) return 'Now';
+    if (seconds <= 0) return '0s';
     
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
     
     if (days > 0) {
       return `${days}d ${hours}h`;
@@ -309,25 +259,27 @@ const FullSelectionPage = ({
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     }
-    return `${minutes}m`;
+    if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    }
+    return `${secs}s`;
   };
 
-  const formatDate = (date: Date | null): string => {
-    if (!date) return 'N/A';
-    return date.toLocaleString(language === 'am' ? 'am-ET' : 'en-US', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const getProgressPercentage = (status: string, timer: number, maxTime: number = 45) => {
+    if (status === 'ready') {
+      return Math.max(0, Math.min(100, ((5 - timer) / 5) * 100));
+    } else if (status === 'active') {
+      const progress = Math.min(100, (timer / maxTime) * 100);
+      return Math.max(0, Math.min(100, 100 - progress));
+    }
+    return 0;
   };
 
   const hasInsufficientBalance = (betAmount: number) => {
     return userBalance < betAmount;
   };
 
-  if (!isClient || isLoadingGames) {
+  if (!isClient) {
     return (
       <Box sx={{ 
         display: 'flex', 
@@ -339,8 +291,26 @@ const FullSelectionPage = ({
           : backgroundColor,
         color: getTextColor()
       }}>
-        <CircularProgress sx={{ color: getTextColor() }} />
-        <Typography variant="h6" sx={{ ml: 2, color: getTextColor() }}>
+        <Typography variant="h6" sx={{ color: getTextColor() }}>
+          {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isLoadingGames) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+          : backgroundColor,
+        color: getTextColor()
+      }}>
+        <Typography variant="h6" sx={{ color: getTextColor() }}>
           {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
         </Typography>
       </Box>
@@ -365,24 +335,6 @@ const FullSelectionPage = ({
         justifyContent: 'center',
         color: getTextColor()
       }}>
-        {/* Back Button */}
-        {onBack && (
-          <Box sx={{ width: '100%', mb: 2 }}>
-            <Button
-              variant={getButtonVariant()}
-              color={getButtonColor()}
-              onClick={onBack}
-              startIcon={<ArrowBack />}
-              sx={{
-                ...getButtonStyle(),
-                fontSize: '0.9rem'
-              }}
-            >
-              {language === 'am' ? 'ተመለስ' : 'Back'}
-            </Button>
-          </Box>
-        )}
-
         {/* User Balance Display */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -414,11 +366,10 @@ const FullSelectionPage = ({
         </motion.div>
 
         {/* Title */}
-        <Typography variant="h5" sx={{ 
+        <Typography variant="h6" sx={{ 
           fontWeight: 'bold', 
           mb: 2,
-          color: getTextColor(),
-          textAlign: 'center'
+          color: getTextColor()
         }}>
           {language === 'am' ? 'መደበኛ ጨዋታዎች' : 'Full Games'}
         </Typography>
@@ -440,11 +391,20 @@ const FullSelectionPage = ({
             </Box>
           ) : (
             fullGames.map((game, index) => {
+              const timer = fullTimers[game._id] || { 
+                status: 'ready', 
+                timer: 0, 
+                playerCount: 0, 
+                prizePool: 0,
+                gameId: game._id,
+                betAmount: game.betAmount,
+                createdAt: null
+              };
+              
+              const isDisabledByStatus = timer.status === 'in-progress' || timer.status === 'ready';
               const isDisabledByBalance = !isLoadingBalance && hasInsufficientBalance(game.betAmount);
-              // A game is "playable" if it has a scheduled time and hasn't passed
-              // This is like partial games showing "Play" when timer is running
-              const canPlay = game.isActive && !isDisabledByBalance;
-              const isPassed = !game.isActive && game.nextGameTime === null && !game.activeDays?.length;
+              const isDisabled = isDisabledByStatus || isDisabledByBalance;
+              const canPlay = timer.status === 'active' && !isDisabledByBalance;
               
               return (
                 <motion.div
@@ -465,7 +425,7 @@ const FullSelectionPage = ({
                       borderRadius: 2,
                       boxShadow: canPlay ? '0 4px 14px rgba(0,0,0,0.15)' : '0 4px 14px rgba(0,0,0,0.08)',
                       background: getCardBackground(),
-                      opacity: isDisabledByBalance || isPassed ? 0.6 : 1,
+                      opacity: isDisabled ? 0.7 : 1,
                       position: 'relative',
                       overflow: 'visible',
                       border: canPlay ? '2px solid #4caf50' : `1px solid ${getTextColor()}30`,
@@ -477,17 +437,17 @@ const FullSelectionPage = ({
                     {/* Status Badge */}
                     <Box sx={{ position: 'absolute', top: -10, right: 10, zIndex: 1 }}>
                       <Chip
-                        icon={canPlay ? <AccessTime /> : <Schedule />}
-                        label={canPlay 
-                          ? formatTimeRemaining(game.timeRemaining)
-                          : (isPassed ? (language === 'am' ? 'አልቋል' : 'Passed') : (language === 'am' ? 'ይጠብቁ' : 'Wait'))}
-                        color={canPlay ? 'success' : isPassed ? 'default' : 'warning'}
+                        icon={timer.status === 'active' ? <AccessTime /> : <Schedule />}
+                        label={getStatusText(timer.status, timer.timer)}
+                        color={getStatusColor(timer.status)}
                         size="small"
                         sx={{ 
                           fontWeight: 'bold',
                           boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
                           fontSize: { xs: '0.6rem', sm: '0.7rem' },
-                          color: canPlay ? '#fff' : (isPassed ? '#757575' : '#fff')
+                          backgroundColor: timer.status === 'ready' ? '#e0e0e0' : 
+                                          timer.status === 'active' ? '#4caf50' : '#f44336',
+                          color: timer.status === 'ready' ? '#424242' : '#fff'
                         }}
                       />
                     </Box>
@@ -523,25 +483,59 @@ const FullSelectionPage = ({
                           ))}
                         </Box>
                       )}
+                      
+                      {/* Players Count */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        mb: 1.5,
+                        background: 'rgba(0,0,0,0.05)', 
+                        borderRadius: 1.5, 
+                        p: 1 
+                      }}>
+                        <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
+                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
+                          {timer.playerCount || 0}
+                        </Typography>
+                        <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
+                          {language === 'am' ? "ተጫዋች" : "Players"}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Prize Pool */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        mb: 2,
+                        background: 'rgba(0,0,0,0.05)', 
+                        borderRadius: 1.5, 
+                        p: 1 
+                      }}>
+                        <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
+                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
+                          {(timer.prizePool || 0).toFixed(2)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
+                          {language === 'am' ? "ደራሽ" : "Prize"}
+                        </Typography>
+                      </Box>
 
-                      {/* Next Game Time - Shows countdown */}
-                      {game.nextGameTime && (
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          mb: 2,
-                          background: 'rgba(0,0,0,0.05)', 
-                          borderRadius: 1.5, 
-                          p: 1 
-                        }}>
-                          <AccessTime sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
-                          <Typography variant="body2" sx={{ fontSize: '0.75rem', color: getTextColor() }}>
-                            {language === 'am' ? 'ቀሪ ጊዜ:' : 'Time Remaining:'}
-                          </Typography>
-                          <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.75rem', fontWeight: 'bold', color: getTextColor() }}>
-                            {formatTimeRemaining(game.timeRemaining)}
-                          </Typography>
+                      {/* Progress Bar for Timer */}
+                      {(timer.status === 'ready' || timer.status === 'active') && (
+                        <Box sx={{ position: 'relative', height: 6, mb: 1.5, borderRadius: 3, background: 'rgba(0,0,0,0.1)' }}>
+                          <Box
+                            sx={{
+                              height: '100%',
+                              borderRadius: 3,
+                              width: `${getProgressPercentage(timer.status, timer.timer)}%`,
+                              background: timer.status === 'ready' 
+                                ? 'linear-gradient(90deg, #9e9e9e, #616161)' 
+                                : 'linear-gradient(90deg, #4CAF50, #2E7D32)',
+                              transition: 'width 1s ease'
+                            }}
+                          />
                         </Box>
                       )}
 
@@ -549,9 +543,9 @@ const FullSelectionPage = ({
                         variant={getButtonVariant()}
                         color={getButtonColor()}
                         size="small"
-                        disabled={!canPlay || isDisabledByBalance || isLoadingBalance || isPassed}
-                        onClick={() => handlePlayClick(game)}
-                        startIcon={canPlay && !isDisabledByBalance ? <SportsEsports /> : undefined}
+                        disabled={isDisabled || isLoadingBalance}
+                        onClick={() => handlePlayClick(game._id, game.betAmount)}
+                        startIcon={!isDisabledByBalance && !isLoadingBalance && canPlay ? <SportsEsports /> : undefined}
                         sx={{
                           textTransform: 'none',
                           fontWeight: 'bold',
@@ -572,11 +566,11 @@ const FullSelectionPage = ({
                           ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
                           : isDisabledByBalance 
                             ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
-                            : isPassed
-                              ? (language === 'am' ? "አልቋል" : "Passed")
-                              : canPlay
-                                ? (language === 'am' ? "ይጫወቱ" : "Play")
-                                : (language === 'am' ? "ይጠብቁ" : "Wait")
+                            : (timer.status === 'active' 
+                                ? (language === 'am' ? "ይጫወቱ" : "Play") 
+                                : timer.status === 'ready'
+                                  ? (language === 'am' ? "ዝግጁ" : "Ready")
+                                  : (language === 'am' ? "በጨዋታ ውስጥ" : "In Progress"))
                         }
                       </Button>
                     </CardContent>
@@ -664,18 +658,6 @@ const FullSelectionPage = ({
           </Box>
         </motion.div>
       </Box>
-
-      {/* Toast Message */}
-      <Snackbar
-        open={showToast}
-        autoHideDuration={3000}
-        onClose={() => setShowToast(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="info" onClose={() => setShowToast(false)}>
-          {toastMessage}
-        </Alert>
-      </Snackbar>
 
       <HowToPlayModal
         open={howToPlayOpen}
