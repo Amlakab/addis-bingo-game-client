@@ -80,9 +80,6 @@ const FullPlayerLobby = ({
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
   
-  // Add navigation guard to prevent multiple navigations
-  const hasNavigatedRef = useRef(false);
-  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -144,7 +141,6 @@ const FullPlayerLobby = ({
     return {};
   };
 
-  // Set client-side flag and load WebSocket service
   useEffect(() => {
     setIsClient(true);
     
@@ -167,36 +163,20 @@ const FullPlayerLobby = ({
       setWallet(user.wallet || 0);
     }
     
-    // Reset navigation guard when entering lobby
-    hasNavigatedRef.current = false;
-    
-    // Listen for full timer updates
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
-    webSocketService.on('full-session-created-confirmation', handleSessionCreatedConfirmation);
     webSocketService.on('wallet-updated', handleWalletUpdate);
-    webSocketService.on('error', handleSocketError);
     
-    // Request initial sessions
     webSocketService.send('get-full-sessions', { gameId });
     
     return () => {
       webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
-      webSocketService.off('full-session-created-confirmation', handleSessionCreatedConfirmation);
       webSocketService.off('wallet-updated', handleWalletUpdate);
-      webSocketService.off('error', handleSocketError);
-      hasNavigatedRef.current = false;
     };
   }, [isClient, webSocketService, user, gameId]);
-
-  const handleSocketError = (error: any) => {
-    console.error('Socket error:', error);
-    setErrorMessage(error.message || 'An error occurred');
-    setWalletError(true);
-  };
 
   const handleFullTimerUpdate = (timerStates: {[key: string]: FullTimerState}) => {
     console.log('Received full timer states in PlayerLobby:', timerStates);
@@ -206,25 +186,10 @@ const FullPlayerLobby = ({
       setRemainingTime(timerState.timer);
       setPlayerCount(timerState.playerCount);
       setPrizePool(timerState.prizePool);
-      
-      // Auto-navigate when timer reaches 4 seconds (like partial games)
-      if (timerState.timer <= 4 && timerState.timer > 0 && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
-        console.log('Timer reached 4 seconds, auto-navigating to game...');
-        hasNavigatedRef.current = true;
-        handleDirectToGame();
-      }
-      
-      if (timerState.timer === 0 && timerState.status === 'ready' && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
-        console.log('Timer at 0, auto-navigating to game...');
-        hasNavigatedRef.current = true;
-        handleDirectToGame();
-      }
     }
   };
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
-    console.log('Received sessions update:', sessions);
-    
     const betSessions = sessions.filter(session => session.gameId === gameId);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
@@ -240,59 +205,31 @@ const FullPlayerLobby = ({
         .filter(session => session.userId._id === user._id)
         .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
       
-      console.log('User selected cards:', userSelectedCards);
       setSelectedPlayers(userSelectedCards);
     }
   };
 
   const handleSessionCreated = (session: GameSession) => {
-    console.log('Session created event received:', session);
-    
     if (session.gameId === gameId) {
-      // Update occupied cards
-      setOccupiedCards(prev => {
-        if (prev.includes(session.cardNumber)) return prev;
-        return [...prev, session.cardNumber];
-      });
+      setOccupiedCards(prev => [...prev, session.cardNumber]);
       
-      // Update occupied by user
       setOccupiedCardsByUser(prev => ({
         ...prev,
         [session.cardNumber]: session.userId._id
       }));
       
-      // Update selected players if it's the current user
       if (user && session.userId._id === user._id) {
-        setSelectedPlayers(prev => {
-          // Check if already selected
-          if (prev.some(p => p.id === session.cardNumber)) return prev;
-          return [...prev, { id: session.cardNumber, userId: session.userId._id }];
-        });
-        
-        // Show success message
-        setToastMessage(language === 'am' 
-          ? `ካርድ ${session.cardNumber} ተመርጧል` 
-          : `Card ${session.cardNumber} selected`
-        );
-        setShowToast(true);
+        setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
       }
     }
   };
 
-  const handleSessionCreatedConfirmation = (data: { success: boolean; session: GameSession }) => {
-    console.log('Session creation confirmation:', data);
-    if (data.success) {
-      // Session was created successfully, the session-created event will handle the update
-      console.log('Session created successfully');
-    }
-  };
-
   const handleWalletUpdate = (newWallet: number) => {
-    console.log('Wallet updated:', newWallet);
     setWallet(newWallet);
   };
 
-  const handleSelectCard = async (id: number) => {
+  // EXACTLY LIKE PARTIAL GAME - togglePlayer
+  const togglePlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
     if (!user) {
@@ -301,19 +238,9 @@ const FullPlayerLobby = ({
       return;
     }
 
-    // Check if already selected by this user
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-    if (isSelectedByUser) {
-      setToastMessage(language === 'am' 
-        ? 'ይህ ካርድ አስቀድሞ ተመርጧል' 
-        : 'This card is already selected'
-      );
-      setShowToast(true);
-      return;
-    }
-    
-    // Check if selected by others
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
+    
     if (isSelectedByOthers) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
       setWalletError(true);
@@ -321,14 +248,24 @@ const FullPlayerLobby = ({
     }
 
     try {
-      // Check max cards (2 max)
+      // For full games - CANNOT UNSELECT
+      if (isSelectedByUser) {
+        setToastMessage(language === 'am' 
+          ? 'በመደበኛ ጨዋታ ካርዶችን መሰረዝ አይቻልም' 
+          : 'Cannot unselect cards in full games'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      // SELECT card (like partial games)
       if (selectedPlayers.length >= 2) {
         setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
         setWalletError(true);
         return;
       }
 
-      // Check balance
+      // Check balance - LIKE PARTIAL GAME
       const totalCost = (selectedPlayers.length + 1) * betAmount;
       if (wallet < totalCost) {
         setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
@@ -336,30 +273,27 @@ const FullPlayerLobby = ({
         return;
       }
 
-      // Check if card is occupied
       if (occupiedCards.includes(id)) {
         setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
         setWalletError(true);
         return;
       }
 
-      // Generate card numbers for this card
+      // Generate card numbers
       const cardNumbers = getCardGrid(id);
-      
-      console.log('Selecting card:', id, 'for game:', gameId);
-      
-      // Send create session request
+
+      // Send create session - LIKE PARTIAL GAME (NO money deduction yet)
       webSocketService.send('create-full-session', {
         userId: user._id,
         agentId: user.agent_id || '',
         cardNumber: id,
         betAmount,
-        gameId,
+        gameId: gameId, // This should be the string ID
         cardNumbers
       });
       
     } catch (error: any) {
-      console.error('Error selecting card:', error);
+      console.error('Error toggling card:', error);
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
@@ -367,10 +301,12 @@ const FullPlayerLobby = ({
     }
   };
 
+  // EXACTLY LIKE PARTIAL GAME - handleDirectToGame
   const handleDirectToGame = async () => {
     if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
     try {
+      // Get user sessions for this game
       const response = await api.get(`/full-game/sessions/user/${user._id}`);
       const userSessions = response.data;
       
@@ -385,7 +321,6 @@ const FullPlayerLobby = ({
           : 'Please select at least 1 card'
         );
         setShowToast(true);
-        hasNavigatedRef.current = false;
         return;
       }
 
@@ -395,7 +330,6 @@ const FullPlayerLobby = ({
           : 'You cannot select more than 2 cards'
         );
         setShowToast(true);
-        hasNavigatedRef.current = false;
         return;
       }
 
@@ -404,23 +338,13 @@ const FullPlayerLobby = ({
         userId: session.userId._id
       }));
 
-      if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
-        setToastMessage(language === 'am' 
-          ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
-          : 'You can only select 1 to 2 cards'
-        );
-        setShowToast(true);
-        hasNavigatedRef.current = false;
-        return;
-      }
-
-      // Fund wallet (deduct money)
+      // DEDUCT MONEY HERE - LIKE PARTIAL GAME
       webSocketService.send('fund-full-wallet', {
         gameId: gameId,
         userId: user._id
       });
 
-      // Update sessions to ready
+      // Update sessions to ready - LIKE PARTIAL GAME
       webSocketService.send('update-full-sessions-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
@@ -436,7 +360,33 @@ const FullPlayerLobby = ({
         : 'Error occurred while processing game entry'
       );
       setShowToast(true);
-      hasNavigatedRef.current = false;
+    }
+  };
+
+  const handleCancelSelections = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    if (selectedPlayers.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      // For full games - clear selected (refund)
+      if (webSocketService) {
+        webSocketService.send('clear-full-selected', {
+          gameId: gameId,
+          userId: user._id
+        });
+      }
+      
+      setSelectedPlayers([]);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -527,7 +477,7 @@ const FullPlayerLobby = ({
         paddingTop: 0
       }}
     >
-      {/* Header Row - Shows Timer like PlayerLobby */}
+      {/* Header Row */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -539,7 +489,6 @@ const FullPlayerLobby = ({
         width: '100%',
         flexShrink: 0
       }}>
-        {/* Bet Card */}
         <Card sx={{
           flex: '0 0 25%',
           display: 'flex',
@@ -560,7 +509,6 @@ const FullPlayerLobby = ({
           </Typography>
         </Card>
 
-        {/* Timer Card - Shows countdown */}
         <Card sx={{
           flex: '0 0 25%',
           display: 'flex',
@@ -581,7 +529,6 @@ const FullPlayerLobby = ({
           </Typography>
         </Card>
 
-        {/* Players Card */}
         <Card sx={{
           flex: '0 0 25%',
           display: 'flex',
@@ -602,7 +549,6 @@ const FullPlayerLobby = ({
           </Typography>
         </Card>
 
-        {/* Prize Pool Card */}
         <Card sx={{
           flex: '0 0 25%',
           display: 'flex',
@@ -674,7 +620,7 @@ const FullPlayerLobby = ({
                 style={{ width: '100%', height: '100%' }}
               >
                 <Box
-                  onClick={() => !isDisabled && handleSelectCard(id)}
+                  onClick={() => !isDisabled && togglePlayer(id)}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -731,7 +677,7 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section - Shows selected cards and Play button */}
+        {/* Bottom Section */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
@@ -806,7 +752,7 @@ const FullPlayerLobby = ({
                         }}>
                           {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
-                        {/* NO DELETE/REMOVE BUTTON - Cannot unselect */}
+                        {/* NO DELETE BUTTON - Cannot unselect in full games */}
                       </Box>
 
                       <Box
@@ -868,31 +814,27 @@ const FullPlayerLobby = ({
                 })}
               </Box>
 
-              {/* Play Button - Shows timer countdown */}
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  variant="contained"
-                  color="success"
-                  onClick={handleDirectToGame}
-                  disabled={selectedPlayers.length === 0 || remainingTime <= 0}
-                  sx={{
-                    flex: 1,
-                    py: 1.5,
-                    fontSize: '1.2rem',
-                    fontWeight: 'bold',
-                    borderRadius: 2,
-                    boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
-                    '&:disabled': {
-                      background: '#bdc3c7',
-                    }
-                  }}
-                >
-                  {remainingTime > 0 
-                    ? (language === 'am' ? `ጨዋታ ይጀምራል ${formatTimeRemaining(remainingTime)}` : `Game starts in ${formatTimeRemaining(remainingTime)}`)
-                    : (language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game')
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleDirectToGame}
+                disabled={selectedPlayers.length === 0 || remainingTime <= 0}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
+                  '&:disabled': {
+                    background: '#bdc3c7',
                   }
-                </Button>
-              </Box>
+                }}
+              >
+                {remainingTime > 0 
+                  ? (language === 'am' ? `ጨዋታ ይጀምራል ${formatTimeRemaining(remainingTime)}` : `Game starts in ${formatTimeRemaining(remainingTime)}`)
+                  : (language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game')
+                }
+              </Button>
             </Box>
           )}
         </Box>
