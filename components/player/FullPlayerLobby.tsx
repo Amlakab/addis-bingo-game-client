@@ -203,7 +203,10 @@ const FullPlayerLobby = ({
     setWallet(newWallet);
   };
 
-  const togglePlayer = async (id: number) => {
+  // REMOVED: togglePlayer function - users cannot unselect
+  // Users can only select cards, not unselect them
+
+  const handleSelectCard = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
     if (!user) {
@@ -215,6 +218,16 @@ const FullPlayerLobby = ({
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
     
+    // If already selected by user, do nothing (cannot unselect)
+    if (isSelectedByUser) {
+      setToastMessage(language === 'am' 
+        ? 'ይህ ካርድ አስቀድሞ ተመርጧል' 
+        : 'This card is already selected'
+      );
+      setShowToast(true);
+      return;
+    }
+    
     if (isSelectedByOthers) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
       setWalletError(true);
@@ -222,46 +235,39 @@ const FullPlayerLobby = ({
     }
 
     try {
-      if (isSelectedByUser) {
-        webSocketService.send('delete-full-session', {
-          cardNumber: id,
-          gameId,
-        });
-      } else {
-        if (selectedPlayers.length >= 2) {
-          setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
-          setWalletError(true);
-          return;
-        }
-
-        const totalCost = (selectedPlayers.length + 1) * betAmount;
-        if (wallet < totalCost) {
-          setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
-          setWalletError(true);
-          return;
-        }
-
-        if (occupiedCards.includes(id)) {
-          setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
-          setWalletError(true);
-          return;
-        }
-
-        // Generate card numbers for this card
-        const cardNumbers = getCardGrid(id);
-        
-        webSocketService.send('create-full-session', {
-          userId: user._id,
-          agentId: user.agent_id || '',
-          cardNumber: id,
-          betAmount,
-          gameId,
-          cardNumbers
-        });
+      if (selectedPlayers.length >= 2) {
+        setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+        setWalletError(true);
+        return;
       }
+
+      const totalCost = (selectedPlayers.length + 1) * betAmount;
+      if (wallet < totalCost) {
+        setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
+        setWalletError(true);
+        return;
+      }
+
+      if (occupiedCards.includes(id)) {
+        setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
+        setWalletError(true);
+        return;
+      }
+
+      // Generate card numbers for this card
+      const cardNumbers = getCardGrid(id);
+      
+      webSocketService.send('create-full-session', {
+        userId: user._id,
+        agentId: user.agent_id || '',
+        cardNumber: id,
+        betAmount,
+        gameId,
+        cardNumbers
+      });
       
     } catch (error: any) {
-      console.error('Error toggling card:', error);
+      console.error('Error selecting card:', error);
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
@@ -333,32 +339,6 @@ const FullPlayerLobby = ({
         : 'Error occurred while processing game entry'
       );
       setShowToast(true);
-    }
-  };
-
-  const handleCancelSelections = async () => {
-    if (!isClient || !webSocketService || !user) return;
-    
-    if (selectedPlayers.length === 0) return;
-    
-    setIsLoading(true);
-    try {
-      if (webSocketService) {
-        webSocketService.send('clear-full-selected', {
-          gameId: gameId,
-          userId: user._id
-        });
-      }
-      
-      setSelectedPlayers([]);
-      
-    } catch (error: any) {
-      console.error('Error canceling selections:', error);
-      const errorMsg = error.response?.data?.error || "Error canceling selections";
-      setErrorMessage(errorMsg);
-      setWalletError(true);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -542,16 +522,17 @@ const FullPlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
+            const isDisabled = isSelectedByOthers || isSelectedByUser;
 
             return (
               <motion.div
                 key={id}
-                whileHover={{ scale: isSelectedByOthers ? 1 : 1.05 }}
-                whileTap={{ scale: isSelectedByOthers ? 1 : 0.95 }}
+                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
                 style={{ width: '100%', height: '100%' }}
               >
                 <Box
-                  onClick={() => !isSelectedByOthers && togglePlayer(id)}
+                  onClick={() => !isDisabled && handleSelectCard(id)}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -562,9 +543,9 @@ const FullPlayerLobby = ({
                     borderRadius: '4px',
                     fontWeight: 'bold',
                     fontSize: '0.8rem',
-                    cursor: isSelectedByOthers ? 'not-allowed' : 'pointer',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
-                    opacity: isSelectedByOthers ? 0.6 : 1,
+                    opacity: isDisabled ? 0.7 : 1,
 
                     background: isSelectedByUser
                       ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
@@ -592,7 +573,7 @@ const FullPlayerLobby = ({
                       ? '0 2px 4px rgba(244,67,54,0.2)'
                       : '0 2px 4px rgba(0,0,0,0.1)',
 
-                    '&:hover': !isSelectedByOthers ? {
+                    '&:hover': !isDisabled ? {
                       background: isSelectedByUser
                         ? 'linear-gradient(145deg, #388E3C, #689F38)'
                         : backgroundColor === 'white'
@@ -608,7 +589,7 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section */}
+        {/* Bottom Section - Shows selected cards and Play button */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
@@ -648,108 +629,122 @@ const FullPlayerLobby = ({
           ) : (
             <Box sx={{ 
               display: 'flex', 
+              flexDirection: 'column',
               gap: 1,
-              overflow: 'auto',
               maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
               mx: 'auto',
             }}>
-              {selectedPlayers.map((player, index) => {
-                const card = getCardGrid(player.id);
-                const transposedCard = transposeCard(card);
-                
-                return (
-                  <Card
-                    key={player.id}
-                    sx={{
-                      flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
-                      minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
-                      p: 0.5,
-                      background: getCardBackground(),
-                      borderRadius: 1.5,
-                      border: '2px solid #4CAF50',
-                      boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography sx={{ 
-                        fontWeight: 'bold', 
-                        fontSize: '0.85rem',
-                        color: getTextColor() 
-                      }}>
-                        {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={() => togglePlayer(player.id)}
-                        sx={{
-                          color: '#f44336',
-                          padding: 0.5,
-                          '&:hover': {
-                            backgroundColor: 'rgba(244,67,54,0.1)'
-                          }
-                        }}
-                      >
-                        ✕
-                      </IconButton>
-                    </Box>
-
-                    <Box
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1,
+                overflow: 'auto',
+              }}>
+                {selectedPlayers.map((player, index) => {
+                  const card = getCardGrid(player.id);
+                  const transposedCard = transposeCard(card);
+                  
+                  return (
+                    <Card
+                      key={player.id}
                       sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
-                        gap: 0.15,
+                        flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
+                        minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
+                        p: 0.5,
+                        background: getCardBackground(),
+                        borderRadius: 1.5,
+                        border: '2px solid #4CAF50',
+                        boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
                       }}
                     >
-                      {["B", "I", "N", "G", "O"].map((letter) => (
-                        <Box
-                          key={letter}
-                          sx={{
-                            p: 0.2,
-                            background: 'linear-gradient(135deg, #1976d2, #2196f3)',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '0.65rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '2px 2px 0 0',
-                          }}
-                        >
-                          {letter}
-                        </Box>
-                      ))}
+                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 0.5 }}>
+                        <Typography sx={{ 
+                          fontWeight: 'bold', 
+                          fontSize: '0.85rem',
+                          color: getTextColor() 
+                        }}>
+                          {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
+                        </Typography>
+                        {/* NO DELETE/REMOVE BUTTON - Cannot unselect */}
+                      </Box>
 
-                      {transposedCard.map((row, rowIdx) =>
-                        row.map((num, colIdx) => {
-                          const isFreeSpace = (colIdx === 2 && rowIdx === 2);
-                          return (
-                            <Box
-                              key={`${rowIdx}-${colIdx}`}
-                              sx={{
-                                p: 0.15,
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '2px',
-                                background: isFreeSpace
-                                  ? 'rgba(76,175,80,0.3)'
-                                  : 'rgba(255,255,255,0.05)',
-                                color: getTextColor(),
-                                fontWeight: 'bold',
-                                fontSize: '0.65rem',
-                                minHeight: 20,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {isFreeSpace ? '★' : num}
-                            </Box>
-                          );
-                        })
-                      )}
-                    </Box>
-                  </Card>
-                );
-              })}
+                      <Box
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(5, 1fr)',
+                          gap: 0.15,
+                        }}
+                      >
+                        {["B", "I", "N", "G", "O"].map((letter) => (
+                          <Box
+                            key={letter}
+                            sx={{
+                              p: 0.2,
+                              background: 'linear-gradient(135deg, #1976d2, #2196f3)',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.65rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '2px 2px 0 0',
+                            }}
+                          >
+                            {letter}
+                          </Box>
+                        ))}
+
+                        {transposedCard.map((row, rowIdx) =>
+                          row.map((num, colIdx) => {
+                            const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                            return (
+                              <Box
+                                key={`${rowIdx}-${colIdx}`}
+                                sx={{
+                                  p: 0.15,
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '2px',
+                                  background: isFreeSpace
+                                    ? 'rgba(76,175,80,0.3)'
+                                    : 'rgba(255,255,255,0.05)',
+                                  color: getTextColor(),
+                                  fontWeight: 'bold',
+                                  fontSize: '0.65rem',
+                                  minHeight: 20,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {isFreeSpace ? '★' : num}
+                              </Box>
+                            );
+                          })
+                        )}
+                      </Box>
+                    </Card>
+                  );
+                })}
+              </Box>
+
+              {/* Play Button */}
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleDirectToGame}
+                disabled={selectedPlayers.length === 0}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
+                  '&:disabled': {
+                    background: '#bdc3c7',
+                  }
+                }}
+              >
+                {language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game'}
+              </Button>
             </Box>
           )}
         </Box>

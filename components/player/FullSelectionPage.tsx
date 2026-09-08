@@ -9,7 +9,7 @@ import {
 import { motion } from 'framer-motion';
 import { 
   SportsEsports, People, EmojiEvents, AccessTime,
-  AccountBalanceWallet, ColorLens, Schedule
+  AccountBalanceWallet, ColorLens, Schedule, ArrowBack
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
 import HowToPlayModal from '@/components/player/HowToPlayModal';
@@ -26,6 +26,7 @@ interface FullGame {
 
 interface FullSelectionPageProps {
   onPlay: (gameId: string, betAmount: number, players: number) => void;
+  onBack?: () => void;
   language?: 'en' | 'am';
   backgroundColor?: string;
   setBackgroundColor?: (color: string) => void;
@@ -46,6 +47,7 @@ interface UserData {
 
 const FullSelectionPage = ({ 
   onPlay,
+  onBack,
   language = 'am',
   backgroundColor = 'black',
   setBackgroundColor
@@ -146,17 +148,33 @@ const FullSelectionPage = ({
     loadWebSocketService();
   }, []);
 
+  // Only fetch games once on mount - NO AUTO-REFRESH like BetSelectionPage
   useEffect(() => {
     if (!isClient) return;
     
     fetchFullGames();
     fetchUserBalance();
+    
+    // Listen for WebSocket updates for full games
+    if (webSocketService) {
+      webSocketService.on('available-full-games', handleAvailableFullGames);
+      webSocketService.send('get-available-full-games');
+    }
+    
+    return () => {
+      if (webSocketService) {
+        webSocketService.off('available-full-games', handleAvailableFullGames);
+      }
+    };
+  }, [isClient, webSocketService]);
 
-    // Refresh games every 10 seconds
-    const interval = setInterval(fetchFullGames, 10000);
-
-    return () => clearInterval(interval);
-  }, [isClient]);
+  const handleAvailableFullGames = (games: any[]) => {
+    // Update games with real-time data from WebSocket
+    setFullGames(games.map((game: any) => ({
+      ...game,
+      nextGameTime: game.nextGameTime ? new Date(game.nextGameTime) : null,
+    })));
+  };
 
   const fetchFullGames = async () => {
     try {
@@ -164,7 +182,6 @@ const FullSelectionPage = ({
       const response = await api.get('/games?gameType=full');
       const games = response.data.data;
       
-      // Process games to add time remaining
       const processedGames = games.map((game: any) => {
         const nextTime = getNextGameTime(game.activeDays);
         return {
@@ -353,6 +370,24 @@ const FullSelectionPage = ({
         justifyContent: 'center',
         color: getTextColor()
       }}>
+        {/* Back Button */}
+        {onBack && (
+          <Box sx={{ width: '100%', mb: 2 }}>
+            <Button
+              variant={getButtonVariant()}
+              color={getButtonColor()}
+              onClick={onBack}
+              startIcon={<ArrowBack />}
+              sx={{
+                ...getButtonStyle(),
+                fontSize: '0.9rem'
+              }}
+            >
+              {language === 'am' ? 'ተመለስ' : 'Back'}
+            </Button>
+          </Box>
+        )}
+
         {/* User Balance Display */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
