@@ -174,18 +174,29 @@ const FullPlayerLobby = ({
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
+    webSocketService.on('full-session-created-confirmation', handleSessionCreatedConfirmation);
     webSocketService.on('wallet-updated', handleWalletUpdate);
+    webSocketService.on('error', handleSocketError);
     
+    // Request initial sessions
     webSocketService.send('get-full-sessions', { gameId });
     
     return () => {
       webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
+      webSocketService.off('full-session-created-confirmation', handleSessionCreatedConfirmation);
       webSocketService.off('wallet-updated', handleWalletUpdate);
+      webSocketService.off('error', handleSocketError);
       hasNavigatedRef.current = false;
     };
   }, [isClient, webSocketService, user, gameId]);
+
+  const handleSocketError = (error: any) => {
+    console.error('Socket error:', error);
+    setErrorMessage(error.message || 'An error occurred');
+    setWalletError(true);
+  };
 
   const handleFullTimerUpdate = (timerStates: {[key: string]: FullTimerState}) => {
     console.log('Received full timer states in PlayerLobby:', timerStates);
@@ -197,14 +208,12 @@ const FullPlayerLobby = ({
       setPrizePool(timerState.prizePool);
       
       // Auto-navigate when timer reaches 4 seconds (like partial games)
-      // Only if we have selected players and haven't navigated yet
       if (timerState.timer <= 4 && timerState.timer > 0 && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
         console.log('Timer reached 4 seconds, auto-navigating to game...');
         hasNavigatedRef.current = true;
         handleDirectToGame();
       }
       
-      // If timer is 0 and status is ready, check if we should go to game
       if (timerState.timer === 0 && timerState.status === 'ready' && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
         console.log('Timer at 0, auto-navigating to game...');
         hasNavigatedRef.current = true;
@@ -214,6 +223,8 @@ const FullPlayerLobby = ({
   };
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
+    console.log('Received sessions update:', sessions);
+    
     const betSessions = sessions.filter(session => session.gameId === gameId);
     const occupied = betSessions.map(session => session.cardNumber);
     setOccupiedCards(occupied);
@@ -229,26 +240,55 @@ const FullPlayerLobby = ({
         .filter(session => session.userId._id === user._id)
         .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
       
+      console.log('User selected cards:', userSelectedCards);
       setSelectedPlayers(userSelectedCards);
     }
   };
 
   const handleSessionCreated = (session: GameSession) => {
+    console.log('Session created event received:', session);
+    
     if (session.gameId === gameId) {
-      setOccupiedCards(prev => [...prev, session.cardNumber]);
+      // Update occupied cards
+      setOccupiedCards(prev => {
+        if (prev.includes(session.cardNumber)) return prev;
+        return [...prev, session.cardNumber];
+      });
       
+      // Update occupied by user
       setOccupiedCardsByUser(prev => ({
         ...prev,
         [session.cardNumber]: session.userId._id
       }));
       
+      // Update selected players if it's the current user
       if (user && session.userId._id === user._id) {
-        setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
+        setSelectedPlayers(prev => {
+          // Check if already selected
+          if (prev.some(p => p.id === session.cardNumber)) return prev;
+          return [...prev, { id: session.cardNumber, userId: session.userId._id }];
+        });
+        
+        // Show success message
+        setToastMessage(language === 'am' 
+          ? `ካርድ ${session.cardNumber} ተመርጧል` 
+          : `Card ${session.cardNumber} selected`
+        );
+        setShowToast(true);
       }
     }
   };
 
+  const handleSessionCreatedConfirmation = (data: { success: boolean; session: GameSession }) => {
+    console.log('Session creation confirmation:', data);
+    if (data.success) {
+      // Session was created successfully, the session-created event will handle the update
+      console.log('Session created successfully');
+    }
+  };
+
   const handleWalletUpdate = (newWallet: number) => {
+    console.log('Wallet updated:', newWallet);
     setWallet(newWallet);
   };
 
@@ -308,6 +348,7 @@ const FullPlayerLobby = ({
       
       console.log('Selecting card:', id, 'for game:', gameId);
       
+      // Send create session request
       webSocketService.send('create-full-session', {
         userId: user._id,
         agentId: user.agent_id || '',
@@ -344,7 +385,7 @@ const FullPlayerLobby = ({
           : 'Please select at least 1 card'
         );
         setShowToast(true);
-        hasNavigatedRef.current = false; // Reset so user can try again
+        hasNavigatedRef.current = false;
         return;
       }
 
