@@ -144,7 +144,6 @@ const PlayerLobby = ({
     return {};
   };
 
-  // FIXED: getTextFieldStyle without duplicate properties
   const getTextFieldStyle = () => {
     const textColor = getTextColor();
     return {
@@ -587,156 +586,111 @@ const PlayerLobby = ({
         height: '100%', 
         display: 'flex', 
         flexDirection: 'column',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        padding: 0,
+        paddingTop: 0
       }}
     >
-      {/* Bet Amount and Stats Row */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          p: 1,
+      {/* Header Row - Cards in one row like GameInterface */}
+      <Box sx={{
+        display: 'flex',
+        gap: 0.75,
+        p: 0.5,
+        mb: 1,
+        flexWrap: 'nowrap',
+        overflow: 'auto',
+        color: getTextColor(),
+        width: '100%',
+        flexShrink: 0
+      }}>
+        {/* Bet Card */}
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
           background: getCardBackground(),
-          boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-          mb: 2,
-          flexDirection: "row",
-          gap: { xs: 1, sm: 2 },
-          flexWrap: "nowrap",
-          flexShrink: 0,
+          borderRadius: 1.5,
+          minHeight: '7vh',
           color: getTextColor()
-        }}
-      >
-        {/* Bet Input */}
-        <TextField
-          label={language === "am" ? "የተጫዋቾች በቢር" : "Bet (Birr)"}
-          type="number"
-          size="small"
-          value={betAmount}
-          disabled
-          sx={{
-            width: { xs: 100, sm: 150 },
-            ...getTextFieldStyle(),
-          }}
-          InputProps={{
-            inputProps: { min: 0 },
-          }}
-        />
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ውርርድ' : 'Bet'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+            {betAmount}
+          </Typography>
+        </Card>
 
-        {/* Timer */}
-        <Typography
-          variant="h6"
-          sx={{
-            fontSize: { xs: "0.8rem", sm: "1rem" },
-            whiteSpace: "nowrap",
-            color: getTextColor()
-          }}
-        >
-          {remainingTime}s {language === "am" ? "ይቀራል" : "left"}
-        </Typography>
+        {/* Timer Card */}
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+            {remainingTime}s
+          </Typography>
+        </Card>
 
-        {/* Cards */}
-        <Box
-          sx={{
-            display: "flex",
-            gap: { xs: 1, sm: 2 },
-            flexDirection: "row",
-            flexWrap: "nowrap",
-          }}
-        >
-          {/* Players */}
-          <Card
-            sx={{
-              minWidth: { xs: 50, sm: 90 },
-              height: { xs: 40, sm: 60 },
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(145deg, #4CAF50, #8BC34A)",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            <CardContent
-              sx={{
-                textAlign: "center",
-                p: { xs: 0.5, sm: 1 },
-                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
-                  color: "white",
-                  lineHeight: 1.2,
-                }}
-              >
-                {language === "am" ? "ተጫዋቾች" : "Players"}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontSize: { xs: "0.8rem", sm: "1rem" },
-                  fontWeight: "bold",
-                  color: "white",
-                  lineHeight: 1.2,
-                }}
-              >
-                {playerCount}
-              </Typography>
-            </CardContent>
-          </Card>
+        {/* Players Card */}
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ተጫዋቾች' : 'Players'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+            {playerCount}
+          </Typography>
+        </Card>
 
-          {/* Prize Pool */}
-          <Card
-            sx={{
-              minWidth: { xs: 50, sm: 90 },
-              height: { xs: 40, sm: 60 },
-              borderRadius: "4px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(145deg, #FF9800, #FFC107)",
-              boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-            }}
-          >
-            <CardContent
-              sx={{
-                textAlign: "center",
-                p: { xs: 0.5, sm: 1 },
-                "&:last-child": { pb: { xs: 0.5, sm: 1 } },
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: { xs: "0.6rem", sm: "0.75rem" },
-                  color: "white",
-                  lineHeight: 1.2,
-                }}
-              >
-                {language === "am" ? "ደራሽ" : "Prize"}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontSize: { xs: "0.8rem", sm: "1rem" },
-                  fontWeight: "bold",
-                  color: "white",
-                  lineHeight: 1.2,
-                }}
-              >
-                {prizePool.toFixed(2)}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
+        {/* Prize Pool Card */}
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ደራሽ' : 'Prize'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
+            {prizePool.toFixed(0)}
+          </Typography>
+        </Card>
       </Box>
 
-      {/* Main Game Lobby Content */}
+      {/* Main Content */}
       <Box sx={{ 
-        p: { xs: 0.5, sm: 0.5 }, 
+        p: 0,
         textAlign: 'center',
         background: backgroundColor === 'white' 
           ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
