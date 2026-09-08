@@ -80,6 +80,9 @@ const FullPlayerLobby = ({
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
   
+  // Add navigation guard to prevent multiple navigations
+  const hasNavigatedRef = useRef(false);
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -164,6 +167,9 @@ const FullPlayerLobby = ({
       setWallet(user.wallet || 0);
     }
     
+    // Reset navigation guard when entering lobby
+    hasNavigatedRef.current = false;
+    
     // Listen for full timer updates
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
@@ -177,6 +183,7 @@ const FullPlayerLobby = ({
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
       webSocketService.off('wallet-updated', handleWalletUpdate);
+      hasNavigatedRef.current = false;
     };
   }, [isClient, webSocketService, user, gameId]);
 
@@ -190,14 +197,17 @@ const FullPlayerLobby = ({
       setPrizePool(timerState.prizePool);
       
       // Auto-navigate when timer reaches 4 seconds (like partial games)
-      if (timerState.timer <= 4 && timerState.timer > 0 && selectedPlayers.length > 0) {
+      // Only if we have selected players and haven't navigated yet
+      if (timerState.timer <= 4 && timerState.timer > 0 && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
         console.log('Timer reached 4 seconds, auto-navigating to game...');
+        hasNavigatedRef.current = true;
         handleDirectToGame();
       }
       
       // If timer is 0 and status is ready, check if we should go to game
-      if (timerState.timer === 0 && timerState.status === 'ready' && selectedPlayers.length > 0) {
+      if (timerState.timer === 0 && timerState.status === 'ready' && selectedPlayers.length > 0 && !hasNavigatedRef.current) {
         console.log('Timer at 0, auto-navigating to game...');
+        hasNavigatedRef.current = true;
         handleDirectToGame();
       }
     }
@@ -334,6 +344,7 @@ const FullPlayerLobby = ({
           : 'Please select at least 1 card'
         );
         setShowToast(true);
+        hasNavigatedRef.current = false; // Reset so user can try again
         return;
       }
 
@@ -343,6 +354,7 @@ const FullPlayerLobby = ({
           : 'You cannot select more than 2 cards'
         );
         setShowToast(true);
+        hasNavigatedRef.current = false;
         return;
       }
 
@@ -357,6 +369,7 @@ const FullPlayerLobby = ({
           : 'You can only select 1 to 2 cards'
         );
         setShowToast(true);
+        hasNavigatedRef.current = false;
         return;
       }
 
@@ -382,6 +395,7 @@ const FullPlayerLobby = ({
         : 'Error occurred while processing game entry'
       );
       setShowToast(true);
+      hasNavigatedRef.current = false;
     }
   };
 
