@@ -167,10 +167,12 @@ export default function LobbyPage() {
         color: getTextColor()
       }}
     >
+      {currentPage === 'bet-selection' && (
       <MobileHeader 
         title="Game Lobby" 
         showWallet={true}
       />
+      )}
       
       <main className="p-4 px-0 pb-24 pt-16">
         {currentPage === 'bet-selection' ? (
