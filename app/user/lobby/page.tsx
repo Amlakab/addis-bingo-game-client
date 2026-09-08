@@ -167,14 +167,19 @@ export default function LobbyPage() {
         color: getTextColor()
       }}
     >
+      {/* Only show MobileHeader on bet-selection page */}
       {currentPage === 'bet-selection' && (
-      <MobileHeader 
-        title="Game Lobby" 
-        showWallet={true}
-      />
+        <MobileHeader 
+          title="Game Lobby" 
+          showWallet={true}
+        />
       )}
       
-      <main className="p-4 px-0 pb-24 pt-16">
+      {/* FIX: Different padding for player-lobby vs bet-selection */}
+      <main className={`
+        p-4 px-0 pb-24 
+        ${currentPage === 'bet-selection' ? 'pt-16' : 'pt-0'}
+      `}>
         {currentPage === 'bet-selection' ? (
           <BetSelectionPage 
             onPlay={handlePlay}
@@ -198,6 +203,7 @@ export default function LobbyPage() {
         )}
       </main>
 
+      {/* Only show MobileNavigation on bet-selection page */}
       {currentPage === 'bet-selection' && (
         <MobileNavigation />
       )}
