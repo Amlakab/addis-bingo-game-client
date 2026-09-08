@@ -83,7 +83,7 @@ const FullPlayerLobby = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Color helper functions
+  // Color helper functions (keep existing ones)
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -162,13 +162,87 @@ const FullPlayerLobby = ({
     if (user) {
       setWallet(user.wallet || 0);
     }
-    
+
+    // ✅ FIX: Define handlers BEFORE registering them
+    const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
+      console.log('Received full timer states in PlayerLobby:', timerStates);
+      
+      if (timerStates[betAmount]) {
+        const timerState = timerStates[betAmount];
+        setRemainingTime(timerState.timer);
+        setPlayerCount(timerState.playerCount);
+        setPrizePool(timerState.prizePool);
+      }
+    };
+
+    const handleSessionsUpdate = (sessions: GameSession[]) => {
+      console.log('🟢 FULL SESSIONS UPDATED:', sessions);
+      const betSessions = sessions.filter(session => session.betAmount === betAmount);
+      const occupied = betSessions.map(session => session.cardNumber);
+      setOccupiedCards(occupied);
+      
+      const cardUserMap: {[key: number]: string} = {};
+      betSessions.forEach(session => {
+        cardUserMap[session.cardNumber] = session.userId._id;
+      });
+      setOccupiedCardsByUser(cardUserMap);
+      
+      if (user) {
+        const userSelectedCards = betSessions
+          .filter(session => session.userId._id === user._id)
+          .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
+        
+        setSelectedPlayers(userSelectedCards);
+        console.log('🟢 User selected cards:', userSelectedCards);
+      }
+    };
+
+    const handleSessionCreated = (session: GameSession) => {
+      console.log('🟢 SESSION CREATED:', session);
+      if (session.betAmount === betAmount) {
+        setOccupiedCards(prev => [...prev, session.cardNumber]);
+        
+        setOccupiedCardsByUser(prev => ({
+          ...prev,
+          [session.cardNumber]: session.userId._id
+        }));
+        
+        if (user && session.userId._id === user._id) {
+          setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
+        }
+      }
+    };
+
+    const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
+      console.log('🟢 SESSION DELETED:', data);
+      if (data.betAmount === betAmount) {
+        setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
+        
+        setOccupiedCardsByUser(prev => {
+          const newMap = { ...prev };
+          delete newMap[data.cardNumber];
+          return newMap;
+        });
+        
+        if (user && data.userId === user._id) {
+          setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
+        }
+      }
+    };
+
+    const handleWalletUpdate = (newWallet: number) => {
+      console.log('🟢 WALLET UPDATED:', newWallet);
+      setWallet(newWallet);
+    };
+
+    // ✅ Register all event listeners
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
     webSocketService.on('full-session-deleted', handleSessionDeleted);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     
+    // ✅ Request initial data
     webSocketService.send('get-full-sessions', { betAmount });
     
     return () => {
@@ -180,73 +254,7 @@ const FullPlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
-  const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
-    console.log('Received full timer states in PlayerLobby:', timerStates);
-    
-    if (timerStates[betAmount]) {
-      const timerState = timerStates[betAmount];
-      setRemainingTime(timerState.timer);
-      setPlayerCount(timerState.playerCount);
-      setPrizePool(timerState.prizePool);
-    }
-  };
-
-  const handleSessionsUpdate = (sessions: GameSession[]) => {
-    const betSessions = sessions.filter(session => session.betAmount === betAmount);
-    const occupied = betSessions.map(session => session.cardNumber);
-    setOccupiedCards(occupied);
-    
-    const cardUserMap: {[key: number]: string} = {};
-    betSessions.forEach(session => {
-      cardUserMap[session.cardNumber] = session.userId._id;
-    });
-    setOccupiedCardsByUser(cardUserMap);
-    
-    if (user) {
-      const userSelectedCards = betSessions
-        .filter(session => session.userId._id === user._id)
-        .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
-      
-      setSelectedPlayers(userSelectedCards);
-    }
-  };
-
-  const handleSessionCreated = (session: GameSession) => {
-    if (session.betAmount === betAmount) {
-      setOccupiedCards(prev => [...prev, session.cardNumber]);
-      
-      setOccupiedCardsByUser(prev => ({
-        ...prev,
-        [session.cardNumber]: session.userId._id
-      }));
-      
-      if (user && session.userId._id === user._id) {
-        setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
-      }
-    }
-  };
-
-  const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
-    if (data.betAmount === betAmount) {
-      setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
-      
-      setOccupiedCardsByUser(prev => {
-        const newMap = { ...prev };
-        delete newMap[data.cardNumber];
-        return newMap;
-      });
-      
-      if (user && data.userId === user._id) {
-        setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
-      }
-    }
-  };
-
-  const handleWalletUpdate = (newWallet: number) => {
-    setWallet(newWallet);
-  };
-
-  // ✅ FIXED: Same logic as PlayerLobby - allows both select and unselect
+  // ✅ FIXED: togglePlayer with proper logic matching PlayerLobby
   const togglePlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -255,6 +263,8 @@ const FullPlayerLobby = ({
       setWalletError(true);
       return;
     }
+
+    console.log('🟢 Toggling card:', id, 'Current selected:', selectedPlayers);
 
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
@@ -266,14 +276,15 @@ const FullPlayerLobby = ({
     }
 
     try {
-      // ✅ Same as PlayerLobby - if selected by user, unselect it
       if (isSelectedByUser) {
+        // ✅ Unselect - send delete-full-session
+        console.log('🟢 Unselecting card:', id);
         webSocketService.send('delete-full-session', {
           cardNumber: id,
           betAmount,
         });
       } else {
-        // ✅ Same as PlayerLobby - select new card
+        // ✅ Select new card
         if (selectedPlayers.length >= 2) {
           setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
           setWalletError(true);
@@ -293,6 +304,7 @@ const FullPlayerLobby = ({
           return;
         }
 
+        console.log('🟢 Selecting card:', id);
         webSocketService.send('create-full-session', {
           userId: user._id,
           agentId: user.agent_id || '',
@@ -491,7 +503,7 @@ const FullPlayerLobby = ({
         paddingTop: 0
       }}
     >
-      {/* Header Row - Same as PlayerLobby */}
+      {/* Header Row */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -691,7 +703,7 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section: Shows either buttons or selected cards pushed to bottom */}
+        {/* Bottom Section */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
