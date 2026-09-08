@@ -564,6 +564,48 @@ const PlayerLobby = ({
     }
   };
 
+  // Helper function to get card number grid (5x5 BINGO card)
+  const getCardGrid = (cardId: number) => {
+    // This is a simplified version - you should use your actual card generation logic
+    const card = [];
+    const ranges = [
+      [1, 15],
+      [16, 30],
+      [31, 45],
+      [46, 60],
+      [61, 75]
+    ];
+    
+    // Generate a simple card based on the card ID
+    const seed = cardId * 7 + 13;
+    
+    for (let row = 0; row < 5; row++) {
+      const rowData = [];
+      for (let col = 0; col < 5; col++) {
+        if (col === 2 && row === 2) {
+          rowData.push(0); // Free space
+        } else {
+          const [min, max] = ranges[col];
+          const index = (seed + row * 5 + col) % (max - min + 1);
+          rowData.push(min + index);
+        }
+      }
+      card.push(rowData);
+    }
+    return card;
+  };
+
+  // Transpose card for display
+  const transposeCard = (card: number[][]) => {
+    const transposed: number[][] = [[], [], [], [], []];
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        transposed[i][j] = card[j][i];
+      }
+    }
+    return transposed;
+  };
+
   if (!isClient) {
     return (
       <Box sx={{ 
@@ -721,7 +763,7 @@ const PlayerLobby = ({
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
-            maxHeight: '450px',
+            maxHeight: selectedPlayers.length > 0 ? '350px' : '450px',
           }}
         >
           {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
@@ -800,77 +842,163 @@ const PlayerLobby = ({
           })}
         </Box>
 
-        {/* Action Buttons */}
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-            mx: 'auto',
-            px: 1,
-            display: 'flex',
-            gap: 1,
-            flexShrink: 0,
-          }}
-        >
-          <Button
-            variant={getButtonVariant()}
-            color={
-              playerCount > 2 && selectedPlayers.length > 0
-                ? 'success'
-                : selectedPlayers.length === 0
-                ? 'primary'
-                : 'warning'
-            }
-            onClick={() => {
-              if (playerCount > 2 && selectedPlayers.length > 0 && onDirectToGame) {
-                handleDirectToGame();
-              } else if (selectedPlayers.length === 0 && onBackToLobby) {
-                onBackToLobby();
+        {/* Conditional Rendering: Show Buttons OR Selected Cards */}
+        {selectedPlayers.length === 0 ? (
+          // Show buttons when no cards selected
+          <Box
+            sx={{
+              width: '100%',
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
+              px: 1,
+              display: 'flex',
+              gap: 1,
+              flexShrink: 0,
+            }}
+          >
+            <Button
+              variant={getButtonVariant()}
+              color={
+                playerCount > 2 && selectedPlayers.length > 0
+                  ? 'success'
+                  : selectedPlayers.length === 0
+                  ? 'primary'
+                  : 'warning'
               }
-            }}
-            disabled={isProcessing}
+              onClick={() => {
+                if (playerCount > 2 && selectedPlayers.length > 0 && onDirectToGame) {
+                  handleDirectToGame();
+                } else if (selectedPlayers.length === 0 && onBackToLobby) {
+                  onBackToLobby();
+                }
+              }}
+              disabled={isProcessing}
+              sx={{
+                flex: 2,
+                py: 1,
+                fontSize: '1.1rem',
+                fontWeight: 'bold',
+                borderRadius: 2,
+                boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                ...getButtonStyle()
+              }}
+            >
+              {language === 'am' ? 'ተመለስ' : 'Back'}
+            </Button>
+          </Box>
+        ) : (
+          // Show selected cards in a single row
+          <Box
             sx={{
-              flex: 2,
-              py: 1,
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-              borderRadius: 2,
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-              ...getButtonStyle()
+              width: '100%',
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
+              px: 0.5,
+              display: 'flex',
+              gap: 1,
+              flexShrink: 0,
+              overflow: 'auto',
+              pb: 0.5,
             }}
           >
-            {playerCount > 2 && selectedPlayers.length > 0
-              ? language === 'am'
-                ? 'ጨዋታ ጀምር'
-                : 'Play'
-              : selectedPlayers.length === 0
-              ? language === 'am'
-                ? 'ተመለስ'
-                : 'Back'
-              : language === 'am'
-              ? 'ጠብቅ'
-              : 'Wait'}
-          </Button>
+            {selectedPlayers.map((player, index) => {
+              const card = getCardGrid(player.id);
+              const transposedCard = transposeCard(card);
+              
+              return (
+                <Card
+                  key={player.id}
+                  sx={{
+                    flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
+                    minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
+                    p: 0.5,
+                    background: getCardBackground(),
+                    borderRadius: 1.5,
+                    border: '2px solid #4CAF50',
+                    boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                    <Typography sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: getTextColor() }}>
+                      {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => togglePlayer(player.id)}
+                      sx={{
+                        color: '#f44336',
+                        padding: 0.5,
+                        '&:hover': {
+                          backgroundColor: 'rgba(244,67,54,0.1)'
+                        }
+                      }}
+                    >
+                      ✕
+                    </IconButton>
+                  </Box>
 
-          <Button
-            variant={getButtonVariant()}
-            color="error"
-            onClick={handleCancelSelections}
-            disabled={selectedPlayers.length === 0 || isProcessing}
-            sx={{
-              flex: 1,
-              py: 1,
-              fontSize: '1.1rem',
-              fontWeight: 'bold',
-              borderRadius: 2,
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-              opacity: selectedPlayers.length === 0 ? 0.6 : 1,
-              ...getButtonStyle()
-            }}
-          >
-            {language === 'am' ? 'አጽዳ' : 'Clear'}
-          </Button>
-        </Box>
+                  {/* Mini BINGO Card Grid */}
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(5, 1fr)',
+                      gap: 0.15,
+                    }}
+                  >
+                    {/* BINGO Header */}
+                    {["B", "I", "N", "G", "O"].map((letter) => (
+                      <Box
+                        key={letter}
+                        sx={{
+                          p: 0.2,
+                          background: 'linear-gradient(135deg, #1976d2, #2196f3)',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '2px 2px 0 0',
+                        }}
+                      >
+                        {letter}
+                      </Box>
+                    ))}
+
+                    {/* Card Numbers */}
+                    {transposedCard.map((row, rowIdx) =>
+                      row.map((num, colIdx) => {
+                        const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                        return (
+                          <Box
+                            key={`${rowIdx}-${colIdx}`}
+                            sx={{
+                              p: 0.15,
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '2px',
+                              background: isFreeSpace
+                                ? 'rgba(76,175,80,0.3)'
+                                : 'rgba(255,255,255,0.05)',
+                              color: getTextColor(),
+                              fontWeight: 'normal',
+                              fontSize: '0.5rem',
+                              minHeight: 20,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {isFreeSpace ? '★' : num}
+                          </Box>
+                        );
+                      })
+                    )}
+                  </Box>
+                </Card>
+              );
+            })}
+          </Box>
+        )}
 
         <Snackbar
           open={walletError}
