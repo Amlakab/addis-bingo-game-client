@@ -6,21 +6,33 @@ import {
   Box, Typography, Card, CardContent, Button,
   TextField, Dialog, DialogTitle, DialogContent, DialogActions,
   Chip, Alert, Snackbar, CircularProgress,
-  useTheme, useMediaQuery, IconButton, Select, MenuItem, FormControl, InputLabel
+  useTheme, useMediaQuery, IconButton, 
+  Select, MenuItem, FormControl, InputLabel,
+  Radio, RadioGroup, FormControlLabel, FormLabel,
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Add, Edit, Delete, Search, Casino,
-  Numbers, AccessTime, FilterList, Refresh
+  Numbers, AccessTime, Refresh,
+  Schedule, Add as AddIcon, Remove as RemoveIcon
 } from '@mui/icons-material';
 import api from '@/app/utils/api';
+
+interface ActiveDay {
+  day: string;
+  startTime: string;
+}
 
 interface Game {
   _id: string;
   betAmount: number;
+  gameType: 'partial' | 'full';
+  activeDays: ActiveDay[];
   createdAt: string;
   updatedAt: string;
 }
+
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 export default function GamesPage() {
   const theme = useTheme();
@@ -35,7 +47,11 @@ export default function GamesPage() {
   const [success, setSuccess] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
-  const [formData, setFormData] = useState({ betAmount: '' });
+  const [formData, setFormData] = useState({
+    betAmount: '',
+    gameType: 'partial' as 'partial' | 'full',
+    activeDays: [{ day: 'monday', startTime: '09:00' }] as ActiveDay[]
+  });
   
   // Reset Game States
   const [resetBetAmount, setResetBetAmount] = useState<string>('');
@@ -45,7 +61,6 @@ export default function GamesPage() {
   useEffect(() => {
     fetchGames();
     
-    // Load WebSocket service for reset functionality
     const loadWebSocketService = async () => {
       try {
         const wsModule = await import('@/app/utils/websocket');
@@ -62,7 +77,8 @@ export default function GamesPage() {
     if (games.length > 0) {
       const filtered = games.filter((game) =>
         game.betAmount.toString().includes(searchTerm) ||
-        game._id.includes(searchTerm)
+        game._id.includes(searchTerm) ||
+        game.gameType.includes(searchTerm.toLowerCase())
       );
       setFilteredGames(filtered);
     } else {
@@ -86,10 +102,18 @@ export default function GamesPage() {
   const handleOpenDialog = (game: Game | null = null) => {
     if (game) {
       setEditingGame(game);
-      setFormData({ betAmount: game.betAmount.toString() });
+      setFormData({
+        betAmount: game.betAmount.toString(),
+        gameType: game.gameType,
+        activeDays: game.activeDays.length > 0 ? game.activeDays : [{ day: 'monday', startTime: '09:00' }]
+      });
     } else {
       setEditingGame(null);
-      setFormData({ betAmount: '' });
+      setFormData({
+        betAmount: '',
+        gameType: 'partial',
+        activeDays: [{ day: 'monday', startTime: '09:00' }]
+      });
     }
     setOpenDialog(true);
   };
@@ -97,7 +121,11 @@ export default function GamesPage() {
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setEditingGame(null);
-    setFormData({ betAmount: '' });
+    setFormData({
+      betAmount: '',
+      gameType: 'partial',
+      activeDays: [{ day: 'monday', startTime: '09:00' }]
+    });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,6 +133,35 @@ export default function GamesPage() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleGameTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      gameType: e.target.value as 'partial' | 'full'
+    });
+  };
+
+  const handleActiveDayChange = (index: number, field: keyof ActiveDay, value: string) => {
+    const updatedDays = [...formData.activeDays];
+    updatedDays[index] = { ...updatedDays[index], [field]: value };
+    setFormData({ ...formData, activeDays: updatedDays });
+  };
+
+  const addActiveDay = () => {
+    setFormData({
+      ...formData,
+      activeDays: [...formData.activeDays, { day: 'monday', startTime: '09:00' }]
+    });
+  };
+
+  const removeActiveDay = (index: number) => {
+    if (formData.activeDays.length > 1) {
+      setFormData({
+        ...formData,
+        activeDays: formData.activeDays.filter((_, i) => i !== index)
+      });
+    }
   };
 
   const handleSubmit = async () => {
@@ -116,11 +173,20 @@ export default function GamesPage() {
         return;
       }
 
+      const payload: any = {
+        betAmount,
+        gameType: formData.gameType
+      };
+
+      if (formData.gameType === 'full') {
+        payload.activeDays = formData.activeDays;
+      }
+
       if (editingGame) {
-        await api.put(`/games/${editingGame._id}`, { betAmount });
+        await api.put(`/games/${editingGame._id}`, payload);
         setSuccess('Game updated successfully');
       } else {
-        await api.post('/games', { betAmount });
+        await api.post('/games', payload);
         setSuccess('Game created successfully');
       }
 
@@ -143,7 +209,6 @@ export default function GamesPage() {
     }
   };
 
-  // Reset Game Functionality
   const handleResetGame = async () => {
     if (!resetBetAmount) {
       setError('Please select a bet amount to reset');
@@ -157,18 +222,10 @@ export default function GamesPage() {
 
     try {
       setResetLoading(true);
-      
       const betAmount = parseInt(resetBetAmount);
-      
-      // Send reset command via WebSocket
       webSocketService.send('reset-game', { betAmount });
-      
       setSuccess(`Game sessions for ${betAmount} BIRR are being reset...`);
       setResetBetAmount('');
-      
-      // Optional: You can also call an API endpoint if you have one
-      // await api.post('/games/reset-sessions', { betAmount });
-      
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to reset game sessions');
     } finally {
@@ -177,6 +234,10 @@ export default function GamesPage() {
   };
 
   const totalPrizePool = games.reduce((total, game) => total + game.betAmount, 0);
+
+  const getGameTypeColor = (type: string) => {
+    return type === 'partial' ? 'info' : 'secondary';
+  };
 
   return (
     <Box
@@ -211,12 +272,11 @@ export default function GamesPage() {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
             gap: 2,
             mb: 3,
           }}
         >
-          {/* Total Games */}
           <Card
             sx={{
               background: 'linear-gradient(145deg, #2196F3, #21CBF3)',
@@ -234,7 +294,6 @@ export default function GamesPage() {
             </CardContent>
           </Card>
 
-          {/* Total Bet Amount */}
           <Card
             sx={{
               background: 'linear-gradient(145deg, #4CAF50, #8BC34A)',
@@ -249,6 +308,23 @@ export default function GamesPage() {
                 {totalPrizePool.toLocaleString()}
               </Typography>
               <Typography variant={isMobile ? "body2" : "body1"}>Total Bet Amount</Typography>
+            </CardContent>
+          </Card>
+
+          <Card
+            sx={{
+              background: 'linear-gradient(145deg, #9C27B0, #E040FB)',
+              color: 'white',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(156, 39, 176, 0.3)',
+            }}
+          >
+            <CardContent sx={{ p: 2, textAlign: 'center' }}>
+              <Schedule sx={{ fontSize: { xs: 24, sm: 30 }, mb: 1 }} />
+              <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 'bold' }}>
+                {games.filter(g => g.gameType === 'full').length}
+              </Typography>
+              <Typography variant={isMobile ? "body2" : "body1"}>Full Games</Typography>
             </CardContent>
           </Card>
         </Box>
@@ -357,12 +433,28 @@ export default function GamesPage() {
                           sx={{ fontWeight: 'bold' }} 
                         />
                         <Chip 
-                          icon={<AccessTime sx={{ fontSize: 16 }} />} 
-                          label={new Date(game.createdAt).toLocaleDateString()} 
-                          variant="outlined" 
+                          label={game.gameType.toUpperCase()} 
+                          color={getGameTypeColor(game.gameType)}
                           size={isMobile ? "small" : "medium"}
+                          sx={{ fontWeight: 'bold', textTransform: 'uppercase' }}
                         />
                       </Box>
+                      {game.gameType === 'full' && game.activeDays.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            Active Days:
+                          </Typography>
+                          {game.activeDays.map((day, idx) => (
+                            <Chip
+                              key={idx}
+                              label={`${day.day}: ${day.startTime}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{ mr: 0.5, mb: 0.5, fontSize: '0.65rem' }}
+                            />
+                          ))}
+                        </Box>
+                      )}
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontFamily: 'monospace', fontSize: '0.7rem' }}>
                         ID: {game._id.slice(-8)}
                       </Typography>
@@ -416,7 +508,7 @@ export default function GamesPage() {
         </motion.div>
       )}
 
-      {/* Reset Game Section - Added at the end */}
+      {/* Reset Game Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -462,7 +554,7 @@ export default function GamesPage() {
                   </MenuItem>
                   {games.map((game) => (
                     <MenuItem key={game._id} value={game.betAmount.toString()}>
-                      {game.betAmount} BIRR
+                      {game.betAmount} BIRR ({game.gameType})
                     </MenuItem>
                   ))}
                 </Select>
@@ -504,7 +596,7 @@ export default function GamesPage() {
       <Dialog 
         open={openDialog} 
         onClose={handleCloseDialog} 
-        maxWidth="sm" 
+        maxWidth="md" 
         fullWidth
         fullScreen={isMobile}
       >
@@ -514,18 +606,112 @@ export default function GamesPage() {
           </Typography>
         </DialogTitle>
         <DialogContent>
-          <TextField
-            fullWidth
-            label="Bet Amount"
-            name="betAmount"
-            type="number"
-            value={formData.betAmount}
-            onChange={handleInputChange}
-            margin="normal"
-            inputProps={{ min: 1, max: 10000 }}
-            helperText="Enter a value between 1 and 10000"
-            sx={{ mt: 2 }}
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Bet Amount */}
+            <Box>
+              <TextField
+                fullWidth
+                label="Bet Amount"
+                name="betAmount"
+                type="number"
+                value={formData.betAmount}
+                onChange={handleInputChange}
+                inputProps={{ min: 1, max: 10000 }}
+                helperText="Enter a value between 1 and 10000"
+              />
+            </Box>
+
+            {/* Game Type */}
+            <Box>
+              <FormControl component="fieldset">
+                <FormLabel component="legend">Game Type</FormLabel>
+                <RadioGroup
+                  row
+                  value={formData.gameType}
+                  onChange={handleGameTypeChange}
+                >
+                  <FormControlLabel 
+                    value="partial" 
+                    control={<Radio />} 
+                    label="Partial" 
+                  />
+                  <FormControlLabel 
+                    value="full" 
+                    control={<Radio />} 
+                    label="Full" 
+                  />
+                </RadioGroup>
+              </FormControl>
+            </Box>
+
+            {/* Active Days - Only show when gameType is 'full' */}
+            {formData.gameType === 'full' && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                  Active Days & Times
+                </Typography>
+                
+                {formData.activeDays.map((day, index) => (
+                  <Box 
+                    key={index} 
+                    sx={{ 
+                      display: 'flex', 
+                      gap: 1, 
+                      mb: 2, 
+                      alignItems: 'center',
+                      flexDirection: { xs: 'column', sm: 'row' }
+                    }}
+                  >
+                    <FormControl size="small" sx={{ minWidth: 120, width: { xs: '100%', sm: 'auto' } }}>
+                      <InputLabel>Day</InputLabel>
+                      <Select
+                        value={day.day}
+                        label="Day"
+                        onChange={(e) => handleActiveDayChange(index, 'day', e.target.value)}
+                      >
+                        {DAYS.map((d) => (
+                          <MenuItem key={d} value={d}>
+                            {d.charAt(0).toUpperCase() + d.slice(1)}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      size="small"
+                      type="time"
+                      label="Start Time"
+                      value={day.startTime}
+                      onChange={(e) => handleActiveDayChange(index, 'startTime', e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      sx={{ width: { xs: '100%', sm: 150 } }}
+                    />
+
+                    <IconButton
+                      size="small"
+                      onClick={() => removeActiveDay(index)}
+                      disabled={formData.activeDays.length <= 1}
+                      sx={{ 
+                        color: '#e74c3c',
+                        '&:disabled': { color: '#bdc3c7' }
+                      }}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  </Box>
+                ))}
+
+                <Button
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={addActiveDay}
+                  sx={{ mt: 1 }}
+                >
+                  Add Active Day
+                </Button>
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleCloseDialog} sx={{ borderRadius: 2 }}>
