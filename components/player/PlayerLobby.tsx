@@ -728,18 +728,20 @@ const PlayerLobby = ({
         </Card>
       </Box>
 
-      {/* Main Content - Flex column with auto spacing */}
+      {/* Main Content */}
       <Box sx={{ 
+        p: 0,
+        textAlign: 'center',
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          : backgroundColor,
+        minHeight: '50vh',
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
         overflow: 'hidden',
-        color: getTextColor(),
-        background: backgroundColor === 'white' 
-          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-          : backgroundColor,
+        color: getTextColor()
       }}>
-        {/* Grid container - takes remaining space */}
         <Box
           ref={gridContainerRef}
           sx={{
@@ -759,7 +761,7 @@ const PlayerLobby = ({
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
-            minHeight: '200px',
+            maxHeight: selectedPlayers.length > 0 ? '350px' : '450px',
           }}
         >
           {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
@@ -838,18 +840,23 @@ const PlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section: Shows either buttons or selected cards */}
+        {/* Bottom Section: Shows either buttons or selected cards pushed to bottom */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
-          maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-          mx: 'auto',
+          maxWidth: '100%',
           px: 0.5,
           pb: 0.5,
+          mt: 'auto', // This pushes it to the bottom
         }}>
           {selectedPlayers.length === 0 ? (
             // Show buttons when no cards selected
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
+            }}>
               <Button
                 variant={getButtonVariant()}
                 color="primary"
@@ -878,6 +885,8 @@ const PlayerLobby = ({
               display: 'flex', 
               gap: 1,
               overflow: 'auto',
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
             }}>
               {selectedPlayers.map((player, index) => {
                 const card = getCardGrid(player.id);
