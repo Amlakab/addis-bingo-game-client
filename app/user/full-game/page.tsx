@@ -81,7 +81,7 @@ export default function FullGamePage() {
         />
       </main>
 
-      <MobileNavigation />
+      {/* <MobileNavigation /> */}
     </div>
   );
 }

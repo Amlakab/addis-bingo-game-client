@@ -42,6 +42,16 @@ interface GameSession {
   __v: number;
 }
 
+interface FullTimerState {
+  status: 'ready' | 'active' | 'in-progress';
+  timer: number;
+  playerCount: number;
+  prizePool: number;
+  gameId: string;
+  betAmount: number;
+  createdAt: Date | null;
+}
+
 const FullPlayerLobby = ({ 
   onStartGame,
   gameId,
@@ -54,6 +64,9 @@ const FullPlayerLobby = ({
   setBackgroundColor
 }: FullPlayerLobbyProps) => {
   const [selectedPlayers, setSelectedPlayers] = useState<PlayerSelection[]>([]);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [prizePool, setPrizePool] = useState(0);
+  const [playerCount, setPlayerCount] = useState(0);
   const [wallet, setWallet] = useState(0);
   const [walletError, setWalletError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -151,6 +164,8 @@ const FullPlayerLobby = ({
       setWallet(user.wallet || 0);
     }
     
+    // Listen for full timer updates
+    webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
@@ -158,11 +173,35 @@ const FullPlayerLobby = ({
     webSocketService.send('get-full-sessions', { gameId });
     
     return () => {
+      webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
       webSocketService.off('wallet-updated', handleWalletUpdate);
     };
   }, [isClient, webSocketService, user, gameId]);
+
+  const handleFullTimerUpdate = (timerStates: {[key: string]: FullTimerState}) => {
+    console.log('Received full timer states in PlayerLobby:', timerStates);
+    
+    if (timerStates[gameId]) {
+      const timerState = timerStates[gameId];
+      setRemainingTime(timerState.timer);
+      setPlayerCount(timerState.playerCount);
+      setPrizePool(timerState.prizePool);
+      
+      // Auto-navigate when timer reaches 4 seconds (like partial games)
+      if (timerState.timer <= 4 && timerState.timer > 0 && selectedPlayers.length > 0) {
+        console.log('Timer reached 4 seconds, auto-navigating to game...');
+        handleDirectToGame();
+      }
+      
+      // If timer is 0 and status is ready, check if we should go to game
+      if (timerState.timer === 0 && timerState.status === 'ready' && selectedPlayers.length > 0) {
+        console.log('Timer at 0, auto-navigating to game...');
+        handleDirectToGame();
+      }
+    }
+  };
 
   const handleSessionsUpdate = (sessions: GameSession[]) => {
     const betSessions = sessions.filter(session => session.gameId === gameId);
@@ -203,9 +242,6 @@ const FullPlayerLobby = ({
     setWallet(newWallet);
   };
 
-  // REMOVED: togglePlayer function - users cannot unselect
-  // Users can only select cards, not unselect them
-
   const handleSelectCard = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -215,10 +251,8 @@ const FullPlayerLobby = ({
       return;
     }
 
+    // Check if already selected by this user
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-    const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
-    
-    // If already selected by user, do nothing (cannot unselect)
     if (isSelectedByUser) {
       setToastMessage(language === 'am' 
         ? 'ይህ ካርድ አስቀድሞ ተመርጧል' 
@@ -228,6 +262,8 @@ const FullPlayerLobby = ({
       return;
     }
     
+    // Check if selected by others
+    const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
     if (isSelectedByOthers) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
       setWalletError(true);
@@ -235,12 +271,14 @@ const FullPlayerLobby = ({
     }
 
     try {
+      // Check max cards (2 max)
       if (selectedPlayers.length >= 2) {
         setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
         setWalletError(true);
         return;
       }
 
+      // Check balance
       const totalCost = (selectedPlayers.length + 1) * betAmount;
       if (wallet < totalCost) {
         setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
@@ -248,6 +286,7 @@ const FullPlayerLobby = ({
         return;
       }
 
+      // Check if card is occupied
       if (occupiedCards.includes(id)) {
         setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
         setWalletError(true);
@@ -256,6 +295,8 @@ const FullPlayerLobby = ({
 
       // Generate card numbers for this card
       const cardNumbers = getCardGrid(id);
+      
+      console.log('Selecting card:', id, 'for game:', gameId);
       
       webSocketService.send('create-full-session', {
         userId: user._id,
@@ -319,11 +360,13 @@ const FullPlayerLobby = ({
         return;
       }
 
+      // Fund wallet (deduct money)
       webSocketService.send('fund-full-wallet', {
         gameId: gameId,
         userId: user._id
       });
 
+      // Update sessions to ready
       webSocketService.send('update-full-sessions-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
@@ -382,6 +425,26 @@ const FullPlayerLobby = ({
     return transposed;
   };
 
+  const formatTimeRemaining = (seconds: number): string => {
+    if (seconds <= 0) return '0s';
+    
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    if (days > 0) {
+      return `${days}d ${hours}h`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
   if (!isClient) {
     return (
       <Box sx={{ 
@@ -409,7 +472,7 @@ const FullPlayerLobby = ({
         paddingTop: 0
       }}
     >
-      {/* Header Row */}
+      {/* Header Row - Shows Timer like PlayerLobby */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -421,8 +484,9 @@ const FullPlayerLobby = ({
         width: '100%',
         flexShrink: 0
       }}>
+        {/* Bet Card */}
         <Card sx={{
-          flex: '0 0 33%',
+          flex: '0 0 25%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -441,8 +505,30 @@ const FullPlayerLobby = ({
           </Typography>
         </Card>
 
+        {/* Timer Card - Shows countdown */}
         <Card sx={{
-          flex: '0 0 33%',
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+            {remainingTime > 0 ? formatTimeRemaining(remainingTime) : 'Ready'}
+          </Typography>
+        </Card>
+
+        {/* Players Card */}
+        <Card sx={{
+          flex: '0 0 25%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -457,12 +543,13 @@ const FullPlayerLobby = ({
             {language === 'am' ? 'ተጫዋቾች' : 'Players'}
           </Typography>
           <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-            {occupiedCards.length}
+            {playerCount}
           </Typography>
         </Card>
 
+        {/* Prize Pool Card */}
         <Card sx={{
-          flex: '0 0 33%',
+          flex: '0 0 25%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -474,10 +561,10 @@ const FullPlayerLobby = ({
           color: getTextColor()
         }}>
           <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-            {language === 'am' ? 'የተመረጡ' : 'Selected'}
+            {language === 'am' ? 'ደራሽ' : 'Prize'}
           </Typography>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-            {selectedPlayers.length}
+          <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
+            {prizePool.toFixed(0)}
           </Typography>
         </Card>
       </Box>
@@ -522,7 +609,7 @@ const FullPlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            const isDisabled = isSelectedByOthers || isSelectedByUser;
+            const isDisabled = isSelectedByOthers || isSelectedByUser || remainingTime <= 0;
 
             return (
               <motion.div
@@ -726,25 +813,31 @@ const FullPlayerLobby = ({
                 })}
               </Box>
 
-              {/* Play Button */}
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleDirectToGame}
-                disabled={selectedPlayers.length === 0}
-                sx={{
-                  py: 1.5,
-                  fontSize: '1.2rem',
-                  fontWeight: 'bold',
-                  borderRadius: 2,
-                  boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
-                  '&:disabled': {
-                    background: '#bdc3c7',
+              {/* Play Button - Shows timer countdown */}
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleDirectToGame}
+                  disabled={selectedPlayers.length === 0 || remainingTime <= 0}
+                  sx={{
+                    flex: 1,
+                    py: 1.5,
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold',
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
+                    '&:disabled': {
+                      background: '#bdc3c7',
+                    }
+                  }}
+                >
+                  {remainingTime > 0 
+                    ? (language === 'am' ? `ጨዋታ ይጀምራል ${formatTimeRemaining(remainingTime)}` : `Game starts in ${formatTimeRemaining(remainingTime)}`)
+                    : (language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game')
                   }
-                }}
-              >
-                {language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game'}
-              </Button>
+                </Button>
+              </Box>
             </Box>
           )}
         </Box>
