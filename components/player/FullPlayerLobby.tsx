@@ -156,7 +156,6 @@ const FullPlayerLobby = ({
     loadWebSocketService();
   }, []);
 
-  // FIXED: WebSocket event listeners
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
@@ -164,115 +163,72 @@ const FullPlayerLobby = ({
       setWallet(user.wallet || 0);
     }
     
-    console.log('Setting up FullPlayerLobby WebSocket listeners for game:', gameId);
+    webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
+    webSocketService.on('full-sessions-updated', handleSessionsUpdate);
+    webSocketService.on('full-session-created', handleSessionCreated);
+    webSocketService.on('wallet-updated', handleWalletUpdate);
     
-    // Listen for timer updates
-    webSocketService.on('full-timer-states-update', (timerStates: {[key: string]: FullTimerState}) => {
-      console.log('📊 Full timer update received:', timerStates);
-      
-      if (timerStates[gameId]) {
-        const timerState = timerStates[gameId];
-        setRemainingTime(timerState.timer);
-        setPlayerCount(timerState.playerCount);
-        setPrizePool(timerState.prizePool);
-      }
-    });
-
-    // Listen for sessions updates
-    webSocketService.on('full-sessions-updated', (sessions: GameSession[]) => {
-      console.log('📋 Full sessions updated:', sessions);
-      
-      const betSessions = sessions.filter(session => session.gameId === gameId);
-      const occupied = betSessions.map(session => session.cardNumber);
-      setOccupiedCards(occupied);
-      
-      const cardUserMap: {[key: number]: string} = {};
-      betSessions.forEach(session => {
-        cardUserMap[session.cardNumber] = session.userId._id;
-      });
-      setOccupiedCardsByUser(cardUserMap);
-      
-      if (user) {
-        const userSelectedCards = betSessions
-          .filter(session => session.userId._id === user._id)
-          .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
-        
-        console.log('🎯 User selected cards:', userSelectedCards);
-        setSelectedPlayers(userSelectedCards);
-      }
-    });
-
-    // Listen for session created
-    webSocketService.on('full-session-created', (session: GameSession) => {
-      console.log('✅ Full session created event:', session);
-      
-      if (session.gameId === gameId) {
-        // Update occupied cards
-        setOccupiedCards(prev => {
-          if (prev.includes(session.cardNumber)) return prev;
-          return [...prev, session.cardNumber];
-        });
-        
-        // Update occupied by user
-        setOccupiedCardsByUser(prev => ({
-          ...prev,
-          [session.cardNumber]: session.userId._id
-        }));
-        
-        // Update selected players if it's the current user
-        if (user && session.userId._id === user._id) {
-          setSelectedPlayers(prev => {
-            if (prev.some(p => p.id === session.cardNumber)) return prev;
-            return [...prev, { id: session.cardNumber, userId: session.userId._id }];
-          });
-          
-          // Show success message
-          setToastMessage(language === 'am' 
-            ? `ካርድ ${session.cardNumber} ተመርጧል` 
-            : `Card ${session.cardNumber} selected`
-          );
-          setShowToast(true);
-        }
-      }
-    });
-
-    // Listen for wallet updates
-    webSocketService.on('wallet-updated', (newWallet: number) => {
-      console.log('💰 Wallet updated:', newWallet);
-      setWallet(newWallet);
-    });
-
-    // Listen for errors
-    webSocketService.on('error', (error: any) => {
-      console.error('❌ Socket error in FullPlayerLobby:', error);
-      setErrorMessage(error.message || 'An error occurred');
-      setWalletError(true);
-    });
-
-    // Request initial data
-    webSocketService.send('get-full-sessions', { gameId });
-    webSocketService.send('get-timer-states');
-
-    // FIXED: Proper cleanup
+    webSocketService.send('get-full-sessions', { betAmount });
+    
     return () => {
-      console.log('Cleaning up FullPlayerLobby WebSocket listeners');
-      webSocketService.off('full-timer-states-update');
-      webSocketService.off('full-sessions-updated');
-      webSocketService.off('full-session-created');
-      webSocketService.off('wallet-updated');
-      webSocketService.off('error');
+      webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
+      webSocketService.off('full-sessions-updated', handleSessionsUpdate);
+      webSocketService.off('full-session-created', handleSessionCreated);
+      webSocketService.off('wallet-updated', handleWalletUpdate);
     };
-  }, [isClient, webSocketService, user, gameId]);
+  }, [isClient, webSocketService, user, betAmount]);
 
-  // FIXED: Auto-navigate when timer reaches 4 seconds
-  useEffect(() => {
-    if (remainingTime <= 4 && remainingTime > 0 && selectedPlayers.length > 0) {
-      console.log('⏰ Timer reached 4 seconds, auto-navigating to game...');
-      handleDirectToGame();
+  const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
+    console.log('Received full timer states in PlayerLobby:', timerStates);
+    
+    if (timerStates[betAmount]) {
+      const timerState = timerStates[betAmount];
+      setRemainingTime(timerState.timer);
+      setPlayerCount(timerState.playerCount);
+      setPrizePool(timerState.prizePool);
     }
-  }, [remainingTime]);
+  };
 
-  // FIXED: Toggle player - exactly like partial games
+  const handleSessionsUpdate = (sessions: GameSession[]) => {
+    const betSessions = sessions.filter(session => session.betAmount === betAmount);
+    const occupied = betSessions.map(session => session.cardNumber);
+    setOccupiedCards(occupied);
+    
+    const cardUserMap: {[key: number]: string} = {};
+    betSessions.forEach(session => {
+      cardUserMap[session.cardNumber] = session.userId._id;
+    });
+    setOccupiedCardsByUser(cardUserMap);
+    
+    if (user) {
+      const userSelectedCards = betSessions
+        .filter(session => session.userId._id === user._id)
+        .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
+      
+      setSelectedPlayers(userSelectedCards);
+    }
+  };
+
+  const handleSessionCreated = (session: GameSession) => {
+    if (session.betAmount === betAmount) {
+      setOccupiedCards(prev => [...prev, session.cardNumber]);
+      
+      setOccupiedCardsByUser(prev => ({
+        ...prev,
+        [session.cardNumber]: session.userId._id
+      }));
+      
+      if (user && session.userId._id === user._id) {
+        setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
+      }
+    }
+  };
+
+  const handleWalletUpdate = (newWallet: number) => {
+    setWallet(newWallet);
+  };
+
+  // Toggle player - ONLY SELECT, NO UNSELECT for full games
   const togglePlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -281,10 +237,6 @@ const FullPlayerLobby = ({
       setWalletError(true);
       return;
     }
-
-    console.log('🔄 Toggling card:', id, 'Current selected:', selectedPlayers);
-    console.log('Occupied cards:', occupiedCards);
-    console.log('Occupied by user:', occupiedCardsByUser);
 
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
@@ -327,19 +279,13 @@ const FullPlayerLobby = ({
         return;
       }
 
-      // Generate card numbers
-      const cardNumbers = getCardGrid(id);
-
-      console.log('📤 Sending create-full-session for card:', id);
-      
       // Send create session - LIKE PARTIAL GAME (NO money deduction yet)
       webSocketService.send('create-full-session', {
         userId: user._id,
         agentId: user.agent_id || '',
         cardNumber: id,
         betAmount,
-        gameId: gameId,
-        cardNumbers
+        createdAt: new Date().toISOString()
       });
       
     } catch (error: any) {
@@ -351,22 +297,19 @@ const FullPlayerLobby = ({
     }
   };
 
-  // FIXED: Handle direct to game
   const handleDirectToGame = async () => {
     if (!isClient || !webSocketService || !user || !onDirectToGame) return;
-
-    console.log('🎮 Direct to game called, selected players:', selectedPlayers);
 
     try {
       const response = await api.get(`/full-game/sessions/user/${user._id}`);
       const userSessions = response.data;
       
-      const currentGameSessions = userSessions.filter((session: GameSession) => 
-        session.gameId === gameId && 
+      const currentBetSessions = userSessions.filter((session: GameSession) => 
+        session.betAmount === betAmount && 
         ['active', 'ready'].includes(session.status)
       );
 
-      if (currentGameSessions.length === 0) {
+      if (currentBetSessions.length === 0) {
         setToastMessage(language === 'am' 
           ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
           : 'Please select at least 1 card'
@@ -375,7 +318,7 @@ const FullPlayerLobby = ({
         return;
       }
 
-      if (currentGameSessions.length > 2) {
+      if (currentBetSessions.length > 2) {
         setToastMessage(language === 'am' 
           ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
           : 'You cannot select more than 2 cards'
@@ -384,26 +327,34 @@ const FullPlayerLobby = ({
         return;
       }
 
-      const validatedSelectedPlayers: PlayerSelection[] = currentGameSessions.map((session: GameSession) => ({
+      const validatedSelectedPlayers: PlayerSelection[] = currentBetSessions.map((session: GameSession) => ({
         id: session.cardNumber,
         userId: session.userId._id
       }));
 
-      console.log('✅ Validated players:', validatedSelectedPlayers);
+      if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
+        setToastMessage(language === 'am' 
+          ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
+          : 'You can only select 1 to 2 cards'
+        );
+        setShowToast(true);
+        return;
+      }
 
       // DEDUCT MONEY HERE - LIKE PARTIAL GAME
       webSocketService.send('fund-full-wallet', {
-        gameId: gameId,
+        betAmount: betAmount,
         userId: user._id
       });
 
       // Update sessions to ready - LIKE PARTIAL GAME
-      webSocketService.send('update-full-sessions-by-user-bet', {
+      webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
         status: 'ready'
       });
 
+      // Pass the gameId to the parent
       onDirectToGame(validatedSelectedPlayers, betAmount, gameId);
 
     } catch (error) {
@@ -416,8 +367,34 @@ const FullPlayerLobby = ({
     }
   };
 
+  const handleCancelSelections = async () => {
+    if (!isClient || !webSocketService || !user) return;
+    
+    if (selectedPlayers.length === 0) return;
+    
+    setIsLoading(true);
+    try {
+      if (webSocketService) {
+        webSocketService.send('clear-full-selected', {
+          betAmount: betAmount,
+          userId: user._id
+        });
+      }
+      
+      setSelectedPlayers([]);
+      
+    } catch (error: any) {
+      console.error('Error canceling selections:', error);
+      const errorMsg = error.response?.data?.error || "Error canceling selections";
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Helper function to get card number grid (5x5 BINGO card)
-  const getCardGrid = (cardId: number): number[][] => {
+  const getCardGrid = (cardId: number) => {
     const ranges = [
       [1, 15],
       [16, 30],
@@ -778,6 +755,7 @@ const FullPlayerLobby = ({
                         }}>
                           {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
+                        {/* NO DELETE BUTTON - Cannot unselect in full games */}
                       </Box>
 
                       <Box
