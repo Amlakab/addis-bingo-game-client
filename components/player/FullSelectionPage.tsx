@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { 
   Box, Typography, Card, CardContent, Button,
   useTheme, useMediaQuery, Chip, Skeleton, Tooltip, IconButton,
-  CircularProgress
+  CircularProgress, Snackbar, Alert
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { 
@@ -59,6 +59,8 @@ const FullSelectionPage = ({
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
   
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -148,33 +150,21 @@ const FullSelectionPage = ({
     loadWebSocketService();
   }, []);
 
-  // Only fetch games once on mount - NO AUTO-REFRESH like BetSelectionPage
   useEffect(() => {
     if (!isClient) return;
     
     fetchFullGames();
     fetchUserBalance();
     
-    // Listen for WebSocket updates for full games
-    if (webSocketService) {
-      webSocketService.on('available-full-games', handleAvailableFullGames);
-      webSocketService.send('get-available-full-games');
-    }
+    // Refresh every 10 seconds to update timer
+    const interval = setInterval(() => {
+      fetchFullGames();
+    }, 10000);
     
     return () => {
-      if (webSocketService) {
-        webSocketService.off('available-full-games', handleAvailableFullGames);
-      }
+      clearInterval(interval);
     };
-  }, [isClient, webSocketService]);
-
-  const handleAvailableFullGames = (games: any[]) => {
-    // Update games with real-time data from WebSocket
-    setFullGames(games.map((game: any) => ({
-      ...game,
-      nextGameTime: game.nextGameTime ? new Date(game.nextGameTime) : null,
-    })));
-  };
+  }, [isClient]);
 
   const fetchFullGames = async () => {
     try {
@@ -188,7 +178,9 @@ const FullSelectionPage = ({
           ...game,
           nextGameTime: nextTime,
           timeRemaining: nextTime ? calculateTimeRemaining(nextTime) : 0,
-          isActive: isGameActiveNow(game)
+          // A game is "active" if it has a scheduled time (just like partial game has timer)
+          // This means "Play" button should show
+          isActive: nextTime !== null && !isGamePassed(game)
         };
       });
       
@@ -247,7 +239,8 @@ const FullSelectionPage = ({
     return Math.max(0, Math.floor(diffMs / 1000));
   };
 
-  const isGameActiveNow = (game: any): boolean => {
+  // Check if game has passed (more than 5 minutes after scheduled time)
+  const isGamePassed = (game: any): boolean => {
     const now = new Date();
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const currentDay = dayNames[now.getDay()];
@@ -261,7 +254,8 @@ const FullSelectionPage = ({
         const diffMs = now.getTime() - gameTime.getTime();
         const diffMinutes = diffMs / (1000 * 60);
         
-        if (diffMinutes >= 0 && diffMinutes < 5) {
+        // Game is passed if more than 5 minutes after scheduled time
+        if (diffMinutes > 5) {
           return true;
         }
       }
@@ -296,6 +290,7 @@ const FullSelectionPage = ({
   };
 
   const handlePlayClick = (game: FullGame) => {
+    // If game has a scheduled time (isActive is true), allow play
     if (game.isActive) {
       onPlay(game._id, game.betAmount, 0);
     }
@@ -446,8 +441,10 @@ const FullSelectionPage = ({
           ) : (
             fullGames.map((game, index) => {
               const isDisabledByBalance = !isLoadingBalance && hasInsufficientBalance(game.betAmount);
+              // A game is "playable" if it has a scheduled time and hasn't passed
+              // This is like partial games showing "Play" when timer is running
               const canPlay = game.isActive && !isDisabledByBalance;
-              const isTimeUp = game.timeRemaining <= 0 && !game.isActive;
+              const isPassed = !game.isActive && game.nextGameTime === null && !game.activeDays?.length;
               
               return (
                 <motion.div
@@ -468,7 +465,7 @@ const FullSelectionPage = ({
                       borderRadius: 2,
                       boxShadow: canPlay ? '0 4px 14px rgba(0,0,0,0.15)' : '0 4px 14px rgba(0,0,0,0.08)',
                       background: getCardBackground(),
-                      opacity: isDisabledByBalance || isTimeUp ? 0.6 : 1,
+                      opacity: isDisabledByBalance || isPassed ? 0.6 : 1,
                       position: 'relative',
                       overflow: 'visible',
                       border: canPlay ? '2px solid #4caf50' : `1px solid ${getTextColor()}30`,
@@ -480,17 +477,17 @@ const FullSelectionPage = ({
                     {/* Status Badge */}
                     <Box sx={{ position: 'absolute', top: -10, right: 10, zIndex: 1 }}>
                       <Chip
-                        icon={game.isActive ? <AccessTime /> : <Schedule />}
-                        label={game.isActive 
-                          ? (language === 'am' ? 'እየተካሄደ' : 'Active')
-                          : (isTimeUp ? (language === 'am' ? 'አልቋል' : 'Passed') : formatTimeRemaining(game.timeRemaining))}
-                        color={game.isActive ? 'success' : isTimeUp ? 'default' : 'warning'}
+                        icon={canPlay ? <AccessTime /> : <Schedule />}
+                        label={canPlay 
+                          ? formatTimeRemaining(game.timeRemaining)
+                          : (isPassed ? (language === 'am' ? 'አልቋል' : 'Passed') : (language === 'am' ? 'ይጠብቁ' : 'Wait'))}
+                        color={canPlay ? 'success' : isPassed ? 'default' : 'warning'}
                         size="small"
                         sx={{ 
                           fontWeight: 'bold',
                           boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
                           fontSize: { xs: '0.6rem', sm: '0.7rem' },
-                          color: game.isActive ? '#fff' : (isTimeUp ? '#757575' : '#fff')
+                          color: canPlay ? '#fff' : (isPassed ? '#757575' : '#fff')
                         }}
                       />
                     </Box>
@@ -527,8 +524,8 @@ const FullSelectionPage = ({
                         </Box>
                       )}
 
-                      {/* Next Game Time */}
-                      {game.nextGameTime && !game.isActive && (
+                      {/* Next Game Time - Shows countdown */}
+                      {game.nextGameTime && (
                         <Box sx={{ 
                           display: 'flex', 
                           alignItems: 'center', 
@@ -538,12 +535,12 @@ const FullSelectionPage = ({
                           borderRadius: 1.5, 
                           p: 1 
                         }}>
-                          <Schedule sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
+                          <AccessTime sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
                           <Typography variant="body2" sx={{ fontSize: '0.75rem', color: getTextColor() }}>
-                            {language === 'am' ? 'ቀጣይ ጨዋታ:' : 'Next Game:'}
+                            {language === 'am' ? 'ቀሪ ጊዜ:' : 'Time Remaining:'}
                           </Typography>
                           <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.75rem', fontWeight: 'bold', color: getTextColor() }}>
-                            {formatDate(game.nextGameTime)}
+                            {formatTimeRemaining(game.timeRemaining)}
                           </Typography>
                         </Box>
                       )}
@@ -552,7 +549,7 @@ const FullSelectionPage = ({
                         variant={getButtonVariant()}
                         color={getButtonColor()}
                         size="small"
-                        disabled={!canPlay || isDisabledByBalance || isLoadingBalance}
+                        disabled={!canPlay || isDisabledByBalance || isLoadingBalance || isPassed}
                         onClick={() => handlePlayClick(game)}
                         startIcon={canPlay && !isDisabledByBalance ? <SportsEsports /> : undefined}
                         sx={{
@@ -575,11 +572,11 @@ const FullSelectionPage = ({
                           ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
                           : isDisabledByBalance 
                             ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
-                            : isTimeUp
+                            : isPassed
                               ? (language === 'am' ? "አልቋል" : "Passed")
-                              : !game.isActive
-                                ? (language === 'am' ? "ይጠብቁ" : "Wait")
-                                : (language === 'am' ? "ይጫወቱ" : "Play")
+                              : canPlay
+                                ? (language === 'am' ? "ይጫወቱ" : "Play")
+                                : (language === 'am' ? "ይጠብቁ" : "Wait")
                         }
                       </Button>
                     </CardContent>
@@ -667,6 +664,18 @@ const FullSelectionPage = ({
           </Box>
         </motion.div>
       </Box>
+
+      {/* Toast Message */}
+      <Snackbar
+        open={showToast}
+        autoHideDuration={3000}
+        onClose={() => setShowToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="info" onClose={() => setShowToast(false)}>
+          {toastMessage}
+        </Alert>
+      </Snackbar>
 
       <HowToPlayModal
         open={howToPlayOpen}
