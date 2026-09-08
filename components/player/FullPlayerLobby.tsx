@@ -166,6 +166,7 @@ const FullPlayerLobby = ({
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
+    webSocketService.on('full-session-deleted', handleSessionDeleted);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     
     webSocketService.send('get-full-sessions', { betAmount });
@@ -174,6 +175,7 @@ const FullPlayerLobby = ({
       webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
+      webSocketService.off('full-session-deleted', handleSessionDeleted);
       webSocketService.off('wallet-updated', handleWalletUpdate);
     };
   }, [isClient, webSocketService, user, betAmount]);
@@ -224,11 +226,27 @@ const FullPlayerLobby = ({
     }
   };
 
+  const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
+    if (data.betAmount === betAmount) {
+      setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
+      
+      setOccupiedCardsByUser(prev => {
+        const newMap = { ...prev };
+        delete newMap[data.cardNumber];
+        return newMap;
+      });
+      
+      if (user && data.userId === user._id) {
+        setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
+      }
+    }
+  };
+
   const handleWalletUpdate = (newWallet: number) => {
     setWallet(newWallet);
   };
 
-  // Toggle player - ONLY SELECT, NO UNSELECT for full games
+  // ✅ FIXED: Same logic as PlayerLobby - allows both select and unselect
   const togglePlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -241,16 +259,6 @@ const FullPlayerLobby = ({
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
     
-    // For full games - CANNOT UNSELECT
-    if (isSelectedByUser) {
-      setToastMessage(language === 'am' 
-        ? 'በመደበኛ ጨዋታ ካርዶችን መሰረዝ አይቻልም' 
-        : 'Cannot unselect cards in full games'
-      );
-      setShowToast(true);
-      return;
-    }
-    
     if (isSelectedByOthers) {
       setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
       setWalletError(true);
@@ -258,38 +266,44 @@ const FullPlayerLobby = ({
     }
 
     try {
-      // Check max cards (2 max)
-      if (selectedPlayers.length >= 2) {
-        setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
-        setWalletError(true);
-        return;
-      }
+      // ✅ Same as PlayerLobby - if selected by user, unselect it
+      if (isSelectedByUser) {
+        webSocketService.send('delete-full-session', {
+          cardNumber: id,
+          betAmount,
+        });
+      } else {
+        // ✅ Same as PlayerLobby - select new card
+        if (selectedPlayers.length >= 2) {
+          setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+          setWalletError(true);
+          return;
+        }
 
-      // Check balance
-      const totalCost = (selectedPlayers.length + 1) * betAmount;
-      if (wallet < totalCost) {
-        setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
-        setWalletError(true);
-        return;
-      }
+        const totalCost = (selectedPlayers.length + 1) * betAmount;
+        if (wallet < totalCost) {
+          setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
+          setWalletError(true);
+          return;
+        }
 
-      if (occupiedCards.includes(id)) {
-        setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
-        setWalletError(true);
-        return;
-      }
+        if (occupiedCards.includes(id)) {
+          setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
+          setWalletError(true);
+          return;
+        }
 
-      // Send create session - LIKE PARTIAL GAME (NO money deduction yet)
-      webSocketService.send('create-full-session', {
-        userId: user._id,
-        agentId: user.agent_id || '',
-        cardNumber: id,
-        betAmount,
-        createdAt: new Date().toISOString()
-      });
+        webSocketService.send('create-full-session', {
+          userId: user._id,
+          agentId: user.agent_id || '',
+          cardNumber: id,
+          betAmount,
+          createdAt: new Date().toISOString()
+        });
+      }
       
     } catch (error: any) {
-      console.error('Error selecting card:', error);
+      console.error('Error toggling card:', error);
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
@@ -341,20 +355,17 @@ const FullPlayerLobby = ({
         return;
       }
 
-      // DEDUCT MONEY HERE - LIKE PARTIAL GAME
       webSocketService.send('fund-full-wallet', {
         betAmount: betAmount,
         userId: user._id
       });
 
-      // Update sessions to ready - LIKE PARTIAL GAME
       webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
         status: 'ready'
       });
 
-      // Pass the gameId to the parent
       onDirectToGame(validatedSelectedPlayers, betAmount, gameId);
 
     } catch (error) {
@@ -480,7 +491,7 @@ const FullPlayerLobby = ({
         paddingTop: 0
       }}
     >
-      {/* Header Row */}
+      {/* Header Row - Same as PlayerLobby */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -613,7 +624,7 @@ const FullPlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            const isDisabled = isSelectedByOthers || isSelectedByUser || remainingTime <= 0;
+            const isDisabled = isSelectedByOthers || remainingTime <= 0;
 
             return (
               <motion.div
@@ -680,7 +691,7 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section */}
+        {/* Bottom Section: Shows either buttons or selected cards pushed to bottom */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
@@ -747,7 +758,7 @@ const FullPlayerLobby = ({
                         boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
                       }}
                     >
-                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 0.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
                         <Typography sx={{ 
                           fontWeight: 'bold', 
                           fontSize: '0.85rem',
@@ -755,7 +766,19 @@ const FullPlayerLobby = ({
                         }}>
                           {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
-                        {/* NO DELETE BUTTON - Cannot unselect in full games */}
+                        <IconButton
+                          size="small"
+                          onClick={() => togglePlayer(player.id)}
+                          sx={{
+                            color: '#f44336',
+                            padding: 0.5,
+                            '&:hover': {
+                              backgroundColor: 'rgba(244,67,54,0.1)'
+                            }
+                          }}
+                        >
+                          ✕
+                        </IconButton>
                       </Box>
 
                       <Box
