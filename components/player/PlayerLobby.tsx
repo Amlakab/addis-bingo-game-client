@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 import { 
   Button, Box, Typography, Card, CardContent, 
@@ -80,7 +80,6 @@ const PlayerLobby = ({
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [buttonSize, setButtonSize] = useState(40);
   
-  // REMOVED: pendingOperations - no longer needed
   const [isProcessing, setIsProcessing] = useState(false);
   
   const theme = useTheme();
@@ -343,20 +342,16 @@ const PlayerLobby = ({
     }
   };
 
-  // NEW: Handle session deletion from WebSocket
   const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
     if (data.betAmount === betAmount) {
-      // Remove from occupied cards
       setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
       
-      // Remove from occupiedCardsByUser
       setOccupiedCardsByUser(prev => {
         const newMap = { ...prev };
         delete newMap[data.cardNumber];
         return newMap;
       });
       
-      // Remove from selected players if it belongs to current user
       if (user && data.userId === user._id) {
         setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
       }
@@ -404,7 +399,6 @@ const PlayerLobby = ({
   };
 
   const togglePlayer = async (id: number) => {
-    // Prevent rapid clicking
     if (isProcessing) {
       return;
     }
@@ -430,7 +424,6 @@ const PlayerLobby = ({
 
     try {
       if (isSelectedByUser) {
-        // Send delete request - UI will update when session-deleted event is received
         webSocketService.send('delete-session', {
           cardNumber: id,
           betAmount,
@@ -458,7 +451,6 @@ const PlayerLobby = ({
           return;
         }
 
-        // Send create request - UI will update when session-created event is received
         webSocketService.send('create-session', {
           userId: user._id,
           agentId: user.agent_id || '',
@@ -475,7 +467,6 @@ const PlayerLobby = ({
       setErrorMessage(errorMsg);
       setWalletError(true);
     } finally {
-      // Add small delay before allowing next click
       setTimeout(() => {
         setIsProcessing(false);
       }, 300);
@@ -616,6 +607,155 @@ const PlayerLobby = ({
     }
     return transposed;
   };
+
+  // Memoize the card grid to prevent unnecessary re-renders
+  const cardGrids = useMemo(() => {
+    const grids: { [key: number]: number[][] } = {};
+    selectedPlayers.forEach(player => {
+      grids[player.id] = getCardGrid(player.id);
+    });
+    return grids;
+  }, [selectedPlayers]);
+
+  // Memoize the bottom section to prevent re-renders when selectedPlayers changes
+  const renderBottomSection = useCallback(() => {
+    if (selectedPlayers.length === 0) {
+      return (
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1,
+          maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+          mx: 'auto',
+        }}>
+          <Button
+            variant={getButtonVariant()}
+            color="primary"
+            onClick={() => {
+              if (onBackToLobby) {
+                onBackToLobby();
+              }
+            }}
+            disabled={isProcessing}
+            sx={{
+              flex: 1,
+              py: 1,
+              fontSize: '1.1rem',
+              fontWeight: 'bold',
+              borderRadius: 2,
+              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              ...getButtonStyle()
+            }}
+          >
+            {language === 'am' ? 'ተመለስ' : 'Back'}
+          </Button>
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        gap: 1,
+        overflow: 'auto',
+        maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+        mx: 'auto',
+      }}>
+        {selectedPlayers.map((player) => {
+          const card = cardGrids[player.id];
+          const transposedCard = transposeCard(card);
+          
+          return (
+            <Card
+              key={player.id}
+              sx={{
+                flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
+                minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
+                p: 0.5,
+                background: getCardBackground(),
+                borderRadius: 1.5,
+                border: '2px solid #4CAF50',
+                boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
+              }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                <Typography sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: getTextColor() }}>
+                  {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => togglePlayer(player.id)}
+                  sx={{
+                    color: '#f44336',
+                    padding: 0.5,
+                    '&:hover': {
+                      backgroundColor: 'rgba(244,67,54,0.1)'
+                    }
+                  }}
+                >
+                  ✕
+                </IconButton>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, 1fr)',
+                  gap: 0.15,
+                }}
+              >
+                {["B", "I", "N", "G", "O"].map((letter) => (
+                  <Box
+                    key={letter}
+                    sx={{
+                      p: 0.2,
+                      background: 'linear-gradient(135deg, #1976d2, #2196f3)',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      fontSize: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '2px 2px 0 0',
+                    }}
+                  >
+                    {letter}
+                  </Box>
+                ))}
+
+                {transposedCard.map((row, rowIdx) =>
+                  row.map((num, colIdx) => {
+                    const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                    return (
+                      <Box
+                        key={`${rowIdx}-${colIdx}`}
+                        sx={{
+                          p: 0.15,
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '2px',
+                          background: isFreeSpace
+                            ? 'rgba(76,175,80,0.3)'
+                            : 'rgba(255,255,255,0.05)',
+                          color: getTextColor(),
+                          fontWeight: 'normal',
+                          fontSize: '0.5rem',
+                          minHeight: 20,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isFreeSpace ? '★' : num}
+                      </Box>
+                    );
+                  })
+                )}
+              </Box>
+            </Card>
+          );
+        })}
+      </Box>
+    );
+  }, [selectedPlayers, cardGrids, isProcessing, language, backgroundColor]);
 
   if (!isClient) {
     return (
@@ -774,14 +914,14 @@ const PlayerLobby = ({
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
-            maxHeight: selectedPlayers.length > 0 ? '400px' : '400px',
+            // FIXED: Use fixed height, not dependent on selectedPlayers
+            maxHeight: '400px',
           }}
         >
           {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            // Removed isPending - no more loading spinners
             const isDisabled = isSelectedByOthers || isProcessing || remainingTime <= 0;
 
             return (
@@ -858,138 +998,7 @@ const PlayerLobby = ({
           pb: 0.5,
           mt: 'auto',
         }}>
-          {selectedPlayers.length === 0 ? (
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1,
-              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-              mx: 'auto',
-            }}>
-              <Button
-                variant={getButtonVariant()}
-                color="primary"
-                onClick={() => {
-                  if (onBackToLobby) {
-                    onBackToLobby();
-                  }
-                }}
-                disabled={isProcessing}
-                sx={{
-                  flex: 1,
-                  py: 1,
-                  fontSize: '1.1rem',
-                  fontWeight: 'bold',
-                  borderRadius: 2,
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                  ...getButtonStyle()
-                }}
-              >
-                {language === 'am' ? 'ተመለስ' : 'Back'}
-              </Button>
-            </Box>
-          ) : (
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1,
-              overflow: 'auto',
-              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-              mx: 'auto',
-            }}>
-              {selectedPlayers.map((player, index) => {
-                const card = getCardGrid(player.id);
-                const transposedCard = transposeCard(card);
-                
-                return (
-                  <Card
-                    key={player.id}
-                    sx={{
-                      flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
-                      minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
-                      p: 0.5,
-                      background: getCardBackground(),
-                      borderRadius: 1.5,
-                      border: '2px solid #4CAF50',
-                      boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
-                    }}
-                  >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                      <Typography sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: getTextColor() }}>
-                        {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={() => togglePlayer(player.id)}
-                        sx={{
-                          color: '#f44336',
-                          padding: 0.5,
-                          '&:hover': {
-                            backgroundColor: 'rgba(244,67,54,0.1)'
-                          }
-                        }}
-                      >
-                        ✕
-                      </IconButton>
-                    </Box>
-
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
-                        gap: 0.15,
-                      }}
-                    >
-                      {["B", "I", "N", "G", "O"].map((letter) => (
-                        <Box
-                          key={letter}
-                          sx={{
-                            p: 0.2,
-                            background: 'linear-gradient(135deg, #1976d2, #2196f3)',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            fontSize: '0.5rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '2px 2px 0 0',
-                          }}
-                        >
-                          {letter}
-                        </Box>
-                      ))}
-
-                      {transposedCard.map((row, rowIdx) =>
-                        row.map((num, colIdx) => {
-                          const isFreeSpace = (colIdx === 2 && rowIdx === 2);
-                          return (
-                            <Box
-                              key={`${rowIdx}-${colIdx}`}
-                              sx={{
-                                p: 0.15,
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                borderRadius: '2px',
-                                background: isFreeSpace
-                                  ? 'rgba(76,175,80,0.3)'
-                                  : 'rgba(255,255,255,0.05)',
-                                color: getTextColor(),
-                                fontWeight: 'normal',
-                                fontSize: '0.5rem',
-                                minHeight: 20,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {isFreeSpace ? '★' : num}
-                            </Box>
-                          );
-                        })
-                      )}
-                    </Box>
-                  </Card>
-                );
-              })}
-            </Box>
-          )}
+          {renderBottomSection()}
         </Box>
 
         <Snackbar
