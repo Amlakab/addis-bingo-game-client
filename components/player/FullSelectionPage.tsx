@@ -25,7 +25,6 @@ interface FullTimerState {
   timer: number;
   playerCount: number;
   prizePool: number;
-  gameId: string;
   betAmount: number;
   createdAt: Date | null;
 }
@@ -57,7 +56,7 @@ const FullSelectionPage = ({
   setBackgroundColor
 }: FullSelectionPageProps) => {
   const [fullGames, setFullGames] = useState<FullGame[]>([]);
-  const [fullTimers, setFullTimers] = useState<{[key: string]: FullTimerState}>({});
+  const [fullTimers, setFullTimers] = useState<{[key: number]: FullTimerState}>({});
   const [userBalance, setUserBalance] = useState<number>(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
   const [isLoadingGames, setIsLoadingGames] = useState<boolean>(true);
@@ -68,7 +67,6 @@ const FullSelectionPage = ({
 
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
 
-  // Color helper functions
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -159,13 +157,13 @@ const FullSelectionPage = ({
     fetchFullGames();
     fetchUserBalance();
 
-    const handleFullTimerUpdate = (timerStates: {[key: string]: FullTimerState}) => {
-      console.log('Received full timer states update:', timerStates);
+    const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
+      console.log('Full timer update:', timerStates);
       setFullTimers(timerStates);
     };
 
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
-    webSocketService.send('get-available-full-games');
+    webSocketService.send('get-full-timer-states');
 
     return () => {
       webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
@@ -211,10 +209,13 @@ const FullSelectionPage = ({
     }
   };
 
-  const handlePlayClick = (gameId: string, betAmount: number) => {
-    const status = fullTimers[gameId];
+  const handlePlayClick = (bet: number) => {
+    const status = fullTimers[bet];
     if (status && status.status === 'active') {
-      onPlay(gameId, betAmount, status.playerCount);
+      const game = fullGames.find(g => g.betAmount === bet);
+      if (game) {
+        onPlay(game._id, bet, status.playerCount);
+      }
     }
   };
 
@@ -265,12 +266,12 @@ const FullSelectionPage = ({
     return `${secs}s`;
   };
 
-  const getProgressPercentage = (status: string, timer: number, maxTime: number = 45) => {
+  const getProgressPercentage = (status: string, timer: number) => {
     if (status === 'ready') {
       return Math.max(0, Math.min(100, ((5 - timer) / 5) * 100));
     } else if (status === 'active') {
-      const progress = Math.min(100, (timer / maxTime) * 100);
-      return Math.max(0, Math.min(100, 100 - progress));
+      const maxTime = Math.min(timer, 45);
+      return Math.max(0, Math.min(100, (maxTime / 45) * 100));
     }
     return 0;
   };
@@ -374,7 +375,7 @@ const FullSelectionPage = ({
           {language === 'am' ? 'መደበኛ ጨዋታዎች' : 'Full Games'}
         </Typography>
 
-        {/* Game Cards Container */}
+        {/* Game Cards */}
         <Box sx={{ 
           display: 'flex', 
           flexWrap: 'wrap', 
@@ -391,12 +392,11 @@ const FullSelectionPage = ({
             </Box>
           ) : (
             fullGames.map((game, index) => {
-              const timer = fullTimers[game._id] || { 
+              const timer = fullTimers[game.betAmount] || { 
                 status: 'ready', 
-                timer: 0, 
+                timer: 5, 
                 playerCount: 0, 
                 prizePool: 0,
-                gameId: game._id,
                 betAmount: game.betAmount,
                 createdAt: null
               };
@@ -522,7 +522,7 @@ const FullSelectionPage = ({
                         </Typography>
                       </Box>
 
-                      {/* Progress Bar for Timer */}
+                      {/* Progress Bar */}
                       {(timer.status === 'ready' || timer.status === 'active') && (
                         <Box sx={{ position: 'relative', height: 6, mb: 1.5, borderRadius: 3, background: 'rgba(0,0,0,0.1)' }}>
                           <Box
@@ -544,7 +544,7 @@ const FullSelectionPage = ({
                         color={getButtonColor()}
                         size="small"
                         disabled={isDisabled || isLoadingBalance}
-                        onClick={() => handlePlayClick(game._id, game.betAmount)}
+                        onClick={() => handlePlayClick(game.betAmount)}
                         startIcon={!isDisabledByBalance && !isLoadingBalance && canPlay ? <SportsEsports /> : undefined}
                         sx={{
                           textTransform: 'none',

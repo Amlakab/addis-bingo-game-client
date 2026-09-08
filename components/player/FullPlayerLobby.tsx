@@ -1,23 +1,45 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/auth';
 import { 
-  Box, Typography, Card, CardContent, Button,
-  useTheme, useMediaQuery, Chip, Skeleton, Tooltip, IconButton
+  Button, Box, Typography, Card, CardContent, 
+  useTheme, useMediaQuery, Alert, Snackbar, TextField,
+  IconButton, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { 
-  SportsEsports, People, EmojiEvents, AccessTime,
-  AccountBalanceWallet, ColorLens, Schedule
-} from '@mui/icons-material';
 import api from '@/app/utils/api';
-import HowToPlayModal from '@/components/player/HowToPlayModal';
 
-interface FullGame {
-  _id: string;
+interface PlayerSelection {
+  id: number;
+  userId: string;
+}
+
+interface FullPlayerLobbyProps {
+  onStartGame: (players: PlayerSelection[], bet: number, gameId: string) => void;
+  gameId: string;
   betAmount: number;
-  gameType: 'full';
-  activeDays: Array<{ day: string; startTime: string }>;
+  language?: 'en' | 'am';
+  setLanguage?: (lang: 'en' | 'am') => void;
+  onBackToLobby?: () => void;
+  onDirectToGame?: (players: PlayerSelection[], bet: number, gameId: string) => void;
+  backgroundColor?: string;
+  setBackgroundColor?: (color: string) => void;
+}
+
+interface GameSession {
+  _id: string;
+  userId: {
+    _id: string;
+    phone: string;
+  };
+  cardNumber: number;
+  betAmount: number;
+  gameId: string;
+  status: string;
+  createdAt: string;
+  cardNumbers: number[][];
+  __v: number;
 }
 
 interface FullTimerState {
@@ -25,48 +47,43 @@ interface FullTimerState {
   timer: number;
   playerCount: number;
   prizePool: number;
+  gameId: string;
   betAmount: number;
   createdAt: Date | null;
 }
 
-interface FullSelectionPageProps {
-  onPlay: (gameId: string, betAmount: number, players: number) => void;
-  language?: 'en' | 'am';
-  backgroundColor?: string;
-  setBackgroundColor?: (color: string) => void;
-}
-
-interface UserData {
-  _id: string;
-  phone: string;
-  role: string;
-  wallet: number;
-  dailyEarnings: number;
-  weeklyEarnings: number;
-  totalEarnings: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const FullSelectionPage = ({ 
-  onPlay,
+const FullPlayerLobby = ({ 
+  onStartGame,
+  gameId,
+  betAmount,
   language = 'am',
-  backgroundColor = 'black',
+  setLanguage,
+  onBackToLobby,
+  onDirectToGame,
+  backgroundColor = 'white',
   setBackgroundColor
-}: FullSelectionPageProps) => {
-  const [fullGames, setFullGames] = useState<FullGame[]>([]);
-  const [fullTimers, setFullTimers] = useState<{[key: number]: FullTimerState}>({});
-  const [userBalance, setUserBalance] = useState<number>(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState<boolean>(true);
-  const [isLoadingGames, setIsLoadingGames] = useState<boolean>(true);
+}: FullPlayerLobbyProps) => {
+  const [selectedPlayers, setSelectedPlayers] = useState<PlayerSelection[]>([]);
+  const [remainingTime, setRemainingTime] = useState(0);
+  const [prizePool, setPrizePool] = useState(0);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [wallet, setWallet] = useState(0);
+  const [walletError, setWalletError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [occupiedCards, setOccupiedCards] = useState<number[]>([]);
+  const [occupiedCardsByUser, setOccupiedCardsByUser] = useState<{[key: number]: string}>({});
+  const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
+  const { user } = useAuth();
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
-
+  // Color helper functions
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -79,11 +96,11 @@ const FullSelectionPage = ({
 
   const getCardBackground = () => {
     switch(backgroundColor) {
-      case 'black': return 'rgba(50, 50, 50, 0.9)';
-      case 'green': return 'rgba(30, 70, 30, 0.9)';
-      case 'blue': return 'rgba(30, 50, 80, 0.9)';
-      case 'yellow': return 'rgba(240, 230, 140, 0.9)';
-      default: return 'rgba(255, 255, 255, 0.8)';
+      case 'black': return 'rgba(50, 50, 50, 0.95)';
+      case 'green': return 'rgba(30, 70, 30, 0.95)';
+      case 'blue': return 'rgba(30, 50, 80, 0.95)';
+      case 'yellow': return 'rgba(240, 230, 140, 0.95)';
+      default: return 'rgba(255, 255, 255, 0.95)';
     }
   };
 
@@ -124,18 +141,6 @@ const FullSelectionPage = ({
     return {};
   };
 
-  const handleBackgroundColorChange = (color: string) => {
-    if (setBackgroundColor) {
-      setBackgroundColor(color);
-    }
-    localStorage.setItem('bingoBgColor', color);
-    
-    const event = new CustomEvent('bgColorChange', { 
-      detail: { color } 
-    });
-    window.dispatchEvent(event);
-  };
-
   useEffect(() => {
     setIsClient(true);
     
@@ -151,100 +156,304 @@ const FullSelectionPage = ({
     loadWebSocketService();
   }, []);
 
+  // FIXED: WebSocket event listeners
   useEffect(() => {
     if (!isClient || !webSocketService) return;
     
-    fetchFullGames();
-    fetchUserBalance();
-
-    const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
-      console.log('Full timer update:', timerStates);
-      setFullTimers(timerStates);
-    };
-
-    webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
-    webSocketService.send('get-full-timer-states');
-
-    return () => {
-      webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
-    };
-  }, [isClient, webSocketService]);
-
-  const fetchFullGames = async () => {
-    try {
-      setIsLoadingGames(true);
-      const response = await api.get('/games?gameType=full');
-      const games: FullGame[] = response.data.data;
-      setFullGames(games);
-    } catch (error) {
-      console.error('Error fetching full games:', error);
-    } finally {
-      setIsLoadingGames(false);
+    if (user) {
+      setWallet(user.wallet || 0);
     }
-  };
-
-  const fetchUserBalance = async () => {
-    if (!isClient) return;
     
+    console.log('Setting up FullPlayerLobby WebSocket listeners for game:', gameId);
+    
+    // Listen for timer updates
+    webSocketService.on('full-timer-states-update', (timerStates: {[key: string]: FullTimerState}) => {
+      console.log('📊 Full timer update received:', timerStates);
+      
+      if (timerStates[gameId]) {
+        const timerState = timerStates[gameId];
+        setRemainingTime(timerState.timer);
+        setPlayerCount(timerState.playerCount);
+        setPrizePool(timerState.prizePool);
+      }
+    });
+
+    // Listen for sessions updates
+    webSocketService.on('full-sessions-updated', (sessions: GameSession[]) => {
+      console.log('📋 Full sessions updated:', sessions);
+      
+      const betSessions = sessions.filter(session => session.gameId === gameId);
+      const occupied = betSessions.map(session => session.cardNumber);
+      setOccupiedCards(occupied);
+      
+      const cardUserMap: {[key: number]: string} = {};
+      betSessions.forEach(session => {
+        cardUserMap[session.cardNumber] = session.userId._id;
+      });
+      setOccupiedCardsByUser(cardUserMap);
+      
+      if (user) {
+        const userSelectedCards = betSessions
+          .filter(session => session.userId._id === user._id)
+          .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
+        
+        console.log('🎯 User selected cards:', userSelectedCards);
+        setSelectedPlayers(userSelectedCards);
+      }
+    });
+
+    // Listen for session created
+    webSocketService.on('full-session-created', (session: GameSession) => {
+      console.log('✅ Full session created event:', session);
+      
+      if (session.gameId === gameId) {
+        // Update occupied cards
+        setOccupiedCards(prev => {
+          if (prev.includes(session.cardNumber)) return prev;
+          return [...prev, session.cardNumber];
+        });
+        
+        // Update occupied by user
+        setOccupiedCardsByUser(prev => ({
+          ...prev,
+          [session.cardNumber]: session.userId._id
+        }));
+        
+        // Update selected players if it's the current user
+        if (user && session.userId._id === user._id) {
+          setSelectedPlayers(prev => {
+            if (prev.some(p => p.id === session.cardNumber)) return prev;
+            return [...prev, { id: session.cardNumber, userId: session.userId._id }];
+          });
+          
+          // Show success message
+          setToastMessage(language === 'am' 
+            ? `ካርድ ${session.cardNumber} ተመርጧል` 
+            : `Card ${session.cardNumber} selected`
+          );
+          setShowToast(true);
+        }
+      }
+    });
+
+    // Listen for wallet updates
+    webSocketService.on('wallet-updated', (newWallet: number) => {
+      console.log('💰 Wallet updated:', newWallet);
+      setWallet(newWallet);
+    });
+
+    // Listen for errors
+    webSocketService.on('error', (error: any) => {
+      console.error('❌ Socket error in FullPlayerLobby:', error);
+      setErrorMessage(error.message || 'An error occurred');
+      setWalletError(true);
+    });
+
+    // Request initial data
+    webSocketService.send('get-full-sessions', { gameId });
+    webSocketService.send('get-timer-states');
+
+    // FIXED: Proper cleanup
+    return () => {
+      console.log('Cleaning up FullPlayerLobby WebSocket listeners');
+      webSocketService.off('full-timer-states-update');
+      webSocketService.off('full-sessions-updated');
+      webSocketService.off('full-session-created');
+      webSocketService.off('wallet-updated');
+      webSocketService.off('error');
+    };
+  }, [isClient, webSocketService, user, gameId]);
+
+  // FIXED: Auto-navigate when timer reaches 4 seconds
+  useEffect(() => {
+    if (remainingTime <= 4 && remainingTime > 0 && selectedPlayers.length > 0) {
+      console.log('⏰ Timer reached 4 seconds, auto-navigating to game...');
+      handleDirectToGame();
+    }
+  }, [remainingTime]);
+
+  // FIXED: Toggle player - exactly like partial games
+  const togglePlayer = async (id: number) => {
+    if (!isClient || !webSocketService) return;
+    
+    if (!user) {
+      setErrorMessage(language === 'am' ? "እባክዎ በመጀመሪያ ይግቡ" : "Please login first!");
+      setWalletError(true);
+      return;
+    }
+
+    console.log('🔄 Toggling card:', id, 'Current selected:', selectedPlayers);
+    console.log('Occupied cards:', occupiedCards);
+    console.log('Occupied by user:', occupiedCardsByUser);
+
+    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+    const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
+    
+    // For full games - CANNOT UNSELECT
+    if (isSelectedByUser) {
+      setToastMessage(language === 'am' 
+        ? 'በመደበኛ ጨዋታ ካርዶችን መሰረዝ አይቻልም' 
+        : 'Cannot unselect cards in full games'
+      );
+      setShowToast(true);
+      return;
+    }
+    
+    if (isSelectedByOthers) {
+      setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
+      setWalletError(true);
+      return;
+    }
+
     try {
-      setIsLoadingBalance(true);
-      
-      const userDataString = localStorage.getItem('user');
-      
-      if (!userDataString) {
-        setIsLoadingBalance(false);
+      // Check max cards (2 max)
+      if (selectedPlayers.length >= 2) {
+        setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+        setWalletError(true);
         return;
       }
+
+      // Check balance
+      const totalCost = (selectedPlayers.length + 1) * betAmount;
+      if (wallet < totalCost) {
+        setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
+        setWalletError(true);
+        return;
+      }
+
+      if (occupiedCards.includes(id)) {
+        setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
+        setWalletError(true);
+        return;
+      }
+
+      // Generate card numbers
+      const cardNumbers = getCardGrid(id);
+
+      console.log('📤 Sending create-full-session for card:', id);
       
-      const parsedUser: UserData = JSON.parse(userDataString);
-      const res = await api.get(`/user/${parsedUser._id}`);
-      const userData: UserData = res.data.data;
+      // Send create session - LIKE PARTIAL GAME (NO money deduction yet)
+      webSocketService.send('create-full-session', {
+        userId: user._id,
+        agentId: user.agent_id || '',
+        cardNumber: id,
+        betAmount,
+        gameId: gameId,
+        cardNumbers
+      });
       
-      setUserBalance(userData.wallet);
+    } catch (error: any) {
+      console.error('Error selecting card:', error);
+      const errorMsg = error.response?.data?.error || 
+        (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
+      setErrorMessage(errorMsg);
+      setWalletError(true);
+    }
+  };
+
+  // FIXED: Handle direct to game
+  const handleDirectToGame = async () => {
+    if (!isClient || !webSocketService || !user || !onDirectToGame) return;
+
+    console.log('🎮 Direct to game called, selected players:', selectedPlayers);
+
+    try {
+      const response = await api.get(`/full-game/sessions/user/${user._id}`);
+      const userSessions = response.data;
       
+      const currentGameSessions = userSessions.filter((session: GameSession) => 
+        session.gameId === gameId && 
+        ['active', 'ready'].includes(session.status)
+      );
+
+      if (currentGameSessions.length === 0) {
+        setToastMessage(language === 'am' 
+          ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
+          : 'Please select at least 1 card'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      if (currentGameSessions.length > 2) {
+        setToastMessage(language === 'am' 
+          ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
+          : 'You cannot select more than 2 cards'
+        );
+        setShowToast(true);
+        return;
+      }
+
+      const validatedSelectedPlayers: PlayerSelection[] = currentGameSessions.map((session: GameSession) => ({
+        id: session.cardNumber,
+        userId: session.userId._id
+      }));
+
+      console.log('✅ Validated players:', validatedSelectedPlayers);
+
+      // DEDUCT MONEY HERE - LIKE PARTIAL GAME
+      webSocketService.send('fund-full-wallet', {
+        gameId: gameId,
+        userId: user._id
+      });
+
+      // Update sessions to ready - LIKE PARTIAL GAME
+      webSocketService.send('update-full-sessions-by-user-bet', {
+        userId: user._id,
+        betAmount: betAmount,
+        status: 'ready'
+      });
+
+      onDirectToGame(validatedSelectedPlayers, betAmount, gameId);
+
     } catch (error) {
-      console.error('Error fetching user balance:', error);
-    } finally {
-      setIsLoadingBalance(false);
+      console.error('Error in handleDirectToGame:', error);
+      setToastMessage(language === 'am' 
+        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
+        : 'Error occurred while processing game entry'
+      );
+      setShowToast(true);
     }
   };
 
-  const handlePlayClick = (bet: number) => {
-    const status = fullTimers[bet];
-    if (status && status.status === 'active') {
-      // Find the game ID for this bet amount
-      const game = fullGames.find(g => g.betAmount === bet);
-      if (game) {
-        onPlay(game._id, bet, status.playerCount);
+  // Helper function to get card number grid (5x5 BINGO card)
+  const getCardGrid = (cardId: number): number[][] => {
+    const ranges = [
+      [1, 15],
+      [16, 30],
+      [31, 45],
+      [46, 60],
+      [61, 75]
+    ];
+    
+    const seed = cardId * 7 + 13;
+    const card: number[][] = [];
+    
+    for (let row = 0; row < 5; row++) {
+      const rowData = [];
+      for (let col = 0; col < 5; col++) {
+        if (col === 2 && row === 2) {
+          rowData.push(0);
+        } else {
+          const [min, max] = ranges[col];
+          const index = (seed + row * 5 + col) % (max - min + 1);
+          rowData.push(min + index);
+        }
       }
+      card.push(rowData);
     }
+    return card;
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ready': return 'default';
-      case 'active': return 'success';
-      case 'in-progress': return 'error';
-      default: return 'default';
-    }
-  };
-
-  const getStatusText = (status: string, timer: number) => {
-    if (language === 'am') {
-      switch (status) {
-        case 'ready': return `ዝግጁ ${Math.ceil(timer)}ሰ`;
-        case 'active': return `ቀሪ ${formatTimeRemaining(timer)}`;
-        case 'in-progress': return 'በጨዋታ ውስጥ';
-        default: return status;
-      }
-    } else {
-      switch (status) {
-        case 'ready': return `Ready ${Math.ceil(timer)}s`;
-        case 'active': return `Active ${formatTimeRemaining(timer)}`;
-        case 'in-progress': return 'In Progress';
-        default: return status;
+  // Transpose card for display
+  const transposeCard = (card: number[][]) => {
+    const transposed: number[][] = [[], [], [], [], []];
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 5; j++) {
+        transposed[i][j] = card[j][i];
       }
     }
+    return transposed;
   };
 
   const formatTimeRemaining = (seconds: number): string => {
@@ -267,55 +476,15 @@ const FullSelectionPage = ({
     return `${secs}s`;
   };
 
-  const getProgressPercentage = (status: string, timer: number) => {
-    if (status === 'ready') {
-      return Math.max(0, Math.min(100, ((5 - timer) / 5) * 100));
-    } else if (status === 'active') {
-      // Use a max of 45 seconds for progress bar display
-      const maxTime = Math.min(timer, 45);
-      return Math.max(0, Math.min(100, (maxTime / 45) * 100));
-    }
-    return 0;
-  };
-
-  const hasInsufficientBalance = (betAmount: number) => {
-    return userBalance < betAmount;
-  };
-
   if (!isClient) {
     return (
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        height: '100vh',
-        background: backgroundColor === 'white' 
-          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
-          : backgroundColor,
-        color: getTextColor()
+        height: '50vh' 
       }}>
-        <Typography variant="h6" sx={{ color: getTextColor() }}>
-          {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (isLoadingGames) {
-    return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        background: backgroundColor === 'white' 
-          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
-          : backgroundColor,
-        color: getTextColor()
-      }}>
-        <Typography variant="h6" sx={{ color: getTextColor() }}>
-          {language === 'am' ? "ጨዋታዎች በመጫን ላይ..." : "Loading games..."}
-        </Typography>
+        <CircularProgress />
       </Box>
     );
   }
@@ -325,349 +494,406 @@ const FullSelectionPage = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-    >
-      <Box sx={{ 
-        minHeight: '40vh',
-        background: backgroundColor === 'white' 
-          ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
-          : backgroundColor,
-        p: { xs: 1.5, sm: 2.5 },
-        display: 'flex',
+      style={{ 
+        height: '100%', 
+        display: 'flex', 
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: getTextColor()
+        overflow: 'hidden',
+        padding: 0,
+        paddingTop: 0
+      }}
+    >
+      {/* Header Row */}
+      <Box sx={{
+        display: 'flex',
+        gap: 0.75,
+        p: 0.5,
+        mb: 1,
+        flexWrap: 'nowrap',
+        overflow: 'auto',
+        color: getTextColor(),
+        width: '100%',
+        flexShrink: 0
       }}>
-        {/* User Balance Display */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            mb: 2,
-            background: getCardBackground(), 
-            borderRadius: 2, 
-            p: 1.5,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            color: getTextColor()
-          }}>
-            <AccountBalanceWallet sx={{ color: '#27ae60', mr: 1 }} />
-            <Typography variant="body1" sx={{ fontWeight: 'bold', color: getTextColor() }}>
-              {language === 'am' ? "ተቀማጭ ገንዘብ:" : "Balance:"}
-            </Typography>
-            {isLoadingBalance ? (
-              <Skeleton variant="text" width={60} sx={{ ml: 1, fontSize: '1rem' }} />
-            ) : (
-              <Typography variant="body1" sx={{ fontWeight: 'bold', color: '#27ae60', ml: 1 }}>
-                {userBalance.toFixed(2)} {language === 'am' ? 'ብር' : 'Birr'}
-              </Typography>
-            )}
-          </Box>
-        </motion.div>
-
-        {/* Title */}
-        <Typography variant="h6" sx={{ 
-          fontWeight: 'bold', 
-          mb: 2,
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
           color: getTextColor()
         }}>
-          {language === 'am' ? 'መደበኛ ጨዋታዎች' : 'Full Games'}
-        </Typography>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ውርርድ' : 'Bet'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+            {betAmount}
+          </Typography>
+        </Card>
 
-        {/* Game Cards */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexWrap: 'wrap', 
-          justifyContent: 'center', 
-          gap: 2, 
-          maxWidth: 1000, 
-          width: '100%' 
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
         }}>
-          {fullGames.length === 0 ? (
-            <Box sx={{ textAlign: 'center', p: 4 }}>
-              <Typography variant="body1" sx={{ color: getTextColor() }}>
-                {language === 'am' ? 'ምንም መደበኛ ጨዋታዎች የሉም' : 'No full games available'}
-              </Typography>
-            </Box>
-          ) : (
-            fullGames.map((game, index) => {
-              const timer = fullTimers[game.betAmount] || { 
-                status: 'ready', 
-                timer: 5, 
-                playerCount: 0, 
-                prizePool: 0,
-                betAmount: game.betAmount,
-                createdAt: null
-              };
-              
-              const isDisabledByStatus = timer.status === 'in-progress' || timer.status === 'ready';
-              const isDisabledByBalance = !isLoadingBalance && hasInsufficientBalance(game.betAmount);
-              const isDisabled = isDisabledByStatus || isDisabledByBalance;
-              const canPlay = timer.status === 'active' && !isDisabledByBalance;
-              
-              return (
-                <motion.div
-                  key={game._id}
-                  initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                  whileHover={{ scale: canPlay ? 1.03 : 1, y: canPlay ? -5 : 0 }}
-                  whileTap={{ scale: canPlay ? 0.98 : 1 }}
-                  style={{ 
-                    width: isMobile ? 'calc(50% - 8px)' : 'calc(33.333% - 16px)', 
-                    minWidth: 140,
-                    maxWidth: 240
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+            {remainingTime > 0 ? formatTimeRemaining(remainingTime) : 'Ready'}
+          </Typography>
+        </Card>
+
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ተጫዋቾች' : 'Players'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+            {playerCount}
+          </Typography>
+        </Card>
+
+        <Card sx={{
+          flex: '0 0 25%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 0.75,
+          background: getCardBackground(),
+          borderRadius: 1.5,
+          minHeight: '7vh',
+          color: getTextColor()
+        }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+            {language === 'am' ? 'ደራሽ' : 'Prize'}
+          </Typography>
+          <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
+            {prizePool.toFixed(0)}
+          </Typography>
+        </Card>
+      </Box>
+
+      {/* Main Content */}
+      <Box sx={{ 
+        p: 0,
+        textAlign: 'center',
+        background: backgroundColor === 'white' 
+          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          : backgroundColor,
+        minHeight: '50vh',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        overflow: 'hidden',
+        color: getTextColor()
+      }}>
+        <Box
+          ref={gridContainerRef}
+          sx={{
+            flex: 1,
+            display: 'grid',
+            gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`,
+            gridAutoRows: 'minmax(42px, auto)',
+            gap: 0.5,
+            justifyContent: 'center',
+            p: 0.5,
+            background: getCardBackground(),
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            overflow: 'auto',
+            mb: 0.5,
+            mx: 'auto',
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            maxHeight: selectedPlayers.length > 0 ? '400px' : '400px',
+          }}
+        >
+          {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
+            const isOccupied = occupiedCards.includes(id);
+            const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
+            const isSelectedByOthers = isOccupied && !isSelectedByUser;
+            const isDisabled = isSelectedByOthers || isSelectedByUser || remainingTime <= 0;
+
+            return (
+              <motion.div
+                key={id}
+                whileHover={{ scale: isDisabled ? 1 : 1.05 }}
+                whileTap={{ scale: isDisabled ? 1 : 0.95 }}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <Box
+                  onClick={() => !isDisabled && togglePlayer(id)}
+                  sx={{
+                    width: '100%',
+                    height: '100%',
+                    minHeight: 42,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: isDisabled ? 0.7 : 1,
+
+                    background: isSelectedByUser
+                      ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
+                      : isSelectedByOthers
+                      ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)'
+                      : backgroundColor === 'white'
+                        ? 'linear-gradient(145deg, #ffffff, #e0e0e0)'
+                        : 'rgba(255,255,255,0.15)',
+
+                    color: isSelectedByUser
+                      ? 'white'
+                      : isSelectedByOthers
+                      ? '#d32f2f'
+                      : getTextColor(),
+
+                    border: isSelectedByUser
+                      ? '2px solid #2E7D32'
+                      : isSelectedByOthers
+                      ? '2px solid #d32f2f'
+                      : '1px solid rgba(255,255,255,0.2)',
+
+                    boxShadow: isSelectedByUser
+                      ? '0 4px 8px rgba(76,175,80,0.3)'
+                      : isSelectedByOthers
+                      ? '0 2px 4px rgba(244,67,54,0.2)'
+                      : '0 2px 4px rgba(0,0,0,0.1)',
+
+                    '&:hover': !isDisabled ? {
+                      background: isSelectedByUser
+                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
+                        : backgroundColor === 'white'
+                          ? 'linear-gradient(145deg, #f5f5f5, #e0e0e0)'
+                          : 'rgba(255,255,255,0.25)',
+                    } : {},
                   }}
                 >
-                  <Card 
-                    sx={{ 
-                      borderRadius: 2,
-                      boxShadow: canPlay ? '0 4px 14px rgba(0,0,0,0.15)' : '0 4px 14px rgba(0,0,0,0.08)',
-                      background: getCardBackground(),
-                      opacity: isDisabled ? 0.7 : 1,
-                      position: 'relative',
-                      overflow: 'visible',
-                      border: canPlay ? '2px solid #4caf50' : `1px solid ${getTextColor()}30`,
-                      height: '100%',
-                      transition: 'all 0.3s ease',
-                      color: getTextColor()
-                    }}
-                  >
-                    {/* Status Badge */}
-                    <Box sx={{ position: 'absolute', top: -10, right: 10, zIndex: 1 }}>
-                      <Chip
-                        icon={timer.status === 'active' ? <AccessTime /> : <Schedule />}
-                        label={getStatusText(timer.status, timer.timer)}
-                        color={getStatusColor(timer.status)}
-                        size="small"
-                        sx={{ 
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                          fontSize: { xs: '0.6rem', sm: '0.7rem' },
-                          backgroundColor: timer.status === 'ready' ? '#e0e0e0' : 
-                                          timer.status === 'active' ? '#4caf50' : '#f44336',
-                          color: timer.status === 'ready' ? '#424242' : '#fff'
-                        }}
-                      />
-                    </Box>
+                  {id}
+                </Box>
+              </motion.div>
+            );
+          })}
+        </Box>
 
-                    <CardContent sx={{ p: 2, textAlign: 'center' }}>
-                      {/* Bet Amount */}
-                      <Typography variant="h5" sx={{ 
-                        color: getTextColor(), 
-                        fontWeight: 'bold', 
-                        mb: 1.5,
-                        fontSize: { xs: '1.5rem', sm: '1.75rem' }
-                      }}>
-                        {game.betAmount} {language === 'am' ? 'ብር' : 'Birr'}
-                      </Typography>
-                      
-                      {/* Active Days */}
-                      {game.activeDays && game.activeDays.length > 0 && (
-                        <Box sx={{ mb: 1.5 }}>
-                          {game.activeDays.map((day, idx) => (
-                            <Chip
-                              key={idx}
-                              label={`${day.day.charAt(0).toUpperCase() + day.day.slice(1)} ${day.startTime}`}
-                              size="small"
-                              variant="outlined"
-                              sx={{ 
-                                mr: 0.5, 
-                                mb: 0.5, 
-                                fontSize: '0.65rem',
-                                color: getTextColor(),
-                                borderColor: getTextColor() + '40'
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
-                      
-                      {/* Players Count */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        mb: 1.5,
-                        background: 'rgba(0,0,0,0.05)', 
-                        borderRadius: 1.5, 
-                        p: 1 
-                      }}>
-                        <People sx={{ color: '#3498db', mr: 0.5, fontSize: '1.2rem' }} />
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
-                          {timer.playerCount || 0}
-                        </Typography>
-                        <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
-                          {language === 'am' ? "ተጫዋች" : "Players"}
-                        </Typography>
-                      </Box>
-                      
-                      {/* Prize Pool */}
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        mb: 2,
-                        background: 'rgba(0,0,0,0.05)', 
-                        borderRadius: 1.5, 
-                        p: 1 
-                      }}>
-                        <EmojiEvents sx={{ color: '#f39c12', mr: 0.5, fontSize: '1.2rem' }} />
-                        <Typography variant="body1" sx={{ fontWeight: 'bold', fontSize: '1rem', color: getTextColor() }}>
-                          {(timer.prizePool || 0).toFixed(2)}
-                        </Typography>
-                        <Typography variant="body2" sx={{ ml: 0.5, fontSize: '0.8rem', opacity: 0.7, color: getTextColor() }}>
-                          {language === 'am' ? "ደራሽ" : "Prize"}
+        {/* Bottom Section */}
+        <Box sx={{ 
+          flexShrink: 0,
+          width: '100%',
+          maxWidth: '100%',
+          px: 0.5,
+          pb: 0.5,
+          mt: 'auto',
+        }}>
+          {selectedPlayers.length === 0 ? (
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
+            }}>
+              <Button
+                variant={getButtonVariant()}
+                color="primary"
+                onClick={() => {
+                  if (onBackToLobby) {
+                    onBackToLobby();
+                  }
+                }}
+                sx={{
+                  flex: 1,
+                  py: 1,
+                  fontSize: '1.1rem',
+                  fontWeight: 'bold',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                  ...getButtonStyle()
+                }}
+              >
+                {language === 'am' ? 'ተመለስ' : 'Back'}
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: 1,
+              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
+              mx: 'auto',
+            }}>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1,
+                overflow: 'auto',
+              }}>
+                {selectedPlayers.map((player, index) => {
+                  const card = getCardGrid(player.id);
+                  const transposedCard = transposeCard(card);
+                  
+                  return (
+                    <Card
+                      key={player.id}
+                      sx={{
+                        flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
+                        minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
+                        p: 0.5,
+                        background: getCardBackground(),
+                        borderRadius: 1.5,
+                        border: '2px solid #4CAF50',
+                        boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 0.5 }}>
+                        <Typography sx={{ 
+                          fontWeight: 'bold', 
+                          fontSize: '0.85rem',
+                          color: getTextColor() 
+                        }}>
+                          {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
                       </Box>
 
-                      {/* Progress Bar */}
-                      {(timer.status === 'ready' || timer.status === 'active') && (
-                        <Box sx={{ position: 'relative', height: 6, mb: 1.5, borderRadius: 3, background: 'rgba(0,0,0,0.1)' }}>
-                          <Box
-                            sx={{
-                              height: '100%',
-                              borderRadius: 3,
-                              width: `${getProgressPercentage(timer.status, timer.timer)}%`,
-                              background: timer.status === 'ready' 
-                                ? 'linear-gradient(90deg, #9e9e9e, #616161)' 
-                                : 'linear-gradient(90deg, #4CAF50, #2E7D32)',
-                              transition: 'width 1s ease'
-                            }}
-                          />
-                        </Box>
-                      )}
-
-                      <Button
-                        variant={getButtonVariant()}
-                        color={getButtonColor()}
-                        size="small"
-                        disabled={isDisabled || isLoadingBalance}
-                        onClick={() => handlePlayClick(game.betAmount)}
-                        startIcon={!isDisabledByBalance && !isLoadingBalance && canPlay ? <SportsEsports /> : undefined}
+                      <Box
                         sx={{
-                          textTransform: 'none',
-                          fontWeight: 'bold',
-                          borderRadius: 1.5,
-                          py: 0.7,
-                          width: '100%',
-                          fontSize: '0.9rem',
-                          ...getButtonStyle(),
-                          '&:disabled': {
-                            background: isDisabledByBalance && !isLoadingBalance
-                              ? 'linear-gradient(145deg, #ffcdd2, #ef9a9a)' 
-                              : '#ecf0f1',
-                            color: isDisabledByBalance && !isLoadingBalance ? '#d32f2f' : '#bdc3c7'
-                          }
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(5, 1fr)',
+                          gap: 0.15,
                         }}
                       >
-                        {isLoadingBalance 
-                          ? (language === 'am' ? "በመጫን ላይ..." : "Loading...")
-                          : isDisabledByBalance 
-                            ? (language === 'am' ? "ተቀማጭ አይበቃም" : "Low balance") 
-                            : (timer.status === 'active' 
-                                ? (language === 'am' ? "ይጫወቱ" : "Play") 
-                                : timer.status === 'ready'
-                                  ? (language === 'am' ? "ዝግጁ" : "Ready")
-                                  : (language === 'am' ? "በጨዋታ ውስጥ" : "In Progress"))
-                        }
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })
+                        {["B", "I", "N", "G", "O"].map((letter) => (
+                          <Box
+                            key={letter}
+                            sx={{
+                              p: 0.2,
+                              background: 'linear-gradient(135deg, #1976d2, #2196f3)',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.65rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '2px 2px 0 0',
+                            }}
+                          >
+                            {letter}
+                          </Box>
+                        ))}
+
+                        {transposedCard.map((row, rowIdx) =>
+                          row.map((num, colIdx) => {
+                            const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                            return (
+                              <Box
+                                key={`${rowIdx}-${colIdx}`}
+                                sx={{
+                                  p: 0.15,
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '2px',
+                                  background: isFreeSpace
+                                    ? 'rgba(76,175,80,0.3)'
+                                    : 'rgba(255,255,255,0.05)',
+                                  color: getTextColor(),
+                                  fontWeight: 'bold',
+                                  fontSize: '0.65rem',
+                                  minHeight: 20,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {isFreeSpace ? '★' : num}
+                              </Box>
+                            );
+                          })
+                        )}
+                      </Box>
+                    </Card>
+                  );
+                })}
+              </Box>
+
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleDirectToGame}
+                disabled={selectedPlayers.length === 0 || remainingTime <= 0}
+                sx={{
+                  py: 1.5,
+                  fontSize: '1.2rem',
+                  fontWeight: 'bold',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
+                  '&:disabled': {
+                    background: '#bdc3c7',
+                  }
+                }}
+              >
+                {remainingTime > 0 
+                  ? (language === 'am' ? `ጨዋታ ይጀምራል ${formatTimeRemaining(remainingTime)}` : `Game starts in ${formatTimeRemaining(remainingTime)}`)
+                  : (language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game')
+                }
+              </Button>
+            </Box>
           )}
         </Box>
 
-        {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.5 }}
+        <Snackbar
+          open={walletError}
+          autoHideDuration={6000}
+          onClose={() => setWalletError(false)}
         >
-          <Typography variant="body2" sx={{ 
-            mt: 3, 
-            textAlign: 'center',
-            maxWidth: 500,
-            fontSize: { xs: '0.75rem', sm: '0.875rem' },
-            opacity: 0.8,
-            color: getTextColor()
-          }}>
-            {language === 'am' 
-              ? "መደበኛ ጨዋታዎች በተወሰኑ ቀናት እና ሰዓታት ይካሄዳሉ። አሸናፊዎች ሁሉንም ቁጥሮች ማግኘት አለባቸው።"
-              : "Full games run on specific days and times. Winners must mark all numbers on their card."
-            }
-          </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', mt: 2, flexWrap: 'wrap' }}>
-            <Button
-              onClick={() => setHowToPlayOpen(true)}
-              variant={getButtonVariant()}
-              color={getButtonColor()}
-              sx={{
-                fontWeight: 'bold',
-                borderRadius: 2,
-                px: 3,
-                py: 1,
-                ...getButtonStyle()
-              }}
-            >
-              {language === 'am' ? 'እንዴት መጫወት እንደሚቻል' : 'How to Play'}
-            </Button>
-            
-            {/* Background Color Selection */}
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 0.5, 
-              alignItems: 'center',
-              background: getCardBackground(),
-              borderRadius: 2,
-              px: 1,
-              py: 0.5,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}>
-              <Tooltip title={language === 'am' ? 'የመቀመጫ ቀለም' : 'Background Color'}>
-                <IconButton size="small" sx={{ color: getTextColor() }}>
-                  <ColorLens />
-                </IconButton>
-              </Tooltip>
-              <Box sx={{ display: 'flex', gap: 0.3 }}>
-                {['white', 'black', 'green', 'blue', 'yellow'].map((color) => (
-                  <Box
-                    key={color}
-                    onClick={() => handleBackgroundColorChange(color)}
-                    sx={{
-                      width: { xs: 20, sm: 24 },
-                      height: { xs: 20, sm: 24 },
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      border: backgroundColor === color ? '3px solid #1976d2' : `2px solid ${getTextColor()}30`,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        transform: 'scale(1.15)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                      }
-                    }}
-                  />
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        </motion.div>
-      </Box>
+          <Alert 
+            severity="error" 
+            onClose={() => setWalletError(false)}
+            sx={{ width: '100%' }}
+          >
+            {errorMessage}
+          </Alert>
+        </Snackbar>
 
-      <HowToPlayModal
-        open={howToPlayOpen}
-        onClose={() => setHowToPlayOpen(false)}
-        language={language}
-      />
+        <Snackbar
+          open={showToast}
+          autoHideDuration={3000}
+          onClose={() => setShowToast(false)}
+        >
+          <Alert 
+            severity="info" 
+            onClose={() => setShowToast(false)}
+            sx={{ width: '100%' }}
+          >
+            {toastMessage}
+          </Alert>
+        </Snackbar>
+      </Box>
     </motion.div>
   );
 };
 
-export default FullSelectionPage;
+export default FullPlayerLobby;
