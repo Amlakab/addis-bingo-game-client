@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { 
   Button, Box, Typography, Card,
-  Alert, Snackbar, IconButton, CircularProgress
+  Alert, Snackbar, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import api from '@/app/utils/api';
@@ -193,22 +193,6 @@ const FullPlayerLobby = ({
       }
     };
 
-    const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
-      if (data.betAmount === betAmount) {
-        setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
-        
-        setOccupiedCardsByUser(prev => {
-          const newMap = { ...prev };
-          delete newMap[data.cardNumber];
-          return newMap;
-        });
-        
-        if (user && data.userId === user._id) {
-          setSelectedPlayers(prev => prev.filter(p => p.id !== data.cardNumber));
-        }
-      }
-    };
-
     const handleWalletUpdate = (newWallet: number) => {
       setWallet(newWallet);
     };
@@ -216,7 +200,6 @@ const FullPlayerLobby = ({
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
-    webSocketService.on('full-session-deleted', handleSessionDeleted);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     
     webSocketService.send('get-full-sessions', { betAmount });
@@ -225,12 +208,11 @@ const FullPlayerLobby = ({
       webSocketService.off('full-timer-states-update', handleFullTimerUpdate);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
       webSocketService.off('full-session-created', handleSessionCreated);
-      webSocketService.off('full-session-deleted', handleSessionDeleted);
       webSocketService.off('wallet-updated', handleWalletUpdate);
     };
   }, [isClient, webSocketService, user, betAmount]);
 
-  const togglePlayer = async (id: number) => {
+  const selectPlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
     if (!user) {
@@ -239,48 +221,32 @@ const FullPlayerLobby = ({
       return;
     }
 
-    const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
-    const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
-    
-    if (isSelectedByOthers) {
-      setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ በሌላ ተጠቃሚ የተመረጠ ነው" : "This card is already selected by another user!");
+    const isAlreadySelected = occupiedCards.includes(id);
+    if (isAlreadySelected) {
+      setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ ተመርጧል" : "This card is already selected!");
+      setWalletError(true);
+      return;
+    }
+
+    if (selectedPlayers.length >= 2) {
+      setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
+      setWalletError(true);
+      return;
+    }
+
+    if (wallet < betAmount) {
+      setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
       setWalletError(true);
       return;
     }
 
     try {
-      if (isSelectedByUser) {
-        webSocketService.send('delete-full-session', {
-          cardNumber: id,
-          betAmount,
-        });
-      } else {
-        if (selectedPlayers.length >= 2) {
-          setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
-          setWalletError(true);
-          return;
-        }
-
-        const totalCost = (selectedPlayers.length + 1) * betAmount;
-        if (wallet < totalCost) {
-          setErrorMessage(language === 'am' ? "በበቂ ሁኔታ ገንዘብ የሎትም" : "Insufficient balance!");
-          setWalletError(true);
-          return;
-        }
-
-        if (occupiedCards.includes(id)) {
-          setErrorMessage(language === 'am' ? "ይህ ካርድ ቀድሞውኑ የተመረጠ ነው" : "This card is already selected!");
-          setWalletError(true);
-          return;
-        }
-
-        webSocketService.send('create-full-session', {
-          userId: user._id,
-          agentId: user.agent_id || user._id,
-          cardNumber: id,
-          betAmount
-        });
-      }
+      webSocketService.send('create-full-session', {
+        userId: user._id,
+        agentId: user.agent_id || user._id,
+        cardNumber: id,
+        betAmount
+      });
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
@@ -298,7 +264,7 @@ const FullPlayerLobby = ({
       
       const currentBetSessions = userSessions.filter((session: GameSession) => 
         session.betAmount === betAmount && 
-        ['active', 'ready'].includes(session.status)
+        ['active', 'ready', 'playing'].includes(session.status)
       );
 
       if (currentBetSessions.length === 0) {
@@ -317,11 +283,6 @@ const FullPlayerLobby = ({
         id: session.cardNumber,
         userId: session.userId._id
       }));
-
-      webSocketService.send('fund-full-wallet', {
-        betAmount: betAmount,
-        userId: user._id
-      });
 
       webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
@@ -533,8 +494,8 @@ const FullPlayerLobby = ({
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
             
-            // ✅ Only locked if selected by someone else (not blocked by remainingTime)
-            const isDisabled = isSelectedByOthers;
+            // Once occupied, it cannot be clicked or re-selected
+            const isDisabled = isOccupied;
 
             return (
               <motion.div
@@ -544,7 +505,7 @@ const FullPlayerLobby = ({
                 style={{ width: '100%', height: '100%' }}
               >
                 <Box
-                  onClick={() => !isDisabled && togglePlayer(id)}
+                  onClick={() => !isDisabled && selectPlayer(id)}
                   sx={{
                     width: '100%',
                     height: '100%',
@@ -557,7 +518,7 @@ const FullPlayerLobby = ({
                     fontSize: '0.8rem',
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                     transition: 'all 0.2s ease',
-                    opacity: isDisabled ? 0.7 : 1,
+                    opacity: isDisabled ? 0.8 : 1,
 
                     background: isSelectedByUser
                       ? 'linear-gradient(145deg, #4CAF50, #8BC34A)'
@@ -593,7 +554,7 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Selected Cards & Action Section */}
+        {/* Selected Cards Display & Action Section */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
@@ -637,17 +598,10 @@ const FullPlayerLobby = ({
                         border: '2px solid #4CAF50',
                       }}
                     >
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 0.5 }}>
                         <Typography sx={{ fontWeight: 'bold', fontSize: '0.85rem', color: getTextColor() }}>
                           {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() => togglePlayer(player.id)}
-                          sx={{ color: '#f44336', padding: 0.5 }}
-                        >
-                          ✕
-                        </IconButton>
                       </Box>
 
                       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.15 }}>
