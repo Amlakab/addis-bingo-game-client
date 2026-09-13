@@ -3,11 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Button, Box, Typography, Card, 
-  Alert, Snackbar, Modal, Switch,
-  CircularProgress
+  Alert, Snackbar, IconButton, Modal, Switch,
+  Select, MenuItem, CircularProgress
 } from '@mui/material';
+import { motion } from 'framer-motion';
 import { getCardById } from '@/app/utils/generateCards';
 import Confetti from 'react-confetti';
+import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '@/lib/auth';
 
 interface PlayerSelection {
@@ -30,6 +32,14 @@ interface GameEndData {
   betAmount: number;
 }
 
+interface BetTimerState {
+  status: 'ready' | 'active' | 'in-progress';
+  timer: number;
+  playerCount: number;
+  prizePool: number;
+  createdAt: Date | null;
+}
+
 interface FullGameInterfaceProps {
   players: PlayerSelection[]; 
   bet: number;
@@ -50,18 +60,24 @@ const FullGameInterface = ({
   onGameEnd,
   onBackToPlayerLobby,
   language = 'am',
+  setLanguage,
   backgroundColor = 'white',
 }: FullGameInterfaceProps) => {
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
+  const [countdown, setCountdown] = useState<number>(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [gameEnded, setGameEnded] = useState(false); // ✅ Added missing state
   const [isCalling, setIsCalling] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [autoPlayOn, setAutoPlayOn] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [showLoserModal, setShowLoserModal] = useState(false);
+  const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [blockedPlayers, setBlockedPlayers] = useState<number[]>([]);
+  const [recentNumbers, setRecentNumbers] = useState<string[]>([]);
   const [userMarkedNumbers, setUserMarkedNumbers] = useState<{[key: string]: boolean}>({});
   const [prizePool, setPrizePool] = useState(players.length * bet * 0.8);
   const [numberOfPlayers, setNumberOfPlayers] = useState(players.length);
@@ -72,6 +88,7 @@ const FullGameInterface = ({
   const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
+  const [voiceService, setVoiceService] = useState<any>(null);
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
   
   const [gameStopped, setGameStopped] = useState(false);
@@ -84,7 +101,6 @@ const FullGameInterface = ({
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Exact Partial Game Palette Helpers
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -132,6 +148,26 @@ const FullGameInterface = ({
     return {};
   };
 
+  const getSelectBackground = () => {
+    switch(backgroundColor) {
+      case 'black': return '#333';
+      case 'green': return '#2e7d32';
+      case 'blue': return '#1976d2';
+      case 'yellow': return '#ffeb3b';
+      default: return '#fff';
+    }
+  };
+
+  const getSelectTextColor = () => {
+    switch(backgroundColor) {
+      case 'black': return 'white';
+      case 'green': return 'white';
+      case 'blue': return 'white';
+      case 'yellow': return 'black';
+      default: return 'black';
+    }
+  };
+
   const playAmharicNumberAudio = (number: string) => {
     if (!soundOn) return;
     try {
@@ -142,8 +178,12 @@ const FullGameInterface = ({
         audioRef.current.currentTime = 0;
       }
       audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(() => {});
-    } catch {}
+      audioRef.current.play().catch(() => {
+        if (voiceService) voiceService.speak(number, 'am-ET', 1);
+      });
+    } catch {
+      if (voiceService) voiceService.speak(number, 'am-ET', 1);
+    }
   };
 
   const playGameAudio = (soundType: 'won' | 'not-won') => {
@@ -163,10 +203,12 @@ const FullGameInterface = ({
     setIsClient(true);
     const loadBrowserModules = async () => {
       try {
+        const voiceModule = await import('@/app/utils/voiceService');
+        setVoiceService(voiceModule.voiceService);
         const wsModule = await import('@/app/utils/websocket');
         setWebSocketService(wsModule.webSocketService);
       } catch (error) {
-        console.error('Failed to load websocket:', error);
+        console.error('Failed to load modules:', error);
       }
     };
     loadBrowserModules();
@@ -180,20 +222,36 @@ const FullGameInterface = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [isClient]);
 
-  // Connect to Socket and Listen for Game Calling
+  useEffect(() => {
+    if (calledNumbers.length > 0) {
+      setRecentNumbers(calledNumbers.slice(-2));
+    }
+  }, [calledNumbers]);
+
   useEffect(() => {
     if (!isClient || !webSocketService) return;
+
+    const handleTimerStatesUpdate = (timerStates: {[key: number]: BetTimerState}) => {
+      if (timerStates[bet]) {
+        setCountdown(timerStates[bet].timer);
+      }
+    };
 
     const handleNumberCalled = (data: { betAmount: number; number: string; calledNumbers: string[]; totalNumbers: number; remaining: number }) => {
       if (data.betAmount !== bet) return;
       
+      setGameStarted(true);
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
       setRemainingNumbers(data.remaining);
       setIsCalling(true);
       
-      if (soundOn && language === 'am') {
-        playAmharicNumberAudio(data.number);
+      if (soundOn) {
+        if (language === 'am') {
+          playAmharicNumberAudio(data.number);
+        } else if (voiceService) {
+          voiceService.speak(data.number, 'en-US', 1);
+        }
       }
     };
 
@@ -214,13 +272,14 @@ const FullGameInterface = ({
     const handleGameEnded = (data: GameEndData) => {
       if (data.betAmount !== bet) return;
       
+      setGameEnded(true);
       setGameStopped(true);
       setIsCalling(false);
       setSubmittedBingoCards([]);
       
-      const formattedWinners: Winner[] = data.winners.map(winner => ({
-        id: winner.card,
-        userId: winner.id,
+      const formattedWinners: Winner[] = data.winners.map(w => ({
+        id: w.card,
+        userId: w.id,
         prize: data.split,
         totalWinners: data.totalWinners
       }));
@@ -245,7 +304,10 @@ const FullGameInterface = ({
       setCalledNumbers(data.calledNumbers);
       setCurrentNumber(data.currentNumber);
       setRemainingNumbers(data.remaining);
-      if (data.calledNumbers.length > 0) setIsCalling(true);
+      if (data.calledNumbers.length > 0) {
+        setGameStarted(true);
+        setIsCalling(true);
+      }
     };
 
     const handleSessionsUpdate = (sessions: any[]) => {
@@ -254,6 +316,7 @@ const FullGameInterface = ({
       setPrizePool(currentSessions.length * bet * 0.8);
     };
 
+    webSocketService.on('full-timer-states-update', handleTimerStatesUpdate);
     webSocketService.on('full-number-called', handleNumberCalled);
     webSocketService.on('full-game-stopped', handleGameStopped);
     webSocketService.on('full-winner-announced', handleWinnerAnnounced);
@@ -261,12 +324,13 @@ const FullGameInterface = ({
     webSocketService.on('full-game-state', handleGameState);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
 
-    // Initial requests to start or sync calling
     webSocketService.send('start-full-game', { betAmount: bet });
     webSocketService.send('get-full-game-state', { betAmount: bet });
     webSocketService.send('get-full-sessions', { betAmount: bet });
+    webSocketService.send('get-full-timer-states');
 
     return () => {
+      webSocketService.off('full-timer-states-update', handleTimerStatesUpdate);
       webSocketService.off('full-number-called', handleNumberCalled);
       webSocketService.off('full-game-stopped', handleGameStopped);
       webSocketService.off('full-winner-announced', handleWinnerAnnounced);
@@ -276,7 +340,7 @@ const FullGameInterface = ({
     };
   }, [isClient, webSocketService, bet, language, user, soundOn, players]);
 
-  // Full Card Win Validation (All 24 non-free spaces must be called)
+  // Full Card Win Validation (All 24 numbers must be called)
   const checkFullCardWin = useCallback((playerId: number) => {
     const card = getCardById(playerId);
     if (!card) return { isWinner: false, message: 'Card not found' };
@@ -301,6 +365,7 @@ const FullGameInterface = ({
     return { isWinner: true };
   }, [calledNumbers]);
 
+  // Block user if claiming BINGO without complete coverall
   const handleBingo = useCallback((playerId: number) => {
     if (submittedBingoCards.includes(playerId) || blockedPlayers.includes(playerId)) return;
 
@@ -317,6 +382,17 @@ const FullGameInterface = ({
         });
       }
     } else {
+      setBlockedPlayers(prev => [...prev, playerId]);
+
+      if (webSocketService) {
+        webSocketService.send('update-full-session-status', {
+          cardNumber: playerId,
+          betAmount: bet,
+          status: 'blocked'
+        });
+      }
+
+      setLoserCardId(playerId);
       setLoserMessage(language === 'am' 
         ? `ቁጥር ${result.missingNumber || ''} ገና አልተጠራም` 
         : `Number ${result.missingNumber || ''} not called yet`
@@ -333,6 +409,7 @@ const FullGameInterface = ({
     if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     autoPlayTimerRef.current = setTimeout(() => {
       players.forEach(p => {
+        if (blockedPlayers.includes(p.id)) return;
         const card = getCardById(p.id);
         if (!card) return;
         const transposedCard = transposeCard(card);
@@ -359,9 +436,8 @@ const FullGameInterface = ({
     return () => {
       if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
     };
-  }, [autoPlayOn, gameStopped, calledNumbers, players, userMarkedNumbers, checkFullCardWin, handleBingo]);
+  }, [autoPlayOn, gameStopped, calledNumbers, players, userMarkedNumbers, blockedPlayers, checkFullCardWin, handleBingo]);
 
-  // Auto-close modal timer
   useEffect(() => {
     if (showWinnerModal || showGameOverModal) {
       setAutoCloseCountdown(7);
@@ -398,6 +474,86 @@ const FullGameInterface = ({
     setUserMarkedNumbers(prev => ({ ...prev, [number]: !prev[number] }));
   };
 
+  // Full Game Winner Card Preview Component
+  const WinnerCard = ({ winner, isCurrentUser, language }: { 
+    winner: Winner; 
+    isCurrentUser: boolean;
+    language: 'en' | 'am';
+  }) => {
+    const card = getCardById(winner.id);
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <Box sx={{ 
+          background: isCurrentUser ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.1)',
+          borderRadius: 2,
+          p: 2,
+          border: isCurrentUser ? '2px solid gold' : '1px solid rgba(255,255,255,0.2)',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+            <Typography variant="h6" sx={{ color: isCurrentUser ? 'gold' : 'white', fontWeight: 'bold', fontSize: '1.1rem' }}>
+              {language === 'am' ? 'ካርድ' : 'Card'} #{winner.id}
+              {isCurrentUser && ` (${language === 'am' ? 'የእርስዎ' : 'Yours'})`}
+            </Typography>
+            
+            {winner.prize && (
+              <Box sx={{ background: 'rgba(76,175,80,0.3)', borderRadius: 2, px: 2, py: 0.5 }}>
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  {winner.prize.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          <Typography variant="body2" sx={{ color: '#a1c4fd', mb: 1.5, fontStyle: 'italic', fontSize: '0.85rem' }}>
+            {language === 'am' ? 'ሙሉ ካርድ አሸንፈዋል!' : 'Won with Full Card!'}
+          </Typography>
+          
+          <Box sx={{ 
+            display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.5, mb: 1, p: 1, background: 'rgba(255,255,255,0.9)', borderRadius: 1 
+          }}>
+            {["B", "I", "N", "G", "O"].map((letter) => (
+              <Box key={letter} sx={{
+                p: 0.3, backgroundColor: 'primary.main', color: 'white', fontWeight: 'bold', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px 4px 0 0'
+              }}>
+                {letter}
+              </Box>
+            ))}
+            {transposeCard(card).map((row, rowIdx) => (
+              row.map((num, colIdx) => {
+                const letter = "BINGO"[colIdx];
+                const isCalled = calledNumbers.includes(`${letter}-${num}`);
+                const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                
+                return (
+                  <Box
+                    key={`${rowIdx}-${colIdx}`}
+                    sx={{
+                      p: 0.4,
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      backgroundColor: isFreeSpace ? '#4CAF50' : isCalled ? 'rgba(76,175,80,0.5)' : 'rgba(255,255,255,0.7)',
+                      color: 'text.primary',
+                      fontWeight: isCalled ? 'bold' : 'normal',
+                      fontSize: '0.85rem',
+                      minHeight: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    {isFreeSpace ? '★' : num}
+                  </Box>
+                );
+              })
+            ))}
+          </Box>
+        </Box>
+      </motion.div>
+    );
+  };
+
   if (!isClient) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -419,7 +575,7 @@ const FullGameInterface = ({
       flexDirection: 'column',
       color: getTextColor()
     }}>
-      {/* Header Cards (Mirrors Partial Game Exactly) */}
+      {/* Header Cards (Mirrors Partial Game Header & Countdown State) */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -430,28 +586,72 @@ const FullGameInterface = ({
         color: getTextColor(),
         width: '100%'
       }}>
-        <Card sx={{
-          flex: '0 0 20%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 0.75,
-          background: getCardBackground(),
-          borderRadius: 1.5,
-          minHeight: '7vh',
-          color: getTextColor()
-        }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-            {language === 'am' ? 'ተጠሩ' : 'Called'}
-          </Typography>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
-            {calledNumbers.length}/{totalNumbers}
-          </Typography>
-        </Card>
+        {!gameStarted ? (
+          <Card sx={{
+            flex: '0 0 25%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            p: 0.75,
+            background: getCardBackground(),
+            borderRadius: 1.5,
+            minHeight: '7vh',
+            color: getTextColor()
+          }}>
+            <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+              {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
+            </Typography>
+            <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+              {countdown > 0 ? `${countdown}s` : 'Ready'}
+            </Typography>
+          </Card>
+        ) : (
+          <>
+            <Card sx={{
+              flex: '0 0 20%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0.75,
+              background: getCardBackground(),
+              borderRadius: 1.5,
+              minHeight: '7vh',
+              color: getTextColor()
+            }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+                {language === 'am' ? 'አሁን' : 'Curr'}
+              </Typography>
+              <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
+                {currentNumber || "-"}
+              </Typography>
+            </Card>
+
+            <Card sx={{
+              flex: '0 0 20%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0.75,
+              background: getCardBackground(),
+              borderRadius: 1.5,
+              minHeight: '7vh',
+              color: getTextColor()
+            }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+                {language === 'am' ? 'ተጠሩ' : 'Called'}
+              </Typography>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                {calledNumbers.length}/{totalNumbers}
+              </Typography>
+            </Card>
+          </>
+        )}
 
         <Card sx={{
-          flex: '0 0 20%',
+          flex: !gameStarted ? '0 0 25%' : '0 0 20%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -471,7 +671,7 @@ const FullGameInterface = ({
         </Card>
 
         <Card sx={{
-          flex: '0 0 20%',
+          flex: !gameStarted ? '0 0 25%' : '0 0 20%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -491,27 +691,7 @@ const FullGameInterface = ({
         </Card>
 
         <Card sx={{
-          flex: '0 0 20%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 0.75,
-          background: getCardBackground(),
-          borderRadius: 1.5,
-          minHeight: '7vh',
-          color: getTextColor()
-        }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
-            {language === 'am' ? 'አሁን' : 'Curr'}
-          </Typography>
-          <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
-            {currentNumber || "-"}
-          </Typography>
-        </Card>
-
-        <Card sx={{
-          flex: '0 0 20%',
+          flex: !gameStarted ? '0 0 25%' : '0 0 20%',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -540,7 +720,7 @@ const FullGameInterface = ({
         minHeight: '24vh',
         overflow: 'hidden'
       }}>
-        {/* Left Side: 75-Ball Board */}
+        {/* Left Side: 75-Ball Board & Recent Numbers */}
         <Box sx={{ 
           flex: '0 0 40%',
           display: 'flex',
@@ -640,9 +820,44 @@ const FullGameInterface = ({
               );
             })}
           </Box>
+
+          {/* Recent Numbers Strip */}
+          {gameStarted && recentNumbers.length > 0 && (
+            <Box sx={{ 
+              p: 1,
+              background: getCardBackground(),
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              mt: 1,
+              color: getTextColor()
+            }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {recentNumbers.map((num, index) => (
+                  <Box 
+                    key={index}
+                    sx={{
+                      px: 1,
+                      py: 0.5,
+                      backgroundColor: 'orange',
+                      color: 'white',
+                      borderRadius: 1.5,
+                      fontWeight: 'bold',
+                      fontSize: '0.75rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    {num}
+                  </Box>
+                ))}
+              </Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '0.8rem', mt: 0.5 }}>
+                {language === 'am' ? 'ያለፉት ቁጥሮች' : 'Recent Numbers'}
+              </Typography>
+            </Box>
+          )}
         </Box>
 
-        {/* Right Side: Controls & Cards */}
+        {/* Right Side: Controls and Cards */}
         <Box sx={{ 
           flex: '0 0 60%',
           display: 'flex',
@@ -650,7 +865,7 @@ const FullGameInterface = ({
           gap: 1,
           minHeight: '25vh',
         }}>
-          {/* Controls Bar */}
+          {/* Controls with Sound, Auto, and Language Switcher */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -660,6 +875,7 @@ const FullGameInterface = ({
             width: '100%',
             mb: 0.5
           }}>
+            {/* Sound Toggle */}
             <Card sx={{
               flex: '0 0 auto',
               display: 'flex',
@@ -690,6 +906,7 @@ const FullGameInterface = ({
               />
             </Card>
 
+            {/* Auto-play Toggle */}
             <Card sx={{
               flex: '0 0 auto',
               display: 'flex',
@@ -719,9 +936,57 @@ const FullGameInterface = ({
                 }}
               />
             </Card>
+
+            {/* Language Switcher */}
+            <Card sx={{
+              flex: '0 0 auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 0.5,
+              px: 1,
+              background: getCardBackground(),
+              borderRadius: 1.5,
+              minHeight: '5vh',
+              color: getTextColor(),
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: getTextColor(), whiteSpace: 'nowrap', mb: 0.25 }}>
+                🌐 {language === 'am' ? 'ቋንቋ' : 'Lang'}
+              </Typography>
+              <Select
+                value={language}
+                onChange={(e) => setLanguage && setLanguage(e.target.value as 'en' | 'am')}
+                size="small"
+                sx={{ 
+                  minWidth: 32,
+                  height: 24,
+                  fontSize: '0.65rem',
+                  backgroundColor: getSelectBackground(),
+                  color: getSelectTextColor(),
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: getSelectTextColor(),
+                    borderWidth: '1px'
+                  },
+                  '& .MuiSelect-select': {
+                    padding: '1px 4px',
+                    paddingRight: '16px !important'
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: getSelectTextColor(),
+                    fontSize: '0.8rem',
+                    right: 1
+                  }
+                }}
+              >
+                <MenuItem value="en" sx={{ fontSize: '0.65rem', minHeight: 24 }}>EN</MenuItem>
+                <MenuItem value="am" sx={{ fontSize: '0.65rem', minHeight: 24 }}>AM</MenuItem>
+              </Select>
+            </Card>
           </Box>
 
-          {/* User Cards Grid */}
+          {/* User Cards */}
           <Box sx={{ 
             flex: 1,
             overflow: 'auto',
@@ -845,7 +1110,11 @@ const FullGameInterface = ({
                       ...getButtonStyle()
                     }}
                   >
-                    {hasSubmittedBingo ? (language === "am" ? "ቀርቧል" : "SUBMITTED") : "BINGO"}
+                    {hasSubmittedBingo 
+                      ? (language === "am" ? "ቀርቧል" : "SUBMITTED") 
+                      : isBlocked 
+                      ? (language === "am" ? "ታግዷል" : "BLOCKED")
+                      : "BINGO"}
                   </Button>
                 </Card>
               );
@@ -854,21 +1123,119 @@ const FullGameInterface = ({
         </Box>
       </Box>
 
-      {/* Winner Modal */}
+      {/* Winner Modal with Detailed Card Previews */}
       <Modal open={showWinnerModal} onClose={() => { setShowWinnerModal(false); onBackToPlayerLobby(); }}>
         <Box sx={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: '90%', maxWidth: 450, bgcolor: '#1a1a2e', color: 'white', p: 3, borderRadius: 3, textAlign: 'center', border: '2px solid gold'
+          width: '95%', maxWidth: 550, bgcolor: 'background.paper', boxShadow: 24, p: 3, borderRadius: 3, textAlign: 'center', border: '3px solid gold', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', maxHeight: '90vh', overflow: 'auto'
         }}>
-          <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />
-          <Typography variant="h5" sx={{ color: 'gold', fontWeight: 'bold', mb: 2 }}>🎉 {language === 'am' ? 'እንኳን ደስ ያለህ!' : 'WINNER!'} 🎉</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>{language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'} {autoCloseCountdown}s</Typography>
+          <IconButton aria-label="close" onClick={() => { setShowWinnerModal(false); onBackToPlayerLobby(); }} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+            <CloseIcon />
+          </IconButton>
+          
+          <Confetti width={windowSize.width} height={windowSize.height} recycle={false} numberOfPieces={300} />
+
+          <Typography variant="h4" gutterBottom sx={{ color: 'gold', mb: 2, fontWeight: 'bold', textShadow: '0 0 5px rgba(255,215,0,0.7)', fontSize: '1.8rem' }}>
+            {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
+          </Typography>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
+              {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
+            </Typography>
+            <Box sx={{ backgroundColor: 'rgba(255,215,0,0.2)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid gold' }}>
+              <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {autoCloseCountdown}
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>s</Typography>
+          </Box>
+
           {gameEndData && (
-            <Box sx={{ bgcolor: 'rgba(255,215,0,0.1)', p: 2, borderRadius: 2, mb: 2 }}>
-              <Typography variant="h6" sx={{ color: 'gold' }}>+{gameEndData.split.toFixed(0)} Birr</Typography>
+            <Box sx={{ background: 'rgba(255,215,0,0.2)', borderRadius: 2, p: 2, mb: 3, border: '2px solid gold' }}>
+              <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1, fontSize: '1.1rem' }}>
+                {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
+              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
+                <Box sx={{ textAlign: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
+                    {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
+                    {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    {gameEndData.totalWinners}
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
+                    {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                    {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+                  </Typography>
+                </Box>
+              </Box>
             </Box>
           )}
-          <Button variant="contained" color="warning" fullWidth onClick={() => { setShowWinnerModal(false); onBackToPlayerLobby(); }}>
+
+          {/* Detailed Winner Cards Representation */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" sx={{ color: 'white', mb: 2, fontWeight: 'bold', fontSize: '1.2rem' }}>
+              {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+            </Typography>
+
+            {user && (
+              <>
+                {winners.filter(w => w.userId === user._id).length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ color: 'gold', mb: 2, fontWeight: 'bold', fontSize: '1.1rem' }}>
+                      {language === 'am' ? 'የእርስዎ አሸናፊ ካርዶች' : 'Your Winning Cards'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {winners.filter(w => w.userId === user._id).map((winner, index) => (
+                        <WinnerCard key={index} winner={winner} isCurrentUser={true} language={language} />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+
+                {winners.filter(w => w.userId !== user._id).length > 0 && (
+                  <Box>
+                    <Typography variant="h6" sx={{ color: '#a1c4fd', mb: 2, fontWeight: 'bold', fontSize: '1.1rem' }}>
+                      {language === 'am' ? 'ሌሎች አሸናፊዎች' : 'Other Winners'}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {winners.filter(w => w.userId !== user._id).map((winner, index) => (
+                        <WinnerCard key={index} winner={winner} isCurrentUser={false} language={language} />
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+              </>
+            )}
+          </Box>
+
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              if (autoCloseTimerRef.current) clearInterval(autoCloseTimerRef.current);
+              setShowWinnerModal(false);
+              onBackToPlayerLobby();
+            }}
+            sx={{ 
+              mt: 2, px: 4, py: 1.5, fontWeight: 'bold', fontSize: '1.1rem',
+              background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+              boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)', borderRadius: 2
+            }}
+          >
             {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
           </Button>
         </Box>
@@ -878,25 +1245,117 @@ const FullGameInterface = ({
       <Modal open={showGameOverModal} onClose={() => { setShowGameOverModal(false); onBackToPlayerLobby(); }}>
         <Box sx={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: '90%', maxWidth: 400, bgcolor: '#1a1a2e', color: 'white', p: 3, borderRadius: 3, textAlign: 'center', border: '2px solid #ef5350'
+          width: '95%', maxWidth: 450, bgcolor: 'background.paper', boxShadow: 24, p: 2.5, borderRadius: 3, textAlign: 'center', border: '3px solid gold', background: 'linear-gradient(135deg, #1a1a2e, #16213e)', maxHeight: '90vh', overflow: 'auto'
         }}>
-          <Typography variant="h6" sx={{ color: '#ef5350', fontWeight: 'bold', mb: 1 }}>{language === 'am' ? 'ጨዋታው አልቋል' : 'Game Over'}</Typography>
-          <Typography variant="body2" sx={{ mb: 2 }}>{language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'} {autoCloseCountdown}s</Typography>
-          <Button variant="contained" fullWidth onClick={() => { setShowGameOverModal(false); onBackToPlayerLobby(); }}>
+          <IconButton aria-label="close" onClick={() => { setShowGameOverModal(false); onBackToPlayerLobby(); }} sx={{ position: 'absolute', right: 4, top: 4, color: 'white' }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mb: 2 }}>
+            <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
+              {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
+            </Typography>
+            <Box sx={{ backgroundColor: 'rgba(255,215,0,0.2)', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid gold' }}>
+              <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {autoCloseCountdown}
+              </Typography>
+            </Box>
+            <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>s</Typography>
+          </Box>
+          
+          {gameEndData && (
+            <Box sx={{ background: 'rgba(255,215,0,0.2)', borderRadius: 2, p: 1.5, mb: 2, border: '1px solid gold' }}>
+              <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1rem' }}>
+                {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
+              </Typography>
+              <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
+              </Typography>
+            </Box>
+          )}
+
+          {winners.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+              <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
+              </Typography>
+              {winners.map((winner, index) => (
+                <WinnerCard key={index} winner={winner} isCurrentUser={false} language={language} />
+              ))}
+            </Box>
+          )}
+
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => {
+              if (autoCloseTimerRef.current) clearInterval(autoCloseTimerRef.current);
+              setShowGameOverModal(false);
+              onBackToPlayerLobby();
+            }}
+            sx={{ 
+              mt: 1, px: 3, fontWeight: 'bold',
+              background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
+              boxShadow: '0 2px 8px rgba(255, 105, 135, 0.3)', borderRadius: 2
+            }}
+          >
             {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
           </Button>
         </Box>
       </Modal>
 
-      {/* Disqualified Modal */}
+      {/* Disqualified / Blocked Modal showing card preview */}
       <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
         <Box sx={{
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: '85%', maxWidth: 350, bgcolor: '#1a1a2e', color: 'white', p: 2.5, borderRadius: 2, textAlign: 'center', border: '2px solid #ef5350'
+          width: '85%', maxWidth: 380, bgcolor: '#1a1a2e', color: 'white', p: 2.5, borderRadius: 2, textAlign: 'center', border: '2px solid #ef5350'
         }}>
           <Typography variant="h6" sx={{ color: '#ef5350', fontWeight: 'bold', mb: 1 }}>{language === 'am' ? 'ይቅርታ!' : 'Invalid Bingo!'}</Typography>
           <Typography variant="body2" sx={{ mb: 2 }}>{loserMessage}</Typography>
-          <Button variant="contained" onClick={() => setShowLoserModal(false)}>{language === 'am' ? 'እሺ' : 'OK'}</Button>
+          
+          {loserCardId && (
+            <Box sx={{ 
+              display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.3, mb: 2, p: 1, background: 'rgba(0,0,0,0.3)', borderRadius: 1 
+            }}>
+              {["B", "I", "N", "G", "O"].map((letter) => (
+                <Box key={letter} sx={{ p: 0.3, backgroundColor: 'primary.main', color: 'white', fontWeight: 'bold', fontSize: '0.65rem' }}>
+                  {letter}
+                </Box>
+              ))}
+              {transposeCard(getCardById(loserCardId)).map((row, rowIdx) => (
+                row.map((num, colIdx) => {
+                  const letter = "BINGO"[colIdx];
+                  const isCalled = calledNumbers.includes(`${letter}-${num}`);
+                  const isFreeSpace = (colIdx === 2 && rowIdx === 2);
+                  return (
+                    <Box
+                      key={`${rowIdx}-${colIdx}`}
+                      sx={{
+                        p: 0.3,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        backgroundColor: isFreeSpace ? '#4CAF50' : isCalled ? 'rgba(76,175,80,0.7)' : 'rgba(255,255,255,0.1)',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        minHeight: 22,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      {num === 0 ? '★' : num}
+                    </Box>
+                  );
+                })
+              ))}
+            </Box>
+          )}
+
+          <Typography variant="caption" sx={{ color: '#ffcdd2', display: 'block', mb: 2 }}>
+            {language === 'am' ? 'ይህ ካርድ ታግዷል።' : 'This card has been blocked.'}
+          </Typography>
+          <Button variant="contained" color="error" onClick={() => setShowLoserModal(false)}>
+            {language === 'am' ? 'እሺ' : 'OK'}
+          </Button>
         </Box>
       </Modal>
 
