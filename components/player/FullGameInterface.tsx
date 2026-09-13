@@ -169,22 +169,20 @@ const FullGameInterface = ({
   };
 
   const playAmharicNumberAudio = (number: string) => {
-    if (!soundOn) return;
-    try {
-      const [letter, num] = number.split('-');
-      const audioPath = `/Audio/${letter}/${letter}${num}.aac`;
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-      audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(() => {
-        if (voiceService) voiceService.speak(number, 'am-ET', 1);
-      });
-    } catch {
-      if (voiceService) voiceService.speak(number, 'am-ET', 1);
+  if (!soundOn) return;
+  try {
+    const [letter, num] = number.split('-');
+    const audioPath = `/Audio/${letter}/${letter}${num}.aac`;
+    
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
-  };
+    
+    audioRef.current = new Audio(audioPath);
+    audioRef.current.play().catch(() => {});
+  } catch {}
+};
 
   const playGameAudio = (soundType: 'won' | 'not-won') => {
     if (!soundOn) return;
@@ -238,22 +236,22 @@ const FullGameInterface = ({
     };
 
     const handleNumberCalled = (data: { betAmount: number; number: string; calledNumbers: string[]; totalNumbers: number; remaining: number }) => {
-      if (data.betAmount !== bet) return;
-      
-      setGameStarted(true);
-      setCurrentNumber(data.number);
-      setCalledNumbers(data.calledNumbers);
-      setRemainingNumbers(data.remaining);
-      setIsCalling(true);
-      
-      if (soundOn) {
-        if (language === 'am') {
-          playAmharicNumberAudio(data.number);
-        } else if (voiceService) {
-          voiceService.speak(data.number, 'en-US', 1);
-        }
-      }
-    };
+  if (data.betAmount !== bet) return;
+  
+  setGameStarted(true);
+  setCurrentNumber(data.number);
+  setCalledNumbers(data.calledNumbers);
+  setRemainingNumbers(data.remaining);
+  setIsCalling(true);
+  
+  if (soundOn) {
+    if (language === 'am') {
+      playAmharicNumberAudio(data.number);
+    } else if (language === 'en' && voiceService) {
+      voiceService.speak(data.number, 'en-US', 1);
+    }
+  }
+};
 
     const handleGameStopped = (data: { betAmount: number; firstWinner: { userId: string; card: number }; message: string }) => {
       if (data.betAmount !== bet) return;

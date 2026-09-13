@@ -125,6 +125,11 @@ const FullPlayerLobby = ({
 
   useEffect(() => {
     setIsClient(true);
+    // Explicitly reset card selections whenever component mounts after previous game
+    setSelectedPlayers([]);
+    setOccupiedCards([]);
+    setOccupiedCardsByUser({});
+
     const loadWebSocketService = async () => {
       try {
         const wsModule = await import('@/app/utils/websocket');
@@ -134,7 +139,7 @@ const FullPlayerLobby = ({
       }
     };
     loadWebSocketService();
-  }, []);
+  }, [betAmount]);
 
   useEffect(() => {
     if (!isClient || !webSocketService) return;
@@ -152,8 +157,21 @@ const FullPlayerLobby = ({
       }
     };
 
+    // Cleanly wipe occupied cards if empty sessions array is sent
     const handleSessionsUpdate = (sessions: GameSession[]) => {
-      const betSessions = sessions.filter(session => session.betAmount === betAmount);
+      if (!Array.isArray(sessions) || sessions.length === 0) {
+        setOccupiedCards([]);
+        setOccupiedCardsByUser({});
+        setSelectedPlayers([]);
+        return;
+      }
+
+      // Filter only active & ready sessions for this bet amount
+      const betSessions = sessions.filter(session => 
+        session.betAmount === betAmount &&
+        ['active', 'ready', 'playing'].includes(session.status)
+      );
+
       const occupied = betSessions.map(session => session.cardNumber);
       setOccupiedCards(occupied);
       
@@ -171,6 +189,8 @@ const FullPlayerLobby = ({
           .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
         
         setSelectedPlayers(userSelectedCards);
+      } else {
+        setSelectedPlayers([]);
       }
     };
 
@@ -203,6 +223,7 @@ const FullPlayerLobby = ({
     webSocketService.on('full-session-created', handleSessionCreated);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     
+    // Refresh sessions from server
     webSocketService.send('get-full-sessions', { betAmount });
     
     return () => {
@@ -270,7 +291,6 @@ const FullPlayerLobby = ({
     }
   };
 
-  // ✅ PRE-GAME READY TRANSITION (Aligns strictly with Partial Game step 5)
   const handleDirectToGame = () => {
     if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
@@ -281,17 +301,13 @@ const FullPlayerLobby = ({
     }
 
     try {
-      // Step 5: Transition session from 'active' -> 'ready'
       webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
         status: 'ready'
       });
 
-      // Notify server to start game calling
       webSocketService.send('start-full-game', { betAmount });
-
-      // Navigate to game view
       onDirectToGame(selectedPlayers, betAmount, gameId);
     } catch (error) {
       console.error('Error navigating to full game interface:', error);
@@ -656,7 +672,7 @@ const FullPlayerLobby = ({
                 })}
               </Box>
 
-              <Button
+              {/* <Button
                 variant="contained"
                 color="success"
                 onClick={handleDirectToGame}
@@ -673,7 +689,7 @@ const FullPlayerLobby = ({
                   ? (language === 'am' ? `ጨዋታ ይጀምራል ${formatTimeRemaining(remainingTime)}` : `Game starts in ${formatTimeRemaining(remainingTime)}`)
                   : (language === 'am' ? 'ጨዋታ ጀምር' : 'Start Game')
                 }
-              </Button>
+              </Button> */}
             </Box>
           )}
         </Box>
