@@ -7,7 +7,6 @@ import {
   Alert, Snackbar, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import api from '@/app/utils/api';
 
 interface PlayerSelection {
   id: number;
@@ -74,6 +73,9 @@ const FullPlayerLobby = ({
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-redirect tracking ref
+  const hasAutoRedirectedRef = useRef(false);
 
   const getTextColor = () => {
     switch(backgroundColor) {
@@ -212,6 +214,20 @@ const FullPlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
+  // ✅ AUTO-NAVIGATE TO GAME WHEN 5 SECONDS REMAIN
+  useEffect(() => {
+    if (remainingTime > 0 && remainingTime <= 5 && selectedPlayers.length > 0) {
+      if (!hasAutoRedirectedRef.current) {
+        hasAutoRedirectedRef.current = true;
+        handleDirectToGame();
+      }
+    }
+
+    if (remainingTime > 5) {
+      hasAutoRedirectedRef.current = false;
+    }
+  }, [remainingTime, selectedPlayers]);
+
   const selectPlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -255,44 +271,31 @@ const FullPlayerLobby = ({
     }
   };
 
-  const handleDirectToGame = async () => {
+  const handleDirectToGame = () => {
     if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
+    if (selectedPlayers.length === 0) {
+      setToastMessage(language === 'am' ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' : 'Please select at least 1 card');
+      setShowToast(true);
+      return;
+    }
+
     try {
-      const response = await api.get(`/full-game/sessions/user/${user._id}`);
-      const userSessions = response.data;
-      
-      const currentBetSessions = userSessions.filter((session: GameSession) => 
-        session.betAmount === betAmount && 
-        ['active', 'ready', 'playing'].includes(session.status)
-      );
-
-      if (currentBetSessions.length === 0) {
-        setToastMessage(language === 'am' ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' : 'Please select at least 1 card');
-        setShowToast(true);
-        return;
-      }
-
-      if (currentBetSessions.length > 2) {
-        setToastMessage(language === 'am' ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' : 'You cannot select more than 2 cards');
-        setShowToast(true);
-        return;
-      }
-
-      const validatedSelectedPlayers: PlayerSelection[] = currentBetSessions.map((session: GameSession) => ({
-        id: session.cardNumber,
-        userId: session.userId._id
-      }));
-
+      // 1. Update session statuses to playing for this user and bet amount
       webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
-        status: 'ready'
+        status: 'playing'
       });
 
-      onDirectToGame(validatedSelectedPlayers, betAmount, gameId);
+      // 2. Notify server to initialize game if not already calling
+      webSocketService.send('start-full-game', { betAmount });
+
+      // 3. Immediately transition view to FullGameInterface
+      onDirectToGame(selectedPlayers, betAmount, gameId);
     } catch (error) {
-      setToastMessage(language === 'am' ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' : 'Error occurred while processing game entry');
+      console.error('Error navigating to full game interface:', error);
+      setToastMessage(language === 'am' ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' : 'Error occurred while entering game');
       setShowToast(true);
     }
   };
@@ -493,8 +496,6 @@ const FullPlayerLobby = ({
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            
-            // Once occupied, it cannot be clicked or re-selected
             const isDisabled = isOccupied;
 
             return (
