@@ -74,7 +74,6 @@ const FullPlayerLobby = ({
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-redirect tracking ref
   const hasAutoRedirectedRef = useRef(false);
 
   const getTextColor = () => {
@@ -214,7 +213,7 @@ const FullPlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
-  // ✅ AUTO-NAVIGATE TO GAME WHEN 5 SECONDS REMAIN
+  // Automatic navigation when 5 seconds remain
   useEffect(() => {
     if (remainingTime > 0 && remainingTime <= 5 && selectedPlayers.length > 0) {
       if (!hasAutoRedirectedRef.current) {
@@ -271,6 +270,7 @@ const FullPlayerLobby = ({
     }
   };
 
+  // ✅ PRE-GAME READY TRANSITION (Aligns strictly with Partial Game step 5)
   const handleDirectToGame = () => {
     if (!isClient || !webSocketService || !user || !onDirectToGame) return;
 
@@ -281,17 +281,17 @@ const FullPlayerLobby = ({
     }
 
     try {
-      // 1. Update session statuses to playing for this user and bet amount
+      // Step 5: Transition session from 'active' -> 'ready'
       webSocketService.send('update-full-session-status-by-user-bet', {
         userId: user._id,
         betAmount: betAmount,
-        status: 'playing'
+        status: 'ready'
       });
 
-      // 2. Notify server to initialize game if not already calling
+      // Notify server to start game calling
       webSocketService.send('start-full-game', { betAmount });
 
-      // 3. Immediately transition view to FullGameInterface
+      // Navigate to game view
       onDirectToGame(selectedPlayers, betAmount, gameId);
     } catch (error) {
       console.error('Error navigating to full game interface:', error);

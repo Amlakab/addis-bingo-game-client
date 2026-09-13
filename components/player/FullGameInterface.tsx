@@ -2,18 +2,13 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Button, Box, Typography, Card, CardContent, 
-  useTheme, useMediaQuery, Alert, Snackbar, TextField,
-  IconButton, Modal, Switch,
-  FormControlLabel, Select, MenuItem,
+  Button, Box, Typography, Card, 
+  Alert, Snackbar, Modal, Switch,
   CircularProgress
 } from '@mui/material';
-import { motion } from 'framer-motion';
 import { getCardById } from '@/app/utils/generateCards';
 import Confetti from 'react-confetti';
-import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '@/lib/auth';
-import api from '@/app/utils/api';
 
 interface PlayerSelection {
   id: number;
@@ -33,17 +28,6 @@ interface GameEndData {
   split: number;
   totalWinners: number;
   betAmount: number;
-}
-
-interface GameSession {
-  _id: string;
-  userId: string;
-  cardNumber: number;
-  betAmount: number;
-  gameId: string;
-  status: string;
-  createdAt: string;
-  cardNumbers: number[][];
 }
 
 interface FullGameInterfaceProps {
@@ -66,12 +50,8 @@ const FullGameInterface = ({
   onGameEnd,
   onBackToPlayerLobby,
   language = 'am',
-  earningsPercentage = 20,
-  setLanguage,
   backgroundColor = 'white',
-  setBackgroundColor
 }: FullGameInterfaceProps) => {
-  // State declarations
   const [calledNumbers, setCalledNumbers] = useState<string[]>([]);
   const [currentNumber, setCurrentNumber] = useState<string>("");
   const [isCalling, setIsCalling] = useState(false);
@@ -82,44 +62,29 @@ const FullGameInterface = ({
   const [showLoserModal, setShowLoserModal] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const [blockedPlayers, setBlockedPlayers] = useState<number[]>([]);
-  const [recentNumbers, setRecentNumbers] = useState<string[]>([]);
   const [userMarkedNumbers, setUserMarkedNumbers] = useState<{[key: string]: boolean}>({});
-  const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
-  const [prizePool, setPrizePool] = useState(0);
-  const [numberOfPlayers, setNumberOfPlayers] = useState(0);
+  const [prizePool, setPrizePool] = useState(players.length * bet * 0.8);
+  const [numberOfPlayers, setNumberOfPlayers] = useState(players.length);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [loserMessage, setLoserMessage] = useState('');
   const [showGameOverModal, setShowGameOverModal] = useState(false);
-  const [loserCardId, setLoserCardId] = useState<number | null>(null);
   const { user } = useAuth();
   const [isClient, setIsClient] = useState(false);
-  const [voiceService, setVoiceService] = useState<any>(null);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const [gameEndData, setGameEndData] = useState<GameEndData | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   
-  // Game control state
-  const [gameStarted, setGameStarted] = useState(false);
-  const [gameEnded, setGameEnded] = useState(false);
   const [gameStopped, setGameStopped] = useState(false);
-  const [gracePeriodActive, setGracePeriodActive] = useState(false);
-  const [announcedWinners, setAnnouncedWinners] = useState<Array<{userId: string; card: number}>>([]);
-  const [gracePeriodCountdown, setGracePeriodCountdown] = useState(3);
   const [submittedBingoCards, setSubmittedBingoCards] = useState<number[]>([]);
-  const [totalNumbers, setTotalNumbers] = useState(75);
+  const [totalNumbers] = useState(75);
   const [remainingNumbers, setRemainingNumbers] = useState(75);
-  
-  // Auto-close countdown state
   const [autoCloseCountdown, setAutoCloseCountdown] = useState(7);
   
-  // Refs
-  const isProcessingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const autoPlayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoCloseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Color helper functions
+  // Exact Partial Game Palette Helpers
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -136,7 +101,7 @@ const FullGameInterface = ({
       case 'green': return 'rgba(30, 70, 30, 0.9)';
       case 'blue': return 'rgba(30, 50, 80, 0.9)';
       case 'yellow': return 'rgba(240, 230, 140, 0.9)';
-      default: return 'rgba(255, 255, 255, 0.8)';
+      default: return 'rgba(255, 255, 255, 0.9)';
     }
   };
 
@@ -147,16 +112,6 @@ const FullGameInterface = ({
       case 'blue': return 'outlined';
       case 'yellow': return 'outlined';
       default: return 'contained';
-    }
-  };
-
-  const getButtonColor = () => {
-    switch(backgroundColor) {
-      case 'black': return 'primary';
-      case 'green': return 'success';
-      case 'blue': return 'info';
-      case 'yellow': return 'warning';
-      default: return 'primary';
     }
   };
 
@@ -177,27 +132,6 @@ const FullGameInterface = ({
     return {};
   };
 
-  const getSelectBackground = () => {
-    switch(backgroundColor) {
-      case 'black': return '#333';
-      case 'green': return '#2e7d32';
-      case 'blue': return '#1976d2';
-      case 'yellow': return '#ffeb3b';
-      default: return '#fff';
-    }
-  };
-
-  const getSelectTextColor = () => {
-    switch(backgroundColor) {
-      case 'black': return 'white';
-      case 'green': return 'white';
-      case 'blue': return 'white';
-      case 'yellow': return 'black';
-      default: return 'black';
-    }
-  };
-
-  // Audio functions
   const playAmharicNumberAudio = (number: string) => {
     if (!soundOn) return;
     try {
@@ -208,12 +142,8 @@ const FullGameInterface = ({
         audioRef.current.currentTime = 0;
       }
       audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(error => {
-        console.warn('Audio play failed:', error);
-      });
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
+      audioRef.current.play().catch(() => {});
+    } catch {}
   };
 
   const playGameAudio = (soundType: 'won' | 'not-won') => {
@@ -225,33 +155,18 @@ const FullGameInterface = ({
         audioRef.current.currentTime = 0;
       }
       audioRef.current = new Audio(audioPath);
-      audioRef.current.play().catch(error => {
-        console.warn('Game audio play failed:', error);
-      });
-    } catch (error) {
-      console.error('Error playing game audio:', error);
-    }
+      audioRef.current.play().catch(() => {});
+    } catch {}
   };
-
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
 
   useEffect(() => {
     setIsClient(true);
     const loadBrowserModules = async () => {
       try {
-        const voiceModule = await import('@/app/utils/voiceService');
-        setVoiceService(voiceModule.voiceService);
         const wsModule = await import('@/app/utils/websocket');
         setWebSocketService(wsModule.webSocketService);
       } catch (error) {
-        console.error('Failed to load browser modules:', error);
+        console.error('Failed to load websocket:', error);
       }
     };
     loadBrowserModules();
@@ -259,87 +174,46 @@ const FullGameInterface = ({
 
   useEffect(() => {
     if (!isClient) return;
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-    };
+    const handleResize = () => setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [isClient]);
 
-  useEffect(() => {
-    if (calledNumbers.length > 0) {
-      const recent = calledNumbers.slice(-2);
-      setRecentNumbers(recent);
-    }
-  }, [calledNumbers]);
-
+  // Connect to Socket and Listen for Game Calling
   useEffect(() => {
     if (!isClient || !webSocketService) return;
 
-    const handleNumberCalled = (data: { 
-      gameId: string; 
-      number: string; 
-      calledNumbers: string[];
-      totalNumbers: number;
-      remaining: number;
-    }) => {
-      if (data.gameId !== gameId) return;
+    const handleNumberCalled = (data: { betAmount: number; number: string; calledNumbers: string[]; totalNumbers: number; remaining: number }) => {
+      if (data.betAmount !== bet) return;
       
       setCurrentNumber(data.number);
       setCalledNumbers(data.calledNumbers);
-      setTotalNumbers(data.totalNumbers);
       setRemainingNumbers(data.remaining);
       setIsCalling(true);
       
-      if (soundOn) {
-        if (language === 'am') {
-          playAmharicNumberAudio(data.number);
-        }
+      if (soundOn && language === 'am') {
+        playAmharicNumberAudio(data.number);
       }
     };
 
-    const handleGameStopped = (data: { 
-      gameId: string; 
-      firstWinner: { userId: string; card: number };
-      message: string;
-    }) => {
-      if (data.gameId !== gameId) return;
-      
+    const handleGameStopped = (data: { betAmount: number; firstWinner: { userId: string; card: number }; message: string }) => {
+      if (data.betAmount !== bet) return;
       setGameStopped(true);
-      setGracePeriodActive(true);
-      setGracePeriodCountdown(4);
       setIsCalling(false);
       setToastMessage(data.message);
       setShowToast(true);
     };
 
-    const handleWinnerAnnounced = (data: {
-      gameId: string;
-      winnerId: string;
-      winnerCard: number;
-      totalWinnersSoFar: number;
-      message: string;
-    }) => {
-      if (data.gameId !== gameId) return;
-      
-      setAnnouncedWinners(prev => {
-        const isDuplicate = prev.some(w => w.userId === data.winnerId && w.card === data.winnerCard);
-        if (!isDuplicate) {
-          return [...prev, { userId: data.winnerId, card: data.winnerCard }];
-        }
-        return prev;
-      });
-      
+    const handleWinnerAnnounced = (data: { betAmount: number; message: string }) => {
+      if (data.betAmount !== bet) return;
       setToastMessage(data.message);
       setShowToast(true);
     };
 
-    const handleGameEnded = (data: GameEndData & { gameId: string }) => {
-      if (data.gameId !== gameId) return;
+    const handleGameEnded = (data: GameEndData) => {
+      if (data.betAmount !== bet) return;
       
-      setGameEnded(true);
-      setGracePeriodActive(false);
       setGameStopped(true);
       setIsCalling(false);
       setSubmittedBingoCards([]);
@@ -355,53 +229,30 @@ const FullGameInterface = ({
       setGameEndData(data);
 
       const userCardNumbers = players.map(p => p.id);
-      const userWon = user && data.winners.some(winner => 
-        userCardNumbers.includes(winner.card)
-      );
+      const userWon = user && data.winners.some(w => userCardNumbers.includes(w.card));
       
       if (userWon) {
         playGameAudio('won');
-        setTimeout(() => setShowWinnerModal(true), 1000);
+        setTimeout(() => setShowWinnerModal(true), 800);
       } else {
         playGameAudio('not-won');
         setShowGameOverModal(true);
       }
     };
 
-    const handleGameState = (data: { 
-      gameId: string; 
-      calledNumbers: string[]; 
-      currentNumber: string;
-      totalNumbers: number;
-      remaining: number;
-    }) => {
-      if (data.gameId !== gameId) return;
-      
+    const handleGameState = (data: { betAmount: number; calledNumbers: string[]; currentNumber: string; remaining: number }) => {
+      if (data.betAmount !== bet) return;
       setCalledNumbers(data.calledNumbers);
       setCurrentNumber(data.currentNumber);
-      setTotalNumbers(data.totalNumbers);
       setRemainingNumbers(data.remaining);
+      if (data.calledNumbers.length > 0) setIsCalling(true);
     };
 
-    const handleSessionsUpdate = (sessions: GameSession[]) => {
-      const gameSessions = sessions.filter(session => session.gameId === gameId);
-      setGameSessions(gameSessions);
-      
-      const activePlayers = gameSessions.filter(
-        (session) => session.status !== "active"
-      ).length;
-      setNumberOfPlayers(activePlayers);
-      
-      const pool = activePlayers * bet * 0.8;
-      setPrizePool(pool);
+    const handleSessionsUpdate = (sessions: any[]) => {
+      const currentSessions = sessions.filter(s => s.betAmount === bet);
+      setNumberOfPlayers(currentSessions.length);
+      setPrizePool(currentSessions.length * bet * 0.8);
     };
-
-    webSocketService.off('full-number-called', handleNumberCalled);
-    webSocketService.off('full-game-stopped', handleGameStopped);
-    webSocketService.off('full-winner-announced', handleWinnerAnnounced);
-    webSocketService.off('full-game-ended', handleGameEnded);
-    webSocketService.off('full-game-state', handleGameState);
-    webSocketService.off('full-sessions-updated', handleSessionsUpdate);
 
     webSocketService.on('full-number-called', handleNumberCalled);
     webSocketService.on('full-game-stopped', handleGameStopped);
@@ -410,8 +261,10 @@ const FullGameInterface = ({
     webSocketService.on('full-game-state', handleGameState);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
 
-    webSocketService.send('get-full-sessions', { gameId });
-    webSocketService.send('get-full-game-state', { gameId });
+    // Initial requests to start or sync calling
+    webSocketService.send('start-full-game', { betAmount: bet });
+    webSocketService.send('get-full-game-state', { betAmount: bet });
+    webSocketService.send('get-full-sessions', { betAmount: bet });
 
     return () => {
       webSocketService.off('full-number-called', handleNumberCalled);
@@ -421,120 +274,16 @@ const FullGameInterface = ({
       webSocketService.off('full-game-state', handleGameState);
       webSocketService.off('full-sessions-updated', handleSessionsUpdate);
     };
-  }, [isClient, webSocketService, gameId, bet, language, user, soundOn, players]);
+  }, [isClient, webSocketService, bet, language, user, soundOn, players]);
 
-  // Auto-play effect
-  useEffect(() => {
-    if (autoPlayOn && gameStarted && !gameStopped && calledNumbers.length > 0) {
-      if (autoPlayTimerRef.current) {
-        clearTimeout(autoPlayTimerRef.current);
-      }
-      
-      autoPlayTimerRef.current = setTimeout(() => {
-        checkAndAutoMarkNumbers();
-      }, 200);
-    }
-    
-    return () => {
-      if (autoPlayTimerRef.current) {
-        clearTimeout(autoPlayTimerRef.current);
-      }
-    };
-  }, [autoPlayOn, gameStarted, gameStopped, calledNumbers, currentNumber]);
-
-  // Auto-close countdown
-  useEffect(() => {
-    if (showWinnerModal || showGameOverModal) {
-      setAutoCloseCountdown(7);
-      
-      if (autoCloseTimerRef.current) {
-        clearInterval(autoCloseTimerRef.current);
-      }
-      
-      autoCloseTimerRef.current = setInterval(() => {
-        setAutoCloseCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(autoCloseTimerRef.current!);
-            if (showWinnerModal) {
-              setShowWinnerModal(false);
-              onBackToPlayerLobby();
-            } else if (showGameOverModal) {
-              setShowGameOverModal(false);
-              onBackToPlayerLobby();
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      return () => {
-        if (autoCloseTimerRef.current) {
-          clearInterval(autoCloseTimerRef.current);
-        }
-      };
-    }
-  }, [showWinnerModal, showGameOverModal, onBackToPlayerLobby]);
-
-  const isNumberCalled = (number: number, letter: string) => {
-    if (number === 0) return true;
-    const fullNumber = `${letter}-${number}`;
-    return calledNumbers.includes(fullNumber);
-  };
-
-  const checkAndAutoMarkNumbers = useCallback(() => {
-    if (!autoPlayOn || !gameStarted || gameStopped) return;
-
-    const userCards = players.filter(p => p.userId === user?._id);
-    
-    userCards.forEach(player => {
-      if (blockedPlayers.includes(player.id)) return;
-      if (submittedBingoCards.includes(player.id)) return;
-      
-      const card = getCardById(player.id);
-      const transposedCard = transposeCard(card);
-      let anyNewMark = false;
-      
-      for (let row = 0; row < 5; row++) {
-        for (let col = 0; col < 5; col++) {
-          const num = transposedCard[row][col];
-          const letter = "BINGO"[col];
-          const fullNumber = `${letter}-${num}`;
-          const isFreeSpace = (col === 2 && row === 2);
-          
-          if (!isFreeSpace && num !== 0) {
-            if (calledNumbers.includes(fullNumber)) {
-              setUserMarkedNumbers(prev => ({
-                ...prev,
-                [fullNumber]: true
-              }));
-              anyNewMark = true;
-            }
-          }
-        }
-      }
-      
-      if (anyNewMark) {
-        handleBingo(player.id);
-      }
-    });
-  }, [autoPlayOn, gameStarted, gameStopped, blockedPlayers, submittedBingoCards, calledNumbers, players, user]);
-
-  const checkFullCardWin = (playerId: number) => {
-    const player = players.find(p => p.id === playerId);
-    if (!player) {
-      return { isWinner: false, message: 'Player not found' };
-    }
-
-    if (blockedPlayers.includes(playerId)) {
-      return { isWinner: false, message: 'Player is blocked' };
-    }
-
+  // Full Card Win Validation (All 24 non-free spaces must be called)
+  const checkFullCardWin = useCallback((playerId: number) => {
     const card = getCardById(playerId);
+    if (!card) return { isWinner: false, message: 'Card not found' };
+
     const transposedCard = transposeCard(card);
     const calledSet = new Set(calledNumbers);
 
-    // Check every number on the card
     for (let row = 0; row < 5; row++) {
       for (let col = 0; col < 5; col++) {
         const num = transposedCard[row][col];
@@ -544,87 +293,96 @@ const FullGameInterface = ({
           const letter = "BINGO"[col];
           const fullNumber = `${letter}-${num}`;
           if (!calledSet.has(fullNumber)) {
-            return { 
-              isWinner: false, 
-              message: `Number ${fullNumber} not called yet`,
-              missingNumber: fullNumber
-            };
+            return { isWinner: false, missingNumber: fullNumber };
           }
         }
       }
     }
+    return { isWinner: true };
+  }, [calledNumbers]);
 
-    return { isWinner: true, message: 'All numbers called!' };
-  };
-
-  const handleBingo = async (playerId: number) => {
-    if (!gameStarted) {
-      setToastMessage(language === 'am' ? 'ጨዋታው አላለቀም!' : 'Game has not started!');
-      setShowToast(true);
-      return;
-    }
-
-    if (submittedBingoCards.includes(playerId)) {
-      return;
-    }
+  const handleBingo = useCallback((playerId: number) => {
+    if (submittedBingoCards.includes(playerId) || blockedPlayers.includes(playerId)) return;
 
     const result = checkFullCardWin(playerId);
     
     if (result.isWinner) {
-      try {
-        console.log(`Player ${playerId} claims full BINGO!`);
-        
-        setSubmittedBingoCards(prev => [...prev, playerId]);
-        
-        if (webSocketService) {
-          webSocketService.send('end-full-game', {
-            gameId: gameId,
-            winnerId: players.find(p => p.id === playerId)?.userId,
-            winnerCard: playerId
-          });
-        }
-      } catch (error) {
-        console.error('Error announcing win:', error);
-        setToastMessage(language === 'am' ? 'የአሸናፊ ማስታወቂያ አልተሳካም!' : 'Win announcement failed!');
-        setShowToast(true);
-        setSubmittedBingoCards(prev => prev.filter(id => id !== playerId));
+      setSubmittedBingoCards(prev => [...prev, playerId]);
+      if (webSocketService) {
+        webSocketService.send('end-full-game', {
+          betAmount: bet,
+          winnerId: user?._id,
+          winnerCard: playerId,
+          prizePool
+        });
       }
     } else {
-      const message = language === 'am' 
+      setLoserMessage(language === 'am' 
         ? `ቁጥር ${result.missingNumber || ''} ገና አልተጠራም` 
-        : `Number ${result.missingNumber || ''} not called yet`;
-      setLoserMessage(message);
-      setLoserCardId(playerId);
+        : `Number ${result.missingNumber || ''} not called yet`
+      );
       setShowLoserModal(true);
       playGameAudio('not-won');
     }
-  };
+  }, [submittedBingoCards, blockedPlayers, checkFullCardWin, webSocketService, bet, user, prizePool, language]);
 
-  const handleBackToLobbyWithRefund = async () => {
-    try {
-      if (!user) return;
+  // Auto-play automation
+  useEffect(() => {
+    if (!autoPlayOn || gameStopped || calledNumbers.length === 0) return;
 
-      if (webSocketService) {
-        webSocketService.send('refund-full-wallet', {
-          gameId: gameId,
-          userId: user._id
+    if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+    autoPlayTimerRef.current = setTimeout(() => {
+      players.forEach(p => {
+        const card = getCardById(p.id);
+        if (!card) return;
+        const transposedCard = transposeCard(card);
+
+        for (let r = 0; r < 5; r++) {
+          for (let c = 0; c < 5; c++) {
+            const num = transposedCard[r][c];
+            if (num !== 0 && !(r === 2 && c === 2)) {
+              const fullNum = `${"BINGO"[c]}-${num}`;
+              if (calledNumbers.includes(fullNum) && !userMarkedNumbers[fullNum]) {
+                setUserMarkedNumbers(prev => ({ ...prev, [fullNum]: true }));
+              }
+            }
+          }
+        }
+
+        const winCheck = checkFullCardWin(p.id);
+        if (winCheck.isWinner) {
+          handleBingo(p.id);
+        }
+      });
+    }, 150);
+
+    return () => {
+      if (autoPlayTimerRef.current) clearTimeout(autoPlayTimerRef.current);
+    };
+  }, [autoPlayOn, gameStopped, calledNumbers, players, userMarkedNumbers, checkFullCardWin, handleBingo]);
+
+  // Auto-close modal timer
+  useEffect(() => {
+    if (showWinnerModal || showGameOverModal) {
+      setAutoCloseCountdown(7);
+      if (autoCloseTimerRef.current) clearInterval(autoCloseTimerRef.current);
+
+      autoCloseTimerRef.current = setInterval(() => {
+        setAutoCloseCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(autoCloseTimerRef.current!);
+            onBackToPlayerLobby();
+            return 0;
+          }
+          return prev - 1;
         });
-        
-        webSocketService.once('wallet-updated', () => {
-          onBackToPlayerLobby();
-        });
-      }
-    } catch (error) {
-      console.error('Error processing refund:', error);
+      }, 1000);
+
+      return () => {
+        if (autoCloseTimerRef.current) clearInterval(autoCloseTimerRef.current);
+      };
     }
-  };
-
-  const toggleUserMark = (number: string) => {
-    setUserMarkedNumbers(prev => ({
-      ...prev,
-      [number]: !prev[number]
-    }));
-  };
+  }, [showWinnerModal, showGameOverModal, onBackToPlayerLobby]);
 
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
@@ -636,20 +394,13 @@ const FullGameInterface = ({
     return transposed;
   };
 
-  const userCards = players.filter(p => p.userId === user?._id);
+  const toggleUserMark = (number: string) => {
+    setUserMarkedNumbers(prev => ({ ...prev, [number]: !prev[number] }));
+  };
 
   if (!isClient) {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        background: backgroundColor === 'white' 
-          ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-          : backgroundColor,
-        color: getTextColor()
-      }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -668,7 +419,7 @@ const FullGameInterface = ({
       flexDirection: 'column',
       color: getTextColor()
     }}>
-      {/* Stats Header */}
+      {/* Header Cards (Mirrors Partial Game Exactly) */}
       <Box sx={{
         display: 'flex',
         gap: 0.75,
@@ -789,7 +540,7 @@ const FullGameInterface = ({
         minHeight: '24vh',
         overflow: 'hidden'
       }}>
-        {/* Left Side - Number Grid */}
+        {/* Left Side: 75-Ball Board */}
         <Box sx={{ 
           flex: '0 0 40%',
           display: 'flex',
@@ -803,7 +554,6 @@ const FullGameInterface = ({
           minWidth: 0,
           color: getTextColor()
         }}>
-          {/* BINGO Header */}
           <Box sx={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(5, 1fr)', 
@@ -825,7 +575,6 @@ const FullGameInterface = ({
             ))}
           </Box>
 
-          {/* Number Grid */}
           <Box
             sx={{
               flex: 1,
@@ -847,52 +596,44 @@ const FullGameInterface = ({
               ];
 
               return (
-                <Box
-                  key={letter}
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.2,
-                  }}
-                >
+                <Box key={letter} sx={{ display: "flex", flexDirection: "column", gap: 0.2 }}>
                   {Array.from({ length: 15 }, (_, i) => {
                     const num = ranges[colIndex].min + i;
                     const fullNumber = `${letter}-${num}`;
                     const isCalled = calledNumbers.includes(fullNumber);
 
                     return (
-                      <motion.div key={num} whileHover={{ scale: 1.05 }}>
-                        <Box
-                          sx={{
-                            width: "100%",
-                            height: "100%",
-                            minHeight: 30,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "4px",
-                            background: isCalled
-                                ? "linear-gradient(135deg, #c62828, #ef5350)"
-                                : backgroundColor === 'white'
-                                  ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
-                                  : "rgba(255,255,255,0.15)",
-                            color: isCalled ? "white" : getTextColor(),
-                            fontWeight: "bold",
-                            fontSize: "0.85rem",
-                            transition: "all 0.15s ease-in-out",
-                            border: isCalled
-                              ? "2px solid #b71c1c"
+                      <Box
+                        key={num}
+                        sx={{
+                          width: "100%",
+                          height: "100%",
+                          minHeight: 30,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "4px",
+                          background: isCalled
+                              ? "linear-gradient(135deg, #c62828, #ef5350)"
                               : backgroundColor === 'white'
-                                ? "2px solid #cfcfcf"
-                                : "2px solid rgba(255,255,255,0.2)",
-                            boxShadow: isCalled
-                              ? "0 2px 5px rgba(0,0,0,0.20)"
-                              : "0 1px 3px rgba(0,0,0,0.10)",
-                          }}
-                        >
-                          {num}
-                        </Box>
-                      </motion.div>
+                                ? "linear-gradient(135deg, #fafafa, #e9e9e9)"
+                                : "rgba(255,255,255,0.15)",
+                          color: isCalled ? "white" : getTextColor(),
+                          fontWeight: "bold",
+                          fontSize: "0.85rem",
+                          transition: "all 0.15s ease-in-out",
+                          border: isCalled
+                            ? "2px solid #b71c1c"
+                            : backgroundColor === 'white'
+                              ? "2px solid #cfcfcf"
+                              : "2px solid rgba(255,255,255,0.2)",
+                          boxShadow: isCalled
+                            ? "0 2px 5px rgba(0,0,0,0.20)"
+                            : "0 1px 3px rgba(0,0,0,0.10)",
+                        }}
+                      >
+                        {num}
+                      </Box>
                     );
                   })}
                 </Box>
@@ -901,7 +642,7 @@ const FullGameInterface = ({
           </Box>
         </Box>
 
-        {/* Right Side - Controls and Cards */}
+        {/* Right Side: Controls & Cards */}
         <Box sx={{ 
           flex: '0 0 60%',
           display: 'flex',
@@ -909,7 +650,7 @@ const FullGameInterface = ({
           gap: 1,
           minHeight: '25vh',
         }}>
-          {/* Controls */}
+          {/* Controls Bar */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -919,7 +660,6 @@ const FullGameInterface = ({
             width: '100%',
             mb: 0.5
           }}>
-            {/* Sound Toggle */}
             <Card sx={{
               flex: '0 0 auto',
               display: 'flex',
@@ -934,13 +674,7 @@ const FullGameInterface = ({
               color: getTextColor(),
               border: '1px solid rgba(255,255,255,0.1)'
             }}>
-              <Typography sx={{ 
-                fontWeight: 'bold', 
-                fontSize: '0.6rem', 
-                color: getTextColor(), 
-                whiteSpace: 'nowrap',
-                mb: 0.25
-              }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: getTextColor(), whiteSpace: 'nowrap', mb: 0.25 }}>
                 {soundOn ? '🔊' : '🔇'} {language === 'am' ? 'ድምፅ' : 'Sound'}
               </Typography>
               <Switch
@@ -956,7 +690,6 @@ const FullGameInterface = ({
               />
             </Card>
 
-            {/* Auto-play Toggle */}
             <Card sx={{
               flex: '0 0 auto',
               display: 'flex',
@@ -971,13 +704,7 @@ const FullGameInterface = ({
               color: getTextColor(),
               border: autoPlayOn ? '1px solid #4CAF50' : '1px solid rgba(255,255,255,0.1)'
             }}>
-              <Typography sx={{ 
-                fontWeight: 'bold', 
-                fontSize: '0.6rem', 
-                color: autoPlayOn ? '#4CAF50' : getTextColor(),
-                whiteSpace: 'nowrap',
-                mb: 0.25
-              }}>
+              <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', color: autoPlayOn ? '#4CAF50' : getTextColor(), whiteSpace: 'nowrap', mb: 0.25 }}>
                 🤖 {language === 'am' ? 'አውቶ' : 'Auto'}
               </Typography>
               <Switch
@@ -994,7 +721,7 @@ const FullGameInterface = ({
             </Card>
           </Box>
 
-          {/* User Cards */}
+          {/* User Cards Grid */}
           <Box sx={{ 
             flex: 1,
             overflow: 'auto',
@@ -1008,453 +735,174 @@ const FullGameInterface = ({
             minHeight: '25vh',
             color: getTextColor()
           }}>
-            {userCards.length === 0 ? (
-              <Typography variant="body2" sx={{ textAlign: 'center', py: 0.5, fontSize: '0.8rem' }}>
-                {language === 'am' ? 'ምንም ካርዶች አልተመረጡም' : 'No cards selected'}
-              </Typography>
-            ) : (
-              userCards.map(player => {
-                const card = getCardById(player.id);
-                const isBlocked = blockedPlayers.includes(player.id);
-                const hasSubmittedBingo = submittedBingoCards.includes(player.id);
-                
-                return (
-                  <Card 
-                    key={player.id} 
+            {players.map(player => {
+              const card = getCardById(player.id);
+              const isBlocked = blockedPlayers.includes(player.id);
+              const hasSubmittedBingo = submittedBingoCards.includes(player.id);
+              
+              return (
+                <Card 
+                  key={player.id} 
+                  sx={{ 
+                    p: 0.4,
+                    background: isBlocked ? "rgba(244,67,54,0.10)" : getCardBackground(),
+                    border: isBlocked ? "2px solid #f44336" : "1.5px solid rgba(255,255,255,0.2)",
+                    borderRadius: "4px",
+                    boxShadow: isBlocked ? "0 2px 6px rgba(244,67,54,0.25)" : "0 2px 5px rgba(0,0,0,0.10)",
+                    color: getTextColor()
+                  }}
+                >
+                  <Typography 
+                    variant="body2" 
                     sx={{ 
-                      p: 0.4,
-                      background: isBlocked 
-                        ? "rgba(244,67,54,0.10)" 
-                        : getCardBackground(),
-                      border: isBlocked 
-                        ? "2px solid #f44336" 
-                        : "1.5px solid rgba(255,255,255,0.2)",
-                      borderRadius: "4px",
-                      boxShadow: isBlocked
-                        ? "0 2px 6px rgba(244,67,54,0.25)"
-                        : "0 2px 5px rgba(0,0,0,0.10)",
-                      transition: "all 0.2s ease",
-                      color: getTextColor()
+                      fontWeight: "bold",
+                      mb: 1,
+                      fontSize: "1rem",
+                      color: isBlocked ? "#d32f2f" : getTextColor()
                     }}
                   >
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        fontWeight: "bold",
-                        mb: 1,
-                        fontSize: "1rem",
-                        color: isBlocked ? "#d32f2f" : getTextColor()
-                      }}
-                    >
-                      {language === "am" ? "ካርድ" : "Card"} #{player.id}
-                      {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
-                      {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
-                    </Typography>
+                    {language === "am" ? "ካርድ" : "Card"} #{player.id}
+                    {isBlocked && ` (${language === "am" ? "ታግዷል" : "Blocked"})`}
+                    {hasSubmittedBingo && ` (${language === "am" ? "ቀርቧል" : "Submitted"})`}
+                  </Typography>
 
-                    {/* BINGO Card Container */}
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(5, 1fr)",
-                        gap: 0.15,
-                        mb: 0.6
-                      }}
-                    >
-                      {/* BINGO Header */}
-                      {["B", "I", "N", "G", "O"].map((letter) => (
-                        <Box
-                          key={letter}
-                          sx={{
-                            p: 0.4,
-                            background: "linear-gradient(135deg, #1976d2, #2196f3)",
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "0.85rem",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: "6px 6px 0 0",
-                            boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
-                          }}
-                        >
-                          {letter}
-                        </Box>
-                      ))}
+                  <Box sx={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 0.15, mb: 0.6 }}>
+                    {["B", "I", "N", "G", "O"].map((letter) => (
+                      <Box
+                        key={letter}
+                        sx={{
+                          p: 0.4,
+                          background: "linear-gradient(135deg, #1976d2, #2196f3)",
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: "0.85rem",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "6px 6px 0 0",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.15)"
+                        }}
+                      >
+                        {letter}
+                      </Box>
+                    ))}
 
-                      {/* Card Numbers */}
-                      {transposeCard(card).map((row, rowIdx) =>
-                        row.map((num, colIdx) => {
-                          const letter = "BINGO"[colIdx];
-                          const fullNumber = `${letter}-${num}`;
-                          const isUserMarked = userMarkedNumbers[fullNumber];
+                    {transposeCard(card).map((row, rowIdx) =>
+                      row.map((num, colIdx) => {
+                        const letter = "BINGO"[colIdx];
+                        const fullNumber = `${letter}-${num}`;
+                        const isUserMarked = userMarkedNumbers[fullNumber];
 
-                          return (
-                            <Box
-                              key={`${rowIdx}-${colIdx}`}
-                              onClick={() => toggleUserMark(fullNumber)}
-                              sx={{
-                                p: 0.35,
-                                border: isUserMarked || (rowIdx === 2 && colIdx === 2)
-                                  ? "2px solid #2E7D32"
-                                  : backgroundColor === 'white'
-                                    ? "2px solid #cfcfcf"
-                                    : "2px solid rgba(255,255,255,0.2)",
-                                borderRadius: "4px",
-                                background:
-                                  rowIdx === 2 && colIdx === 2
-                                    ? "#4CAF50"
-                                    : isUserMarked
-                                    ? "#4CAF50"
-                                    : backgroundColor === 'white'
-                                      ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
-                                      : "rgba(255,255,255,0.1)",
-                                color: isUserMarked ? "white" : getTextColor(),
-                                fontWeight: isUserMarked ? "bold" : "normal",
-                                fontSize: "1rem",
-                                minHeight: 26,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                transition: "all 0.2s ease",
-                                boxShadow: isUserMarked
-                                  ? "0 2px 5px rgba(0,0,0,0.20)"
-                                  : "0 1px 3px rgba(0,0,0,0.10)",
-                                "&:hover": {
-                                  background: isUserMarked
-                                    ? "#388E3C"
-                                    : "rgba(0,0,0,0.08)"
-                                }
-                              }}
-                            >
-                              {num === 0 ? (
-                                <Box sx={{ 
-                                  color: 'white',
-                                  fontSize: '1.15rem',
-                                  fontWeight: 'bold',
-                                  textShadow: '0 0 12px rgba(255,255,255,0.3)',
-                                  lineHeight: 1,
-                                  animation: 'pulse 2s infinite'
-                                }}>
-                                  ★
-                                </Box>
-                              ) : num}
-                            </Box>
-                          );
-                        })
-                      )}
-                    </Box>
+                        return (
+                          <Box
+                            key={`${rowIdx}-${colIdx}`}
+                            onClick={() => toggleUserMark(fullNumber)}
+                            sx={{
+                              p: 0.35,
+                              border: isUserMarked || (rowIdx === 2 && colIdx === 2)
+                                ? "2px solid #2E7D32"
+                                : backgroundColor === 'white'
+                                  ? "2px solid #cfcfcf"
+                                  : "2px solid rgba(255,255,255,0.2)",
+                              borderRadius: "4px",
+                              background: rowIdx === 2 && colIdx === 2
+                                ? "#4CAF50"
+                                : isUserMarked
+                                ? "#4CAF50"
+                                : backgroundColor === 'white'
+                                  ? "linear-gradient(135deg, #ffffff, #f1f1f1)"
+                                  : "rgba(255,255,255,0.1)",
+                              color: isUserMarked ? "white" : getTextColor(),
+                              fontWeight: isUserMarked ? "bold" : "normal",
+                              fontSize: "1rem",
+                              minHeight: 26,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: "pointer",
+                              boxShadow: isUserMarked ? "0 2px 5px rgba(0,0,0,0.20)" : "0 1px 3px rgba(0,0,0,0.10)",
+                            }}
+                          >
+                            {num === 0 ? '★' : num}
+                          </Box>
+                        );
+                      })
+                    )}
+                  </Box>
 
-                    {/* Bingo Button */}
-                    <Button
-                      variant={getButtonVariant()}
-                      color="success"
-                      onClick={() => handleBingo(player.id)}
-                      disabled={
-                        isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-                      }
-                      fullWidth
-                      size="small"
-                      sx={{
-                        fontSize: "0.9rem",
-                        borderRadius: "6px",
-                        opacity:
-                          isBlocked || !gameStarted || submittedBingoCards.includes(player.id)
-                            ? 0.6
-                            : 1,
-                        boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
-                        ...getButtonStyle()
-                      }}
-                    >
-                      {submittedBingoCards.includes(player.id)
-                        ? language === "am"
-                          ? "ቀርቧል"
-                          : "SUBMITTED"
-                        : "BINGO"}
-                    </Button>
-                  </Card>
-                );
-              })
-            )}
+                  <Button
+                    variant={getButtonVariant()}
+                    color="success"
+                    onClick={() => handleBingo(player.id)}
+                    disabled={isBlocked || !isCalling || hasSubmittedBingo}
+                    fullWidth
+                    size="small"
+                    sx={{
+                      fontSize: "0.9rem",
+                      borderRadius: "6px",
+                      opacity: isBlocked || !isCalling || hasSubmittedBingo ? 0.6 : 1,
+                      boxShadow: "0 2px 5px rgba(0,0,0,0.15)",
+                      ...getButtonStyle()
+                    }}
+                  >
+                    {hasSubmittedBingo ? (language === "am" ? "ቀርቧል" : "SUBMITTED") : "BINGO"}
+                  </Button>
+                </Card>
+              );
+            })}
           </Box>
         </Box>
       </Box>
 
-      {/* Toast Message */}
-      <Snackbar
-        open={showToast}
-        autoHideDuration={2000}
-        onClose={() => setShowToast(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert severity="success" sx={{ width: '100%' }}>
-          {toastMessage}
-        </Alert>
-      </Snackbar>
-
       {/* Winner Modal */}
-      <Modal open={showWinnerModal} onClose={() => {
-        if (autoCloseTimerRef.current) {
-          clearInterval(autoCloseTimerRef.current);
-        }
-        setShowWinnerModal(false);
-        onGameEnd();
-      }}>
-        <>
-          <Confetti
-            width={windowSize.width}
-            height={windowSize.height}
-            recycle={false}
-            numberOfPieces={300}
-          />
-          <Box sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '95%',
-            maxWidth: 500,
-            bgcolor: 'background.paper',
-            boxShadow: 24,
-            p: 3,
-            borderRadius: 3,
-            textAlign: 'center',
-            border: '3px solid gold',
-            background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <IconButton
-              aria-label="close"
-              onClick={() => {
-                if (autoCloseTimerRef.current) {
-                  clearInterval(autoCloseTimerRef.current);
-                }
-                setShowWinnerModal(false);
-                onGameEnd();
-              }}
-              sx={{
-                position: 'absolute',
-                right: 8,
-                top: 8,
-                color: 'white'
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
-            
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Typography variant="h4" gutterBottom sx={{ 
-                color: 'gold',
-                mb: 2,
-                fontWeight: 'bold',
-                textShadow: '0 0 5px rgba(255,215,0,0.7)',
-                fontSize: '1.8rem'
-              }}>
-                {language === 'am' ? 'እንኳን ደስ ያለህ! 🎉' : '🎉 CONGRATULATIONS! 🎉'}
-              </Typography>
-            </motion.div>
-
-            {/* Auto-close countdown */}
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 1,
-              mb: 2
-            }}>
-              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
-                {language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'}
-              </Typography>
-              <Box sx={{
-                backgroundColor: 'rgba(255,215,0,0.2)',
-                borderRadius: '50%',
-                width: 40,
-                height: 40,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid gold'
-              }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                  {autoCloseCountdown}
-                </Typography>
-              </Box>
-              <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.9rem' }}>
-                s
-              </Typography>
-            </Box>
-
-            {/* Prize Information */}
-            {gameEndData && (
-              <Box sx={{ 
-                background: 'rgba(255,215,0,0.2)',
-                borderRadius: 2,
-                p: 2,
-                mb: 3,
-                border: '2px solid gold'
-              }}>
-                <Typography variant="h6" sx={{ color: 'gold', fontWeight: 'bold', mb: 1, fontSize: '1.1rem' }}>
-                  {language === 'am' ? 'የጨዋታ ውጤት' : 'Game Results'}
-                </Typography>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
-                      {language === 'am' ? 'ጠቅላላ ደራሽ' : 'Total Prize Pool'}
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                      {gameEndData.prizePool.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
-                      {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                      {gameEndData.totalWinners}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ textAlign: 'center', mb: 1 }}>
-                    <Typography variant="body2" sx={{ color: '#a1c4fd', fontSize: '0.8rem' }}>
-                      {language === 'am' ? 'ለእያንዳንዱ' : 'Each Gets'}
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                      {gameEndData.split.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            )}
-
-            {/* Winners List */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" sx={{ 
-                color: 'white',
-                mb: 2,
-                fontWeight: 'bold',
-                fontSize: '1.2rem'
-              }}>
-                {language === 'am' ? 'አሸናፊዎች' : 'Winners'}
-              </Typography>
-              
-              {winners.map((winner, index) => (
-                <Box key={index} sx={{
-                  background: 'rgba(255,255,255,0.1)',
-                  borderRadius: 2,
-                  p: 2,
-                  mb: 1,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <Typography sx={{ color: 'white', fontWeight: 'bold' }}>
-                    {language === 'am' ? 'ተጫዋች' : 'Player'} #{winner.id}
-                    {winner.userId === user?._id && ' (You)'}
-                  </Typography>
-                  <Typography sx={{ color: 'gold', fontWeight: 'bold' }}>
-                    +{winner.prize?.toFixed(0)} {language === 'am' ? 'ብር' : 'Birr'}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={() => {
-                if (autoCloseTimerRef.current) {
-                  clearInterval(autoCloseTimerRef.current);
-                }
-                setShowWinnerModal(false);
-                onBackToPlayerLobby();
-              }}
-              sx={{ 
-                mt: 2,
-                px: 4,
-                py: 1.5,
-                fontWeight: 'bold',
-                fontSize: '1.1rem',
-                background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-                boxShadow: '0 4px 12px rgba(255, 105, 135, 0.4)',
-                borderRadius: 2,
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #FE6B8B 40%, #FF8E53 100%)',
-                }
-              }}
-            >
-              {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
-            </Button>
-          </Box>
-        </>
-      </Modal>
-
-      {/* Loser Modal */}
-      <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
+      <Modal open={showWinnerModal} onClose={() => { setShowWinnerModal(false); onBackToPlayerLobby(); }}>
         <Box sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '90%',
-          maxWidth: 400,
-          bgcolor: 'background.paper',
-          boxShadow: 24,
-          p: 2,
-          borderRadius: 3,
-          textAlign: 'center',
-          border: '3px solid #f44336',
-          background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-          maxHeight: '90vh',
-          overflow: 'auto'
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: '90%', maxWidth: 450, bgcolor: '#1a1a2e', color: 'white', p: 3, borderRadius: 3, textAlign: 'center', border: '2px solid gold'
         }}>
-          <IconButton
-            aria-label="close"
-            onClick={() => setShowLoserModal(false)}
-            sx={{
-              position: 'absolute',
-              right: 4,
-              top: 4,
-              color: 'white'
-            }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
-          
-          <Typography variant="h6" gutterBottom sx={{ 
-            color: '#f44336',
-            mb: 2,
-            fontWeight: 'bold'
-          }}>
-            {language === 'am' ? 'ይቅርታ!' : 'Sorry!'}
-          </Typography>
-          
-          <Typography variant="body1" sx={{ 
-            color: 'white',
-            mb: 2
-          }}>
-            {loserMessage}
-          </Typography>
-          
-          <Button 
-            variant="contained" 
-            color="primary"
-            onClick={() => setShowLoserModal(false)}
-            sx={{ 
-              mt: 1,
-              fontWeight: 'bold'
-            }}
-          >
-            {language === 'am' ? 'እሺ' : 'OK'}
+          <Confetti width={windowSize.width} height={windowSize.height} recycle={false} />
+          <Typography variant="h5" sx={{ color: 'gold', fontWeight: 'bold', mb: 2 }}>🎉 {language === 'am' ? 'እንኳን ደስ ያለህ!' : 'WINNER!'} 🎉</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>{language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'} {autoCloseCountdown}s</Typography>
+          {gameEndData && (
+            <Box sx={{ bgcolor: 'rgba(255,215,0,0.1)', p: 2, borderRadius: 2, mb: 2 }}>
+              <Typography variant="h6" sx={{ color: 'gold' }}>+{gameEndData.split.toFixed(0)} Birr</Typography>
+            </Box>
+          )}
+          <Button variant="contained" color="warning" fullWidth onClick={() => { setShowWinnerModal(false); onBackToPlayerLobby(); }}>
+            {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
           </Button>
         </Box>
       </Modal>
+
+      {/* Game Over Modal */}
+      <Modal open={showGameOverModal} onClose={() => { setShowGameOverModal(false); onBackToPlayerLobby(); }}>
+        <Box sx={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: '90%', maxWidth: 400, bgcolor: '#1a1a2e', color: 'white', p: 3, borderRadius: 3, textAlign: 'center', border: '2px solid #ef5350'
+        }}>
+          <Typography variant="h6" sx={{ color: '#ef5350', fontWeight: 'bold', mb: 1 }}>{language === 'am' ? 'ጨዋታው አልቋል' : 'Game Over'}</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>{language === 'am' ? 'ወደ ሎቢ ይመለሳል:' : 'Returning to lobby in:'} {autoCloseCountdown}s</Typography>
+          <Button variant="contained" fullWidth onClick={() => { setShowGameOverModal(false); onBackToPlayerLobby(); }}>
+            {language === 'am' ? 'ወደ ሎቢ ተመለስ' : 'Return to Lobby'}
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Disqualified Modal */}
+      <Modal open={showLoserModal} onClose={() => setShowLoserModal(false)}>
+        <Box sx={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+          width: '85%', maxWidth: 350, bgcolor: '#1a1a2e', color: 'white', p: 2.5, borderRadius: 2, textAlign: 'center', border: '2px solid #ef5350'
+        }}>
+          <Typography variant="h6" sx={{ color: '#ef5350', fontWeight: 'bold', mb: 1 }}>{language === 'am' ? 'ይቅርታ!' : 'Invalid Bingo!'}</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>{loserMessage}</Typography>
+          <Button variant="contained" onClick={() => setShowLoserModal(false)}>{language === 'am' ? 'እሺ' : 'OK'}</Button>
+        </Box>
+      </Modal>
+
+      <Snackbar open={showToast} autoHideDuration={2500} onClose={() => setShowToast(false)}>
+        <Alert severity="info">{toastMessage}</Alert>
+      </Snackbar>
     </Box>
   );
 };
