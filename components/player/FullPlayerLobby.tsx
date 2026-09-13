@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { 
-  Button, Box, Typography, Card, CardContent, 
-  useTheme, useMediaQuery, Alert, Snackbar, TextField,
-  IconButton, CircularProgress
+  Button, Box, Typography, Card,
+  Alert, Snackbar, IconButton, CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import api from '@/app/utils/api';
@@ -38,8 +37,6 @@ interface GameSession {
   gameId: string;
   status: string;
   createdAt: string;
-  cardNumbers: number[][];
-  __v: number;
 }
 
 interface FullTimerState {
@@ -57,7 +54,6 @@ const FullPlayerLobby = ({
   gameId,
   betAmount,
   language = 'am',
-  setLanguage,
   onBackToLobby,
   onDirectToGame,
   backgroundColor = 'white',
@@ -74,16 +70,11 @@ const FullPlayerLobby = ({
   const [showToast, setShowToast] = useState(false);
   const [occupiedCards, setOccupiedCards] = useState<number[]>([]);
   const [occupiedCardsByUser, setOccupiedCardsByUser] = useState<{[key: number]: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [webSocketService, setWebSocketService] = useState<any>(null);
   const { user } = useAuth();
   const gridContainerRef = useRef<HTMLDivElement>(null);
-  
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Color helper functions (keep existing ones)
   const getTextColor = () => {
     switch(backgroundColor) {
       case 'black': return 'white';
@@ -114,16 +105,6 @@ const FullPlayerLobby = ({
     }
   };
 
-  const getButtonColor = () => {
-    switch(backgroundColor) {
-      case 'black': return 'primary';
-      case 'green': return 'success';
-      case 'blue': return 'info';
-      case 'yellow': return 'warning';
-      default: return 'primary';
-    }
-  };
-
   const getButtonStyle = () => {
     const textColor = getTextColor();
     const buttonVariant = getButtonVariant();
@@ -143,7 +124,6 @@ const FullPlayerLobby = ({
 
   useEffect(() => {
     setIsClient(true);
-    
     const loadWebSocketService = async () => {
       try {
         const wsModule = await import('@/app/utils/websocket');
@@ -152,7 +132,6 @@ const FullPlayerLobby = ({
         console.error('Failed to load WebSocket service:', error);
       }
     };
-    
     loadWebSocketService();
   }, []);
 
@@ -163,10 +142,7 @@ const FullPlayerLobby = ({
       setWallet(user.wallet || 0);
     }
 
-    // ✅ FIX: Define handlers BEFORE registering them
     const handleFullTimerUpdate = (timerStates: {[key: number]: FullTimerState}) => {
-      console.log('Received full timer states in PlayerLobby:', timerStates);
-      
       if (timerStates[betAmount]) {
         const timerState = timerStates[betAmount];
         setRemainingTime(timerState.timer);
@@ -176,45 +152,48 @@ const FullPlayerLobby = ({
     };
 
     const handleSessionsUpdate = (sessions: GameSession[]) => {
-      console.log('🟢 FULL SESSIONS UPDATED:', sessions);
       const betSessions = sessions.filter(session => session.betAmount === betAmount);
       const occupied = betSessions.map(session => session.cardNumber);
       setOccupiedCards(occupied);
       
       const cardUserMap: {[key: number]: string} = {};
       betSessions.forEach(session => {
-        cardUserMap[session.cardNumber] = session.userId._id;
+        if (session.userId) {
+          cardUserMap[session.cardNumber] = session.userId._id;
+        }
       });
       setOccupiedCardsByUser(cardUserMap);
       
       if (user) {
         const userSelectedCards = betSessions
-          .filter(session => session.userId._id === user._id)
+          .filter(session => session.userId && session.userId._id === user._id)
           .map(session => ({ id: session.cardNumber, userId: session.userId._id }));
         
         setSelectedPlayers(userSelectedCards);
-        console.log('🟢 User selected cards:', userSelectedCards);
       }
     };
 
     const handleSessionCreated = (session: GameSession) => {
-      console.log('🟢 SESSION CREATED:', session);
       if (session.betAmount === betAmount) {
         setOccupiedCards(prev => [...prev, session.cardNumber]);
         
-        setOccupiedCardsByUser(prev => ({
-          ...prev,
-          [session.cardNumber]: session.userId._id
-        }));
-        
-        if (user && session.userId._id === user._id) {
-          setSelectedPlayers(prev => [...prev, { id: session.cardNumber, userId: session.userId._id }]);
+        if (session.userId) {
+          setOccupiedCardsByUser(prev => ({
+            ...prev,
+            [session.cardNumber]: session.userId._id
+          }));
+          
+          if (user && session.userId._id === user._id) {
+            setSelectedPlayers(prev => {
+              if (prev.some(p => p.id === session.cardNumber)) return prev;
+              return [...prev, { id: session.cardNumber, userId: session.userId._id }];
+            });
+          }
         }
       }
     };
 
     const handleSessionDeleted = (data: { cardNumber: number; betAmount: number; userId: string }) => {
-      console.log('🟢 SESSION DELETED:', data);
       if (data.betAmount === betAmount) {
         setOccupiedCards(prev => prev.filter(card => card !== data.cardNumber));
         
@@ -231,18 +210,15 @@ const FullPlayerLobby = ({
     };
 
     const handleWalletUpdate = (newWallet: number) => {
-      console.log('🟢 WALLET UPDATED:', newWallet);
       setWallet(newWallet);
     };
 
-    // ✅ Register all event listeners
     webSocketService.on('full-timer-states-update', handleFullTimerUpdate);
     webSocketService.on('full-sessions-updated', handleSessionsUpdate);
     webSocketService.on('full-session-created', handleSessionCreated);
     webSocketService.on('full-session-deleted', handleSessionDeleted);
     webSocketService.on('wallet-updated', handleWalletUpdate);
     
-    // ✅ Request initial data
     webSocketService.send('get-full-sessions', { betAmount });
     
     return () => {
@@ -254,7 +230,6 @@ const FullPlayerLobby = ({
     };
   }, [isClient, webSocketService, user, betAmount]);
 
-  // ✅ FIXED: togglePlayer with proper logic matching PlayerLobby
   const togglePlayer = async (id: number) => {
     if (!isClient || !webSocketService) return;
     
@@ -263,8 +238,6 @@ const FullPlayerLobby = ({
       setWalletError(true);
       return;
     }
-
-    console.log('🟢 Toggling card:', id, 'Current selected:', selectedPlayers);
 
     const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
     const isSelectedByOthers = occupiedCards.includes(id) && !isSelectedByUser;
@@ -277,14 +250,11 @@ const FullPlayerLobby = ({
 
     try {
       if (isSelectedByUser) {
-        // ✅ Unselect - send delete-full-session
-        console.log('🟢 Unselecting card:', id);
         webSocketService.send('delete-full-session', {
           cardNumber: id,
           betAmount,
         });
       } else {
-        // ✅ Select new card
         if (selectedPlayers.length >= 2) {
           setErrorMessage(language === 'am' ? "ከ 2 በላይ ተጫዋቾችን መምረጥ አይችሉም!" : "You can't select more than 2 players!");
           setWalletError(true);
@@ -304,18 +274,14 @@ const FullPlayerLobby = ({
           return;
         }
 
-        console.log('🟢 Selecting card:', id);
         webSocketService.send('create-full-session', {
           userId: user._id,
-          agentId: user.agent_id || '',
+          agentId: user.agent_id || user._id,
           cardNumber: id,
-          betAmount,
-          createdAt: new Date().toISOString()
+          betAmount
         });
       }
-      
     } catch (error: any) {
-      console.error('Error toggling card:', error);
       const errorMsg = error.response?.data?.error || 
         (language === 'am' ? "ካርድ ሲመርጡ ስህተት ተፈጥሯል" : "Error selecting card");
       setErrorMessage(errorMsg);
@@ -336,19 +302,13 @@ const FullPlayerLobby = ({
       );
 
       if (currentBetSessions.length === 0) {
-        setToastMessage(language === 'am' 
-          ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' 
-          : 'Please select at least 1 card'
-        );
+        setToastMessage(language === 'am' ? 'እባክዎ ቢያንስ 1 ካርድ ይምረጡ' : 'Please select at least 1 card');
         setShowToast(true);
         return;
       }
 
       if (currentBetSessions.length > 2) {
-        setToastMessage(language === 'am' 
-          ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' 
-          : 'You cannot select more than 2 cards'
-        );
+        setToastMessage(language === 'am' ? 'ከ 2 በላይ ካርዶችን መምረጥ አይችሉም' : 'You cannot select more than 2 cards');
         setShowToast(true);
         return;
       }
@@ -357,15 +317,6 @@ const FullPlayerLobby = ({
         id: session.cardNumber,
         userId: session.userId._id
       }));
-
-      if (validatedSelectedPlayers.length < 1 || validatedSelectedPlayers.length > 2) {
-        setToastMessage(language === 'am' 
-          ? 'ከ 1 እስከ 2 ካርዶች ብቻ መምረጥ ይችላሉ' 
-          : 'You can only select 1 to 2 cards'
-        );
-        setShowToast(true);
-        return;
-      }
 
       webSocketService.send('fund-full-wallet', {
         betAmount: betAmount,
@@ -379,44 +330,12 @@ const FullPlayerLobby = ({
       });
 
       onDirectToGame(validatedSelectedPlayers, betAmount, gameId);
-
     } catch (error) {
-      console.error('Error in handleDirectToGame:', error);
-      setToastMessage(language === 'am' 
-        ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' 
-        : 'Error occurred while processing game entry'
-      );
+      setToastMessage(language === 'am' ? 'ወደ ጨዋታ ለመሄድ ሲገነዘብ ስህተት ተፈጥሯል' : 'Error occurred while processing game entry');
       setShowToast(true);
     }
   };
 
-  const handleCancelSelections = async () => {
-    if (!isClient || !webSocketService || !user) return;
-    
-    if (selectedPlayers.length === 0) return;
-    
-    setIsLoading(true);
-    try {
-      if (webSocketService) {
-        webSocketService.send('clear-full-selected', {
-          betAmount: betAmount,
-          userId: user._id
-        });
-      }
-      
-      setSelectedPlayers([]);
-      
-    } catch (error: any) {
-      console.error('Error canceling selections:', error);
-      const errorMsg = error.response?.data?.error || "Error canceling selections";
-      setErrorMessage(errorMsg);
-      setWalletError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Helper function to get card number grid (5x5 BINGO card)
   const getCardGrid = (cardId: number) => {
     const ranges = [
       [1, 15],
@@ -445,7 +364,6 @@ const FullPlayerLobby = ({
     return card;
   };
 
-  // Transpose card for display
   const transposeCard = (card: number[][]) => {
     const transposed: number[][] = [[], [], [], [], []];
     for (let i = 0; i < 5; i++) {
@@ -458,32 +376,20 @@ const FullPlayerLobby = ({
 
   const formatTimeRemaining = (seconds: number): string => {
     if (seconds <= 0) return '0s';
-    
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
     
-    if (days > 0) {
-      return `${days}d ${hours}h`;
-    }
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    }
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
     return `${secs}s`;
   };
 
   if (!isClient) {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '50vh' 
-      }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -499,8 +405,7 @@ const FullPlayerLobby = ({
         display: 'flex', 
         flexDirection: 'column',
         overflow: 'hidden',
-        padding: 0,
-        paddingTop: 0
+        padding: 0
       }}
     >
       {/* Header Row */}
@@ -509,9 +414,6 @@ const FullPlayerLobby = ({
         gap: 0.75,
         p: 0.5,
         mb: 1,
-        flexWrap: 'nowrap',
-        overflow: 'auto',
-        color: getTextColor(),
         width: '100%',
         flexShrink: 0
       }}>
@@ -524,10 +426,9 @@ const FullPlayerLobby = ({
           p: 0.75,
           background: getCardBackground(),
           borderRadius: 1.5,
-          minHeight: '7vh',
           color: getTextColor()
         }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
             {language === 'am' ? 'ውርርድ' : 'Bet'}
           </Typography>
           <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
@@ -544,10 +445,9 @@ const FullPlayerLobby = ({
           p: 0.75,
           background: getCardBackground(),
           borderRadius: 1.5,
-          minHeight: '7vh',
           color: getTextColor()
         }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
             {language === 'am' ? 'የቀረ ጊዜ' : 'Time'}
           </Typography>
           <Typography sx={{ fontWeight: 'bold', color: 'primary.main', fontSize: '1.1rem' }}>
@@ -564,10 +464,9 @@ const FullPlayerLobby = ({
           p: 0.75,
           background: getCardBackground(),
           borderRadius: 1.5,
-          minHeight: '7vh',
           color: getTextColor()
         }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
             {language === 'am' ? 'ተጫዋቾች' : 'Players'}
           </Typography>
           <Typography sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
@@ -584,10 +483,9 @@ const FullPlayerLobby = ({
           p: 0.75,
           background: getCardBackground(),
           borderRadius: 1.5,
-          minHeight: '7vh',
           color: getTextColor()
         }}>
-          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem', color: getTextColor(), whiteSpace: 'nowrap' }}>
+          <Typography sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>
             {language === 'am' ? 'ደራሽ' : 'Prize'}
           </Typography>
           <Typography sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '1.1rem' }}>
@@ -596,7 +494,7 @@ const FullPlayerLobby = ({
         </Card>
       </Box>
 
-      {/* Main Content */}
+      {/* Main Grid */}
       <Box sx={{ 
         p: 0,
         textAlign: 'center',
@@ -618,7 +516,6 @@ const FullPlayerLobby = ({
             gridTemplateColumns: `repeat(10, minmax(30px, 1fr))`,
             gridAutoRows: 'minmax(42px, auto)',
             gap: 0.5,
-            justifyContent: 'center',
             p: 0.5,
             background: getCardBackground(),
             borderRadius: 2,
@@ -628,15 +525,16 @@ const FullPlayerLobby = ({
             mx: 'auto',
             width: '100%',
             maxWidth: '100%',
-            boxSizing: 'border-box',
-            maxHeight: selectedPlayers.length > 0 ? '400px' : '400px',
+            maxHeight: '400px',
           }}
         >
           {Array.from({ length: 400 }, (_, i) => i + 1).map((id) => {
             const isOccupied = occupiedCards.includes(id);
             const isSelectedByUser = user && occupiedCardsByUser[id] === user._id;
             const isSelectedByOthers = isOccupied && !isSelectedByUser;
-            const isDisabled = isSelectedByOthers || remainingTime <= 0;
+            
+            // ✅ Only locked if selected by someone else (not blocked by remainingTime)
+            const isDisabled = isSelectedByOthers;
 
             return (
               <motion.div
@@ -686,14 +584,6 @@ const FullPlayerLobby = ({
                       : isSelectedByOthers
                       ? '0 2px 4px rgba(244,67,54,0.2)'
                       : '0 2px 4px rgba(0,0,0,0.1)',
-
-                    '&:hover': !isDisabled ? {
-                      background: isSelectedByUser
-                        ? 'linear-gradient(145deg, #388E3C, #689F38)'
-                        : backgroundColor === 'white'
-                          ? 'linear-gradient(145deg, #f5f5f5, #e0e0e0)'
-                          : 'rgba(255,255,255,0.25)',
-                    } : {},
                   }}
                 >
                   {id}
@@ -703,37 +593,26 @@ const FullPlayerLobby = ({
           })}
         </Box>
 
-        {/* Bottom Section */}
+        {/* Selected Cards & Action Section */}
         <Box sx={{ 
           flexShrink: 0,
           width: '100%',
-          maxWidth: '100%',
           px: 0.5,
           pb: 0.5,
           mt: 'auto',
         }}>
           {selectedPlayers.length === 0 ? (
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1,
-              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-              mx: 'auto',
-            }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant={getButtonVariant()}
                 color="primary"
-                onClick={() => {
-                  if (onBackToLobby) {
-                    onBackToLobby();
-                  }
-                }}
+                onClick={() => onBackToLobby && onBackToLobby()}
                 sx={{
                   flex: 1,
                   py: 1,
                   fontSize: '1.1rem',
                   fontWeight: 'bold',
                   borderRadius: 2,
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
                   ...getButtonStyle()
                 }}
               >
@@ -741,19 +620,9 @@ const FullPlayerLobby = ({
               </Button>
             </Box>
           ) : (
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              gap: 1,
-              maxWidth: gridContainerRef.current ? gridContainerRef.current.offsetWidth : '100%',
-              mx: 'auto',
-            }}>
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 1,
-                overflow: 'auto',
-              }}>
-                {selectedPlayers.map((player, index) => {
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, overflow: 'auto' }}>
+                {selectedPlayers.map((player) => {
                   const card = getCardGrid(player.id);
                   const transposedCard = transposeCard(card);
                   
@@ -762,44 +631,26 @@ const FullPlayerLobby = ({
                       key={player.id}
                       sx={{
                         flex: selectedPlayers.length === 1 ? '1' : '0 0 calc(50% - 4px)',
-                        minWidth: selectedPlayers.length === 1 ? 'auto' : '45%',
                         p: 0.5,
                         background: getCardBackground(),
                         borderRadius: 1.5,
                         border: '2px solid #4CAF50',
-                        boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
                       }}
                     >
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                        <Typography sx={{ 
-                          fontWeight: 'bold', 
-                          fontSize: '0.85rem',
-                          color: getTextColor() 
-                        }}>
+                        <Typography sx={{ fontWeight: 'bold', fontSize: '0.85rem', color: getTextColor() }}>
                           {language === 'am' ? 'ካርድ' : 'Card'} #{player.id}
                         </Typography>
                         <IconButton
                           size="small"
                           onClick={() => togglePlayer(player.id)}
-                          sx={{
-                            color: '#f44336',
-                            padding: 0.5,
-                            '&:hover': {
-                              backgroundColor: 'rgba(244,67,54,0.1)'
-                            }
-                          }}
+                          sx={{ color: '#f44336', padding: 0.5 }}
                         >
                           ✕
                         </IconButton>
                       </Box>
 
-                      <Box
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(5, 1fr)',
-                          gap: 0.15,
-                        }}
-                      >
+                      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 0.15 }}>
                         {["B", "I", "N", "G", "O"].map((letter) => (
                           <Box
                             key={letter}
@@ -829,9 +680,7 @@ const FullPlayerLobby = ({
                                   p: 0.15,
                                   border: '1px solid rgba(255,255,255,0.1)',
                                   borderRadius: '2px',
-                                  background: isFreeSpace
-                                    ? 'rgba(76,175,80,0.3)'
-                                    : 'rgba(255,255,255,0.05)',
+                                  background: isFreeSpace ? 'rgba(76,175,80,0.3)' : 'rgba(255,255,255,0.05)',
                                   color: getTextColor(),
                                   fontWeight: 'bold',
                                   fontSize: '0.65rem',
@@ -856,16 +705,13 @@ const FullPlayerLobby = ({
                 variant="contained"
                 color="success"
                 onClick={handleDirectToGame}
-                disabled={selectedPlayers.length === 0 || remainingTime <= 0}
+                disabled={selectedPlayers.length === 0}
                 sx={{
                   py: 1.5,
                   fontSize: '1.2rem',
                   fontWeight: 'bold',
                   borderRadius: 2,
                   boxShadow: '0 4px 12px rgba(76,175,80,0.4)',
-                  '&:disabled': {
-                    background: '#bdc3c7',
-                  }
                 }}
               >
                 {remainingTime > 0 
@@ -877,30 +723,14 @@ const FullPlayerLobby = ({
           )}
         </Box>
 
-        <Snackbar
-          open={walletError}
-          autoHideDuration={6000}
-          onClose={() => setWalletError(false)}
-        >
-          <Alert 
-            severity="error" 
-            onClose={() => setWalletError(false)}
-            sx={{ width: '100%' }}
-          >
+        <Snackbar open={walletError} autoHideDuration={6000} onClose={() => setWalletError(false)}>
+          <Alert severity="error" onClose={() => setWalletError(false)} sx={{ width: '100%' }}>
             {errorMessage}
           </Alert>
         </Snackbar>
 
-        <Snackbar
-          open={showToast}
-          autoHideDuration={3000}
-          onClose={() => setShowToast(false)}
-        >
-          <Alert 
-            severity="info" 
-            onClose={() => setShowToast(false)}
-            sx={{ width: '100%' }}
-          >
+        <Snackbar open={showToast} autoHideDuration={3000} onClose={() => setShowToast(false)}>
+          <Alert severity="info" onClose={() => setShowToast(false)} sx={{ width: '100%' }}>
             {toastMessage}
           </Alert>
         </Snackbar>
