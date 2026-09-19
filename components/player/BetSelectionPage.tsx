@@ -53,6 +53,7 @@ interface UserData {
 interface Game {
   _id: string;
   betAmount: number;
+  gameType: 'partial' | 'full'; // Added gameType property
   createdAt: string;
   updatedAt: string;
 }
@@ -234,7 +235,10 @@ const BetSelectionPage = ({
       const response = await api.get('/games');
       const games: Game[] = response.data.data;
       
-      const betAmounts = games.map(game => game.betAmount).sort((a, b) => a - b);
+      // Filter for 'partial' games only
+      const partialGames = games.filter(game => game.gameType === 'partial');
+      
+      const betAmounts = partialGames.map(game => game.betAmount).sort((a, b) => a - b);
       setBetOptions(betAmounts);
       
       const initialStatuses: {[key: number]: BetStatus} = {};
