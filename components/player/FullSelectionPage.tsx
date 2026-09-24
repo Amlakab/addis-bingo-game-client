@@ -246,6 +246,31 @@ const FullSelectionPage = ({
     }
   };
 
+  // Convert a standard 24h "HH:MM" (EAT) into Ethiopian traditional clock label.
+// Rule: habesha = (standard - 6) mod 12, with 12 for midnight/noon boundaries.
+const toHabeshaTime = (startTime: string, language: 'en' | 'am'): string => {
+  const [hStr, mStr] = startTime.split(':');
+  const h24 = parseInt(hStr, 10);
+  const minutes = (mStr ?? '00').padStart(2, '0');
+  if (Number.isNaN(h24)) return startTime;
+
+  // Ethiopian traditional hour: 6:00 standard = 12 habesha
+  let habesha = h24 - 6;
+  if (habesha <= 0) habesha += 12;      // 00:00→6...05:00→11 wrap to 6..11
+  // Actually cleaner: ((h24 - 6 + 12) % 12) || 12
+  habesha = ((h24 - 6 + 12) % 12) || 12;
+
+  // Day-part label
+  let part: string;
+  if (h24 >= 6 && h24 < 12)       part = language === 'am' ? 'ጠዋት'   : 'morning';
+  else if (h24 >= 12 && h24 < 18) part = language === 'am' ? 'ከሰዓት'  : 'afternoon';
+  else                            part = language === 'am' ? 'ምሽት'   : 'evening';
+
+  return language === 'am'
+    ? `${habesha}:${minutes} ${part}`
+    : `${habesha}:${minutes} ${part}`;
+};
+
   const formatTimeRemaining = (seconds: number): string => {
     if (seconds <= 0) return '0s';
     
@@ -464,25 +489,25 @@ const FullSelectionPage = ({
                       </Typography>
                       
                       {/* Active Days */}
-                      {game.activeDays && game.activeDays.length > 0 && (
-                        <Box sx={{ mb: 1.5 }}>
-                          {game.activeDays.map((day, idx) => (
-                            <Chip
-                              key={idx}
-                              label={`${day.day.charAt(0).toUpperCase() + day.day.slice(1)} ${day.startTime}`}
-                              size="small"
-                              variant="outlined"
-                              sx={{ 
-                                mr: 0.5, 
-                                mb: 0.5, 
-                                fontSize: '0.65rem',
-                                color: getTextColor(),
-                                borderColor: getTextColor() + '40'
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
+                      {game.activeDays.map((day, idx) => (
+                        <Chip
+                          key={idx}
+                          label={`${
+                            day.day.charAt(0).toUpperCase() + day.day.slice(1)
+                          } ${toHabeshaTime(day.startTime, language)} ${
+                            language === 'am' ? 'የኢ.ሰ' : 'EAT'
+                          }`}
+                          size="small"
+                          variant="outlined"
+                          sx={{ 
+                            mr: 0.5, 
+                            mb: 0.5, 
+                            fontSize: '0.65rem',
+                            color: getTextColor(),
+                            borderColor: getTextColor() + '40'
+                          }}
+                        />
+                      ))}
                       
                       {/* Players Count */}
                       <Box sx={{ 
