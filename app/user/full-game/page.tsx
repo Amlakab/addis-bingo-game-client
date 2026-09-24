@@ -180,7 +180,7 @@ export default function FullGamePage() {
 
       {/* MobileNavigation only visible on the Selection page */}
       {currentPage === 'selection' && (
-        <MobileNavigation />
+        // <MobileNavigation />
       )}
     </div>
   );
