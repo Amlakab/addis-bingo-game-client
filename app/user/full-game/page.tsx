@@ -179,9 +179,9 @@ export default function FullGamePage() {
       </main>
 
       {/* MobileNavigation only visible on the Selection page */}
-      {currentPage === 'selection' && (
-        // <MobileNavigation />
-      )}
+      {/* {currentPage === 'selection' && (
+        <MobileNavigation />
+      )} */}
     </div>
   );
 }

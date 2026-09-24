@@ -659,11 +659,11 @@ const FullSelectionPage = ({
         </motion.div>
       </Box>
 
-      <HowToPlayModal
+      {/* <HowToPlayModal
         open={howToPlayOpen}
         onClose={() => setHowToPlayOpen(false)}
         language={language}
-      />
+      /> */}
     </motion.div>
   );
 };
